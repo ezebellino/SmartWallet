@@ -152,6 +152,44 @@ export type PortfolioSummary = {
   risk_warning: string;
 };
 
+export type SpendingInsight = {
+  type: string;
+  severity: "low" | "medium" | "high" | string;
+  title: string;
+  description: string;
+  category_id: number | null;
+  category_name: string | null;
+  amount: string | null;
+  percentage: number | null;
+};
+
+export type SpendingInsightsResponse = {
+  year: number;
+  month: number;
+  insights: SpendingInsight[];
+};
+
+export type CompoundInterestRequest = {
+  initial_amount: string;
+  monthly_contribution: string;
+  annual_interest_rate: string;
+  years: number;
+};
+
+export type CompoundInterestPoint = {
+  month: number;
+  contributed_amount: string;
+  interest_earned: string;
+  balance: string;
+};
+
+export type CompoundInterestResponse = {
+  final_balance: string;
+  total_contributions: string;
+  total_interest: string;
+  points: CompoundInterestPoint[];
+};
+
 export type AiReport = {
   id: number;
   period_year: number;

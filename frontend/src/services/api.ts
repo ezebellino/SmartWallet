@@ -5,6 +5,8 @@ import type {
   BudgetUsage,
   Category,
   CategoryType,
+  CompoundInterestRequest,
+  CompoundInterestResponse,
   InvestmentAsset,
   InvestmentAssetType,
   InvestmentOperation,
@@ -14,6 +16,7 @@ import type {
   PortfolioSummary,
   SavingGoal,
   SavingGoalStatus,
+  SpendingInsightsResponse,
   Transaction,
   TransactionType
 } from "@/types/api";
@@ -335,6 +338,19 @@ export function createInvestmentOperation(
 export function getPortfolioSummary(token: string) {
   return request<PortfolioSummary>("/investments/portfolio", {
     headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function getSpendingInsights(token: string, year: number, month: number) {
+  return request<SpendingInsightsResponse>(`/insights/spending?year=${year}&month=${month}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function simulateCompoundInterest(payload: CompoundInterestRequest) {
+  return request<CompoundInterestResponse>("/simulations/compound-interest", {
+    method: "POST",
+    body: JSON.stringify(payload)
   });
 }
 

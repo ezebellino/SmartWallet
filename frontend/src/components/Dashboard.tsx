@@ -22,8 +22,10 @@ import {
   getMonthlySummary,
   getPortfolioSummary,
   getSavingGoals,
+  getSpendingInsights,
   getTransactions,
   addSavingGoalContribution,
+  simulateCompoundInterest,
   updateBudget,
   updateCategory,
   updateInvestmentAsset,
@@ -38,6 +40,8 @@ import type {
   BudgetUsage,
   Category,
   CategoryType,
+  CompoundInterestRequest,
+  CompoundInterestResponse,
   InvestmentAsset,
   InvestmentAssetType,
   InvestmentOperation,
@@ -47,6 +51,7 @@ import type {
   PortfolioSummary,
   SavingGoal,
   SavingGoalStatus,
+  SpendingInsightsResponse,
   Transaction,
   TransactionType
 } from "@/types/api";
@@ -59,6 +64,7 @@ import { ExpenseCategories } from "@/components/dashboard/ExpenseCategories";
 import { GoalsManager } from "@/components/dashboard/GoalsManager";
 import { InvestmentsManager } from "@/components/dashboard/InvestmentsManager";
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
+import { PlanningPanel } from "@/components/dashboard/PlanningPanel";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { TransactionManager } from "@/components/dashboard/TransactionManager";
 
@@ -80,6 +86,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
   const [investmentAssets, setInvestmentAssets] = useState<InvestmentAsset[]>([]);
   const [investmentOperations, setInvestmentOperations] = useState<InvestmentOperation[]>([]);
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
+  const [spendingInsights, setSpendingInsights] = useState<SpendingInsightsResponse | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const t = (key: TranslationKey) => translations[language][key];
   const [status, setStatus] = useState(t("localPreviewData"));
@@ -145,6 +152,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
         investmentAssetsResponse,
         investmentOperationsResponse,
         portfolioResponse,
+        spendingInsightsResponse,
         transactionsResponse
       ] = await Promise.all([
         getMonthlySummary(token, year, month),
@@ -156,6 +164,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
         getInvestmentAssets(token),
         getInvestmentOperations(token),
         getPortfolioSummary(token),
+        getSpendingInsights(token, year, month),
         getTransactions(token)
       ]);
       setSummary(summaryResponse);
@@ -167,6 +176,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
       setInvestmentAssets(investmentAssetsResponse);
       setInvestmentOperations(investmentOperationsResponse);
       setPortfolio(portfolioResponse);
+      setSpendingInsights(spendingInsightsResponse);
       setTransactions(transactionsResponse);
       setStatus(t("backendSynced"));
     } catch (error) {
@@ -179,14 +189,16 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
-    const [summaryResponse, budgetsResponse, budgetUsageResponse] = await Promise.all([
+    const [summaryResponse, budgetsResponse, budgetUsageResponse, spendingInsightsResponse] = await Promise.all([
       getMonthlySummary(tokenValue, year, month),
       getBudgets(tokenValue, year, month),
-      getBudgetUsage(tokenValue, year, month)
+      getBudgetUsage(tokenValue, year, month),
+      getSpendingInsights(tokenValue, year, month)
     ]);
     setSummary(summaryResponse);
     setBudgets(budgetsResponse);
     setBudgetUsage(budgetUsageResponse);
+    setSpendingInsights(spendingInsightsResponse);
   }
 
   async function refreshInvestments(tokenValue: string) {
@@ -483,6 +495,19 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
     }
   }
 
+  async function handleSimulateCompoundInterest(
+    payload: CompoundInterestRequest
+  ): Promise<CompoundInterestResponse> {
+    try {
+      const result = await simulateCompoundInterest(payload);
+      setStatus(t("simulationReady"));
+      return result;
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
   async function handleCreateTransaction(payload: {
     category_id: number;
     type: TransactionType;
@@ -619,6 +644,12 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
               onUpdateAsset={handleUpdateInvestmentAsset}
               operations={investmentOperations}
               portfolio={portfolio}
+              t={t}
+            />
+            <PlanningPanel
+              insights={spendingInsights}
+              isDisabled={!token}
+              onSimulate={handleSimulateCompoundInterest}
               t={t}
             />
           </div>
