@@ -1,17 +1,28 @@
 import { BarChart3, Bell, Bot, CreditCard, Gauge, LineChart, Target, WalletCards } from "lucide-react";
 import type { TranslationKey } from "@/i18n";
 import type { BudgetUsage } from "@/types/api";
+import type { DashboardSection } from "@/components/dashboard/DashboardSectionNav";
 
 const navigation = [
-  ["dashboard", Gauge],
-  ["movements", CreditCard],
-  ["budgets", BarChart3],
-  ["goals", Target],
-  ["investments", LineChart],
-  ["aiReports", Bot]
+  ["dashboard", "dashboard", Gauge],
+  ["movements", "movements", CreditCard],
+  ["budgets", "budgets", BarChart3],
+  ["goals", "goals", Target],
+  ["investments", "investments", LineChart],
+  ["aiReports", "aiReports", Bot]
 ] as const;
 
-export function Sidebar({ budgetUsage, t }: { budgetUsage: BudgetUsage[]; t: (key: TranslationKey) => string }) {
+export function Sidebar({
+  activeSection,
+  budgetUsage,
+  onSectionChange,
+  t
+}: {
+  activeSection: DashboardSection;
+  budgetUsage: BudgetUsage[];
+  onSectionChange: (section: DashboardSection) => void;
+  t: (key: TranslationKey) => string;
+}) {
   const activeAlerts = budgetUsage.filter((budget) => budget.is_over_budget || budget.is_near_limit).slice(0, 3);
 
   return (
@@ -27,16 +38,23 @@ export function Sidebar({ budgetUsage, t }: { budgetUsage: BudgetUsage[]; t: (ke
       </div>
 
       <nav className="mt-8 space-y-1">
-        {navigation.map(([label, Icon]) => (
-          <button
-            className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-medium text-muted transition hover:bg-panelSoft hover:text-text first:bg-panelSoft first:text-text"
-            key={label}
-            type="button"
-          >
-            <Icon size={17} />
-            {t(label)}
-          </button>
-        ))}
+        {navigation.map(([label, section, Icon]) => {
+          const isActive = activeSection === section;
+
+          return (
+            <button
+              className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-medium transition ${
+                isActive ? "bg-panelSoft text-text" : "text-muted hover:bg-panelSoft hover:text-text"
+              }`}
+              key={label}
+              onClick={() => onSectionChange(section)}
+              type="button"
+            >
+              <Icon size={17} />
+              {t(label)}
+            </button>
+          );
+        })}
       </nav>
 
       <div className="mt-8 rounded-lg border border-borderSoft bg-panel p-4">

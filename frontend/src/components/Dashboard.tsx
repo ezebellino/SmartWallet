@@ -89,7 +89,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
   const [spendingInsights, setSpendingInsights] = useState<SpendingInsightsResponse | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [activeSection, setActiveSection] = useState<DashboardSection>("overview");
+  const [activeSection, setActiveSection] = useState<DashboardSection>("dashboard");
   const t = (key: TranslationKey) => translations[language][key];
   const [status, setStatus] = useState(t("localPreviewData"));
 
@@ -588,7 +588,12 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar budgetUsage={budgetUsage} t={t} />
+      <Sidebar
+        activeSection={activeSection}
+        budgetUsage={budgetUsage}
+        onSectionChange={setActiveSection}
+        t={t}
+      />
 
       <main className="min-w-0 flex-1 px-4 py-5 md:px-6 xl:px-8">
         <DashboardHeader
@@ -603,26 +608,11 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
         <MetricsGrid metrics={metrics} t={t} />
         <DashboardSectionNav activeSection={activeSection} onChange={setActiveSection} t={t} />
 
-        {activeSection === "overview" ? (
+        {activeSection === "dashboard" ? (
           <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
             <div className="space-y-4">
               <CashflowChart data={cashflowData} t={t} />
-              <div className="grid gap-4 xl:grid-cols-2">
-                <ExpenseCategories data={expenseCategoryData} t={t} />
-                <AiReportPanel report={report} t={t} />
-              </div>
-              <BudgetManager
-                budgetUsage={budgetUsage}
-                budgets={budgets}
-                categories={categories}
-                currentMonth={new Date().getMonth() + 1}
-                currentYear={new Date().getFullYear()}
-                isDisabled={!token}
-                onCreate={handleCreateBudget}
-                onDelete={handleDeleteBudget}
-                onUpdate={handleUpdateBudget}
-                t={t}
-              />
+              <ExpenseCategories data={expenseCategoryData} t={t} />
             </div>
 
             <aside className="space-y-4">
@@ -662,8 +652,35 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
           </div>
         ) : null}
 
+        {activeSection === "budgets" ? (
+          <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+            <BudgetManager
+              budgetUsage={budgetUsage}
+              budgets={budgets}
+              categories={categories}
+              currentMonth={new Date().getMonth() + 1}
+              currentYear={new Date().getFullYear()}
+              isDisabled={!token}
+              onCreate={handleCreateBudget}
+              onDelete={handleDeleteBudget}
+              onUpdate={handleUpdateBudget}
+              t={t}
+            />
+            <aside className="space-y-4">
+              <CategoryManager
+                categories={categories}
+                isDisabled={!token}
+                onCreate={handleCreateCategory}
+                onDelete={handleDeleteCategory}
+                onUpdate={handleUpdateCategory}
+                t={t}
+              />
+            </aside>
+          </div>
+        ) : null}
+
         {activeSection === "goals" ? (
-          <div className="mt-4 space-y-4">
+          <div className="mt-4">
             <GoalsManager
               goals={goals}
               isDisabled={!token}
@@ -673,6 +690,11 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
               onUpdate={handleUpdateGoal}
               t={t}
             />
+          </div>
+        ) : null}
+
+        {activeSection === "investments" ? (
+          <div className="mt-4">
             <InvestmentsManager
               assets={investmentAssets}
               isDisabled={!token}
@@ -687,8 +709,9 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
           </div>
         ) : null}
 
-        {activeSection === "planning" ? (
-          <div className="mt-4">
+        {activeSection === "aiReports" ? (
+          <div className="mt-4 grid gap-4 xl:grid-cols-[380px_minmax(0,1fr)]">
+            <AiReportPanel report={report} t={t} />
             <PlanningPanel
               insights={spendingInsights}
               isDisabled={!token}
