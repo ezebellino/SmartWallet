@@ -76,6 +76,21 @@ export type BudgetUsage = {
   is_near_limit: boolean;
 };
 
+export type SavingGoalStatus = "active" | "completed" | "paused" | "cancelled";
+
+export type SavingGoal = {
+  id: number;
+  name: string;
+  target_amount: string;
+  current_amount: string;
+  target_date: string | null;
+  status: SavingGoalStatus;
+  progress_percentage: number;
+  remaining_amount: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type AiReport = {
   id: number;
   period_year: number;

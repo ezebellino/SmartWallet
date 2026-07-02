@@ -4,18 +4,23 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createCategory,
   createBudget,
+  createSavingGoal,
   createTransaction,
   deleteBudget,
   deleteCategory,
+  deleteSavingGoal,
   deleteTransaction,
   generateMonthlyReport,
   getBudgets,
   getBudgetUsage,
   getCategories,
   getMonthlySummary,
+  getSavingGoals,
   getTransactions,
+  addSavingGoalContribution,
   updateBudget,
   updateCategory,
+  updateSavingGoal,
   updateTransaction
 } from "@/services/api";
 import type { Language, TranslationKey } from "@/i18n";
@@ -27,6 +32,8 @@ import type {
   Category,
   CategoryType,
   MonthlySummary,
+  SavingGoal,
+  SavingGoalStatus,
   Transaction,
   TransactionType
 } from "@/types/api";
@@ -36,6 +43,7 @@ import { CashflowChart } from "@/components/dashboard/CashflowChart";
 import { CategoryManager } from "@/components/dashboard/CategoryManager";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { ExpenseCategories } from "@/components/dashboard/ExpenseCategories";
+import { GoalsManager } from "@/components/dashboard/GoalsManager";
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { TransactionManager } from "@/components/dashboard/TransactionManager";
@@ -54,6 +62,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetUsage, setBudgetUsage] = useState<BudgetUsage[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [goals, setGoals] = useState<SavingGoal[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const t = (key: TranslationKey) => translations[language][key];
   const [status, setStatus] = useState(t("localPreviewData"));
@@ -115,6 +124,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
         budgetsResponse,
         budgetUsageResponse,
         categoriesResponse,
+        goalsResponse,
         transactionsResponse
       ] = await Promise.all([
         getMonthlySummary(token, year, month),
@@ -122,6 +132,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
         getBudgets(token, year, month),
         getBudgetUsage(token, year, month),
         getCategories(token),
+        getSavingGoals(token),
         getTransactions(token)
       ]);
       setSummary(summaryResponse);
@@ -129,6 +140,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
       setBudgets(budgetsResponse);
       setBudgetUsage(budgetUsageResponse);
       setCategories(categoriesResponse);
+      setGoals(goalsResponse);
       setTransactions(transactionsResponse);
       setStatus(t("backendSynced"));
     } catch (error) {
@@ -267,6 +279,85 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
     }
   }
 
+  async function handleCreateGoal(payload: {
+    name: string;
+    target_amount: string;
+    current_amount: string;
+    target_date?: string | null;
+    status: SavingGoalStatus;
+  }) {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    try {
+      const goal = await createSavingGoal(token, payload);
+      setGoals((current) => [...current, goal]);
+      setStatus(t("goalCreated"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
+  async function handleUpdateGoal(
+    goalId: number,
+    payload: {
+      name?: string;
+      target_amount?: string;
+      current_amount?: string;
+      target_date?: string | null;
+      status?: SavingGoalStatus;
+    }
+  ) {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    try {
+      const goal = await updateSavingGoal(token, goalId, payload);
+      setGoals((current) => current.map((item) => (item.id === goal.id ? goal : item)));
+      setStatus(t("goalUpdated"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
+  async function handleGoalContribution(goalId: number, amount: string) {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    try {
+      const goal = await addSavingGoalContribution(token, goalId, amount);
+      setGoals((current) => current.map((item) => (item.id === goal.id ? goal : item)));
+      setStatus(t("goalContributionAdded"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
+  async function handleDeleteGoal(goalId: number) {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    try {
+      await deleteSavingGoal(token, goalId);
+      setGoals((current) => current.filter((item) => item.id !== goalId));
+      setStatus(t("goalDeleted"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
   async function handleCreateTransaction(payload: {
     category_id: number;
     type: TransactionType;
@@ -383,6 +474,15 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
               onCreate={handleCreateBudget}
               onDelete={handleDeleteBudget}
               onUpdate={handleUpdateBudget}
+              t={t}
+            />
+            <GoalsManager
+              goals={goals}
+              isDisabled={!token}
+              onContribute={handleGoalContribution}
+              onCreate={handleCreateGoal}
+              onDelete={handleDeleteGoal}
+              onUpdate={handleUpdateGoal}
               t={t}
             />
           </div>

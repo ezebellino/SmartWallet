@@ -6,6 +6,8 @@ import type {
   Category,
   CategoryType,
   MonthlySummary,
+  SavingGoal,
+  SavingGoalStatus,
   Transaction,
   TransactionType
 } from "@/types/api";
@@ -189,6 +191,62 @@ export function updateTransaction(
 
 export function deleteTransaction(token: string, transactionId: number) {
   return request<void>(`/transactions/${transactionId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function getSavingGoals(token: string) {
+  return request<SavingGoal[]>("/goals", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function createSavingGoal(
+  token: string,
+  payload: {
+    name: string;
+    target_amount: string;
+    current_amount: string;
+    target_date?: string | null;
+    status: SavingGoalStatus;
+  }
+) {
+  return request<SavingGoal>("/goals", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateSavingGoal(
+  token: string,
+  goalId: number,
+  payload: {
+    name?: string;
+    target_amount?: string;
+    current_amount?: string;
+    target_date?: string | null;
+    status?: SavingGoalStatus;
+  }
+) {
+  return request<SavingGoal>(`/goals/${goalId}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function addSavingGoalContribution(token: string, goalId: number, amount: string) {
+  return request<SavingGoal>(`/goals/${goalId}/contributions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ amount })
+  });
+}
+
+export function deleteSavingGoal(token: string, goalId: number) {
+  return request<void>(`/goals/${goalId}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` }
   });
