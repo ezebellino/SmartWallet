@@ -60,6 +60,7 @@ import { BudgetManager } from "@/components/dashboard/BudgetManager";
 import { CashflowChart } from "@/components/dashboard/CashflowChart";
 import { CategoryManager } from "@/components/dashboard/CategoryManager";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { DashboardSectionNav, type DashboardSection } from "@/components/dashboard/DashboardSectionNav";
 import { ExpenseCategories } from "@/components/dashboard/ExpenseCategories";
 import { GoalsManager } from "@/components/dashboard/GoalsManager";
 import { InvestmentsManager } from "@/components/dashboard/InvestmentsManager";
@@ -88,6 +89,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
   const [spendingInsights, setSpendingInsights] = useState<SpendingInsightsResponse | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [activeSection, setActiveSection] = useState<DashboardSection>("overview");
   const t = (key: TranslationKey) => translations[language][key];
   const [status, setStatus] = useState(t("localPreviewData"));
 
@@ -599,12 +601,31 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
           onLogout={onLogout}
         />
         <MetricsGrid metrics={metrics} t={t} />
+        <DashboardSectionNav activeSection={activeSection} onChange={setActiveSection} t={t} />
 
-        <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="space-y-4">
-            <CashflowChart data={cashflowData} t={t} />
-            <div className="grid gap-4 xl:grid-cols-2">
-              <ExpenseCategories data={expenseCategoryData} t={t} />
+        {activeSection === "overview" ? (
+          <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+            <div className="space-y-4">
+              <CashflowChart data={cashflowData} t={t} />
+              <div className="grid gap-4 xl:grid-cols-2">
+                <ExpenseCategories data={expenseCategoryData} t={t} />
+                <AiReportPanel report={report} t={t} />
+              </div>
+              <BudgetManager
+                budgetUsage={budgetUsage}
+                budgets={budgets}
+                categories={categories}
+                currentMonth={new Date().getMonth() + 1}
+                currentYear={new Date().getFullYear()}
+                isDisabled={!token}
+                onCreate={handleCreateBudget}
+                onDelete={handleDeleteBudget}
+                onUpdate={handleUpdateBudget}
+                t={t}
+              />
+            </div>
+
+            <aside className="space-y-4">
               <CategoryManager
                 categories={categories}
                 isDisabled={!token}
@@ -613,19 +634,36 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
                 onUpdate={handleUpdateCategory}
                 t={t}
               />
-            </div>
-            <BudgetManager
-              budgetUsage={budgetUsage}
-              budgets={budgets}
+            </aside>
+          </div>
+        ) : null}
+
+        {activeSection === "movements" ? (
+          <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+            <TransactionManager
               categories={categories}
-              currentMonth={new Date().getMonth() + 1}
-              currentYear={new Date().getFullYear()}
               isDisabled={!token}
-              onCreate={handleCreateBudget}
-              onDelete={handleDeleteBudget}
-              onUpdate={handleUpdateBudget}
+              onCreate={handleCreateTransaction}
+              onDelete={handleDeleteTransaction}
+              onUpdate={handleUpdateTransaction}
+              transactions={transactions}
               t={t}
             />
+            <aside className="space-y-4">
+              <CategoryManager
+                categories={categories}
+                isDisabled={!token}
+                onCreate={handleCreateCategory}
+                onDelete={handleDeleteCategory}
+                onUpdate={handleUpdateCategory}
+                t={t}
+              />
+            </aside>
+          </div>
+        ) : null}
+
+        {activeSection === "goals" ? (
+          <div className="mt-4 space-y-4">
             <GoalsManager
               goals={goals}
               isDisabled={!token}
@@ -646,6 +684,11 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
               portfolio={portfolio}
               t={t}
             />
+          </div>
+        ) : null}
+
+        {activeSection === "planning" ? (
+          <div className="mt-4">
             <PlanningPanel
               insights={spendingInsights}
               isDisabled={!token}
@@ -653,20 +696,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
               t={t}
             />
           </div>
-
-          <aside className="space-y-4">
-            <TransactionManager
-              categories={categories}
-              isDisabled={!token}
-              onCreate={handleCreateTransaction}
-              onDelete={handleDeleteTransaction}
-              onUpdate={handleUpdateTransaction}
-              transactions={transactions}
-              t={t}
-            />
-            <AiReportPanel report={report} t={t} />
-          </aside>
-        </div>
+        ) : null}
       </main>
     </div>
   );
