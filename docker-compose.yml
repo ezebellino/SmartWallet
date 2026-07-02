@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: smart-wallet-postgres
+    environment:
+      POSTGRES_USER: smart_wallet
+      POSTGRES_PASSWORD: smart_wallet
+      POSTGRES_DB: smart_wallet
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+    container_name: smart-wallet-api
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://smart_wallet:smart_wallet@postgres:5432/smart_wallet
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
