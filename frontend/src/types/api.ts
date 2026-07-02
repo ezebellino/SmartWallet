@@ -91,6 +91,67 @@ export type SavingGoal = {
   updated_at: string;
 };
 
+export type InvestmentAssetType =
+  | "stock"
+  | "crypto"
+  | "bond"
+  | "cedear"
+  | "mutual_fund"
+  | "index"
+  | "etf"
+  | "fixed_term"
+  | "other";
+
+export type InvestmentRiskLevel = "low" | "medium" | "high";
+
+export type InvestmentOperationType = "buy" | "sell";
+
+export type InvestmentAsset = {
+  id: number;
+  name: string;
+  symbol: string;
+  asset_type: InvestmentAssetType;
+  currency: string;
+  risk_level: InvestmentRiskLevel;
+  current_price: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InvestmentOperation = {
+  id: number;
+  asset_id: number;
+  operation_type: InvestmentOperationType;
+  quantity: string;
+  unit_price: string;
+  fees: string;
+  operation_date: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PortfolioPosition = {
+  asset_id: number;
+  name: string;
+  symbol: string;
+  asset_type: InvestmentAssetType;
+  risk_level: InvestmentRiskLevel;
+  currency: string;
+  quantity: string;
+  average_cost: string;
+  invested_amount: string;
+  estimated_value: string | null;
+  unrealized_gain_loss: string | null;
+};
+
+export type PortfolioSummary = {
+  total_invested: string;
+  total_estimated_value: string;
+  total_unrealized_gain_loss: string;
+  positions: PortfolioPosition[];
+  risk_warning: string;
+};
+
 export type AiReport = {
   id: number;
   period_year: number;

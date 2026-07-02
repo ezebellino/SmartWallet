@@ -2,24 +2,31 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  createInvestmentAsset,
+  createInvestmentOperation,
   createCategory,
   createBudget,
   createSavingGoal,
   createTransaction,
   deleteBudget,
   deleteCategory,
+  deleteInvestmentAsset,
   deleteSavingGoal,
   deleteTransaction,
   generateMonthlyReport,
   getBudgets,
   getBudgetUsage,
   getCategories,
+  getInvestmentAssets,
+  getInvestmentOperations,
   getMonthlySummary,
+  getPortfolioSummary,
   getSavingGoals,
   getTransactions,
   addSavingGoalContribution,
   updateBudget,
   updateCategory,
+  updateInvestmentAsset,
   updateSavingGoal,
   updateTransaction
 } from "@/services/api";
@@ -31,7 +38,13 @@ import type {
   BudgetUsage,
   Category,
   CategoryType,
+  InvestmentAsset,
+  InvestmentAssetType,
+  InvestmentOperation,
+  InvestmentOperationType,
+  InvestmentRiskLevel,
   MonthlySummary,
+  PortfolioSummary,
   SavingGoal,
   SavingGoalStatus,
   Transaction,
@@ -44,6 +57,7 @@ import { CategoryManager } from "@/components/dashboard/CategoryManager";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { ExpenseCategories } from "@/components/dashboard/ExpenseCategories";
 import { GoalsManager } from "@/components/dashboard/GoalsManager";
+import { InvestmentsManager } from "@/components/dashboard/InvestmentsManager";
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { TransactionManager } from "@/components/dashboard/TransactionManager";
@@ -63,6 +77,9 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
   const [budgetUsage, setBudgetUsage] = useState<BudgetUsage[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [goals, setGoals] = useState<SavingGoal[]>([]);
+  const [investmentAssets, setInvestmentAssets] = useState<InvestmentAsset[]>([]);
+  const [investmentOperations, setInvestmentOperations] = useState<InvestmentOperation[]>([]);
+  const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const t = (key: TranslationKey) => translations[language][key];
   const [status, setStatus] = useState(t("localPreviewData"));
@@ -125,6 +142,9 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
         budgetUsageResponse,
         categoriesResponse,
         goalsResponse,
+        investmentAssetsResponse,
+        investmentOperationsResponse,
+        portfolioResponse,
         transactionsResponse
       ] = await Promise.all([
         getMonthlySummary(token, year, month),
@@ -133,6 +153,9 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
         getBudgetUsage(token, year, month),
         getCategories(token),
         getSavingGoals(token),
+        getInvestmentAssets(token),
+        getInvestmentOperations(token),
+        getPortfolioSummary(token),
         getTransactions(token)
       ]);
       setSummary(summaryResponse);
@@ -141,6 +164,9 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
       setBudgetUsage(budgetUsageResponse);
       setCategories(categoriesResponse);
       setGoals(goalsResponse);
+      setInvestmentAssets(investmentAssetsResponse);
+      setInvestmentOperations(investmentOperationsResponse);
+      setPortfolio(portfolioResponse);
       setTransactions(transactionsResponse);
       setStatus(t("backendSynced"));
     } catch (error) {
@@ -161,6 +187,17 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
     setSummary(summaryResponse);
     setBudgets(budgetsResponse);
     setBudgetUsage(budgetUsageResponse);
+  }
+
+  async function refreshInvestments(tokenValue: string) {
+    const [assetsResponse, operationsResponse, portfolioResponse] = await Promise.all([
+      getInvestmentAssets(tokenValue),
+      getInvestmentOperations(tokenValue),
+      getPortfolioSummary(tokenValue)
+    ]);
+    setInvestmentAssets(assetsResponse);
+    setInvestmentOperations(operationsResponse);
+    setPortfolio(portfolioResponse);
   }
 
   useEffect(() => {
@@ -358,6 +395,94 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
     }
   }
 
+  async function handleCreateInvestmentAsset(payload: {
+    name: string;
+    symbol: string;
+    asset_type: InvestmentAssetType;
+    currency: string;
+    risk_level: InvestmentRiskLevel;
+    current_price?: string | null;
+  }) {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    try {
+      await createInvestmentAsset(token, payload);
+      await refreshInvestments(token);
+      setStatus(t("investmentAssetCreated"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
+  async function handleUpdateInvestmentAsset(
+    assetId: number,
+    payload: {
+      name?: string;
+      symbol?: string;
+      asset_type?: InvestmentAssetType;
+      currency?: string;
+      risk_level?: InvestmentRiskLevel;
+      current_price?: string | null;
+    }
+  ) {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    try {
+      await updateInvestmentAsset(token, assetId, payload);
+      await refreshInvestments(token);
+      setStatus(t("investmentAssetUpdated"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
+  async function handleDeleteInvestmentAsset(assetId: number) {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    try {
+      await deleteInvestmentAsset(token, assetId);
+      await refreshInvestments(token);
+      setStatus(t("investmentAssetDeleted"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
+  async function handleCreateInvestmentOperation(payload: {
+    asset_id: number;
+    operation_type: InvestmentOperationType;
+    quantity: string;
+    unit_price: string;
+    fees: string;
+    operation_date: string;
+  }) {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    try {
+      await createInvestmentOperation(token, payload);
+      await refreshInvestments(token);
+      setStatus(t("investmentOperationCreated"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
   async function handleCreateTransaction(payload: {
     category_id: number;
     type: TransactionType;
@@ -483,6 +608,17 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
               onCreate={handleCreateGoal}
               onDelete={handleDeleteGoal}
               onUpdate={handleUpdateGoal}
+              t={t}
+            />
+            <InvestmentsManager
+              assets={investmentAssets}
+              isDisabled={!token}
+              onCreateAsset={handleCreateInvestmentAsset}
+              onCreateOperation={handleCreateInvestmentOperation}
+              onDeleteAsset={handleDeleteInvestmentAsset}
+              onUpdateAsset={handleUpdateInvestmentAsset}
+              operations={investmentOperations}
+              portfolio={portfolio}
               t={t}
             />
           </div>

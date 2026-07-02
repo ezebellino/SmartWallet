@@ -5,7 +5,13 @@ import type {
   BudgetUsage,
   Category,
   CategoryType,
+  InvestmentAsset,
+  InvestmentAssetType,
+  InvestmentOperation,
+  InvestmentOperationType,
+  InvestmentRiskLevel,
   MonthlySummary,
+  PortfolioSummary,
   SavingGoal,
   SavingGoalStatus,
   Transaction,
@@ -248,6 +254,86 @@ export function addSavingGoalContribution(token: string, goalId: number, amount:
 export function deleteSavingGoal(token: string, goalId: number) {
   return request<void>(`/goals/${goalId}`, {
     method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function getInvestmentAssets(token: string) {
+  return request<InvestmentAsset[]>("/investments/assets", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function createInvestmentAsset(
+  token: string,
+  payload: {
+    name: string;
+    symbol: string;
+    asset_type: InvestmentAssetType;
+    currency: string;
+    risk_level: InvestmentRiskLevel;
+    current_price?: string | null;
+  }
+) {
+  return request<InvestmentAsset>("/investments/assets", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateInvestmentAsset(
+  token: string,
+  assetId: number,
+  payload: {
+    name?: string;
+    symbol?: string;
+    asset_type?: InvestmentAssetType;
+    currency?: string;
+    risk_level?: InvestmentRiskLevel;
+    current_price?: string | null;
+  }
+) {
+  return request<InvestmentAsset>(`/investments/assets/${assetId}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deleteInvestmentAsset(token: string, assetId: number) {
+  return request<void>(`/investments/assets/${assetId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function getInvestmentOperations(token: string) {
+  return request<InvestmentOperation[]>("/investments/operations", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function createInvestmentOperation(
+  token: string,
+  payload: {
+    asset_id: number;
+    operation_type: InvestmentOperationType;
+    quantity: string;
+    unit_price: string;
+    fees: string;
+    operation_date: string;
+  }
+) {
+  return request<InvestmentOperation>("/investments/operations", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function getPortfolioSummary(token: string) {
+  return request<PortfolioSummary>("/investments/portfolio", {
     headers: { Authorization: `Bearer ${token}` }
   });
 }
