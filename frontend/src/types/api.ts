@@ -172,6 +172,22 @@ export type MarketDataRefreshResponse = {
   quotes: MarketQuoteResult[];
 };
 
+export type MarketDataIntegration = {
+  key: string;
+  name: string;
+  status: "active" | "planned" | "disabled" | string;
+  auth_required: boolean;
+  coverage: string;
+  supported_asset_types: string[];
+  supported_symbols: string[];
+  configured_assets_count: number;
+  last_refresh_at: string | null;
+};
+
+export type MarketDataIntegrationsResponse = {
+  integrations: MarketDataIntegration[];
+};
+
 export type InvestmentPriceSnapshot = {
   id: number;
   asset_id: number;

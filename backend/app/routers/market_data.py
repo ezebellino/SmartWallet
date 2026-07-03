@@ -5,7 +5,7 @@ from app.auth.dependencies import get_current_user
 from app.database.session import get_db
 from app.models.user import User
 from app.repositories.investments import InvestmentRepository
-from app.schemas.market_data import MarketDataRefreshResponse
+from app.schemas.market_data import MarketDataIntegrationsResponse, MarketDataRefreshResponse
 from app.services.market_data import MarketDataService
 
 router = APIRouter(prefix="/market-data", tags=["market-data"])
@@ -22,3 +22,10 @@ def refresh_prices(
 ) -> MarketDataRefreshResponse:
     return market_data_service.refresh_investment_prices(current_user.id)
 
+
+@router.get("/integrations", response_model=MarketDataIntegrationsResponse)
+def list_integrations(
+    current_user: User = Depends(get_current_user),
+    market_data_service: MarketDataService = Depends(get_market_data_service),
+) -> MarketDataIntegrationsResponse:
+    return market_data_service.list_integrations(current_user.id)

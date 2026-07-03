@@ -21,6 +21,7 @@ import {
   getInvestmentAssets,
   getInvestmentOperations,
   getInvestmentPriceHistory,
+  getMarketDataIntegrations,
   getMonthlySummary,
   getPortfolioSummary,
   getSavingGoals,
@@ -52,6 +53,7 @@ import type {
   InvestmentOperationType,
   InvestmentPriceSnapshot,
   InvestmentRiskLevel,
+  MarketDataIntegrationsResponse,
   MarketDataRefreshResponse,
   MonthlySummary,
   PortfolioSummary,
@@ -95,6 +97,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
   const [investmentAssets, setInvestmentAssets] = useState<InvestmentAsset[]>([]);
   const [investmentAlerts, setInvestmentAlerts] = useState<InvestmentAlertsResponse | null>(null);
   const [investmentOperations, setInvestmentOperations] = useState<InvestmentOperation[]>([]);
+  const [marketDataIntegrations, setMarketDataIntegrations] = useState<MarketDataIntegrationsResponse | null>(null);
   const [marketDataRefresh, setMarketDataRefresh] = useState<MarketDataRefreshResponse | null>(null);
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
   const [spendingInsights, setSpendingInsights] = useState<SpendingInsightsResponse | null>(null);
@@ -242,6 +245,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
         investmentAlertsResponse,
         investmentAssetsResponse,
         investmentOperationsResponse,
+        marketDataIntegrationsResponse,
         portfolioResponse,
         spendingInsightsResponse,
         transactionsResponse
@@ -255,6 +259,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
         getInvestmentAlerts(token),
         getInvestmentAssets(token),
         getInvestmentOperations(token),
+        getMarketDataIntegrations(token),
         getPortfolioSummary(token),
         getSpendingInsights(token, year, month),
         getTransactions(token)
@@ -268,6 +273,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
       setInvestmentAlerts(investmentAlertsResponse);
       setInvestmentAssets(investmentAssetsResponse);
       setInvestmentOperations(investmentOperationsResponse);
+      setMarketDataIntegrations(marketDataIntegrationsResponse);
       setPortfolio(portfolioResponse);
       setSpendingInsights(spendingInsightsResponse);
       setTransactions(transactionsResponse);
@@ -295,14 +301,16 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
   }
 
   async function refreshInvestments(tokenValue: string) {
-    const [alertsResponse, assetsResponse, operationsResponse, portfolioResponse] = await Promise.all([
+    const [alertsResponse, assetsResponse, integrationsResponse, operationsResponse, portfolioResponse] = await Promise.all([
       getInvestmentAlerts(tokenValue),
       getInvestmentAssets(tokenValue),
+      getMarketDataIntegrations(tokenValue),
       getInvestmentOperations(tokenValue),
       getPortfolioSummary(tokenValue)
     ]);
     setInvestmentAlerts(alertsResponse);
     setInvestmentAssets(assetsResponse);
+    setMarketDataIntegrations(integrationsResponse);
     setInvestmentOperations(operationsResponse);
     setPortfolio(portfolioResponse);
   }
@@ -824,6 +832,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
               assets={investmentAssets}
               isDisabled={!token}
               investmentAlerts={investmentAlerts}
+              marketDataIntegrations={marketDataIntegrations}
               marketDataRefresh={marketDataRefresh}
               onCreateAsset={handleCreateInvestmentAsset}
               onCreateOperation={handleCreateInvestmentOperation}

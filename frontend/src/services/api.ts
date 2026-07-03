@@ -14,6 +14,7 @@ import type {
   InvestmentOperationType,
   InvestmentPriceSnapshot,
   InvestmentRiskLevel,
+  MarketDataIntegrationsResponse,
   MarketDataRefreshResponse,
   MonthlySummary,
   PortfolioSummary,
@@ -359,6 +360,12 @@ export function getPortfolioSummary(token: string) {
 export function refreshMarketPrices(token: string) {
   return request<MarketDataRefreshResponse>("/market-data/refresh-prices", {
     method: "POST",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function getMarketDataIntegrations(token: string) {
+  return request<MarketDataIntegrationsResponse>("/market-data/integrations", {
     headers: { Authorization: `Bearer ${token}` }
   });
 }

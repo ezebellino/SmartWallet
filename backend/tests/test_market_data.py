@@ -96,7 +96,41 @@ def test_market_data_refresh_skips_unsupported_assets(
     assert body["quotes"][0]["status"] == "skipped"
 
 
+def test_market_data_integrations_report_available_providers(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    client.post(
+        "/investments/assets",
+        headers=auth_headers,
+        json={
+            "name": "Ethereum",
+            "symbol": "ETH",
+            "asset_type": "crypto",
+            "currency": "USD",
+            "risk_level": "high",
+            "current_price": "3000.0000",
+        },
+    )
+
+    response = client.get("/market-data/integrations", headers=auth_headers)
+
+    assert response.status_code == 200
+    integrations = response.json()["integrations"]
+    providers = {integration["key"]: integration for integration in integrations}
+    assert providers["coingecko"]["status"] == "active"
+    assert providers["coingecko"]["auth_required"] is False
+    assert providers["coingecko"]["configured_assets_count"] == 1
+    assert "ETH" in providers["coingecko"]["supported_symbols"]
+    assert providers["dolarapi"]["status"] == "active"
+    assert providers["manual"]["status"] == "active"
+
+
 def test_market_data_routes_require_auth(client: TestClient) -> None:
     response = client.post("/market-data/refresh-prices")
 
     assert response.status_code == 401
+
+    integrations_response = client.get("/market-data/integrations")
+
+    assert integrations_response.status_code == 401

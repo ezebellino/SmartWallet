@@ -21,3 +21,18 @@ class MarketDataRefreshResponse(BaseModel):
     failed_count: int
     quotes: list[MarketQuoteResult]
 
+
+class MarketDataIntegration(BaseModel):
+    key: str
+    name: str
+    status: str
+    auth_required: bool
+    coverage: str
+    supported_asset_types: list[str]
+    supported_symbols: list[str]
+    configured_assets_count: int
+    last_refresh_at: datetime | None
+
+
+class MarketDataIntegrationsResponse(BaseModel):
+    integrations: list[MarketDataIntegration]

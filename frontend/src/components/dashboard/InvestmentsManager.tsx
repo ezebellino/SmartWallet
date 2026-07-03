@@ -2,6 +2,7 @@ import { Check, LineChart, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-rea
 import { useMemo, useState } from "react";
 import { InvestmentAlertsPanel } from "@/components/dashboard/InvestmentAlertsPanel";
 import { InvestmentPerformancePanel } from "@/components/dashboard/InvestmentPerformancePanel";
+import { MarketIntegrationsPanel } from "@/components/dashboard/MarketIntegrationsPanel";
 import { Panel } from "@/components/ui";
 import type { TranslationKey } from "@/i18n";
 import { formatDate } from "@/lib/format";
@@ -9,6 +10,7 @@ import type {
   InvestmentAsset,
   InvestmentAlertsResponse,
   InvestmentAssetType,
+  MarketDataIntegrationsResponse,
   MarketDataRefreshResponse,
   InvestmentOperation,
   InvestmentOperationType,
@@ -39,6 +41,7 @@ type Props = {
   assets: InvestmentAsset[];
   investmentAlerts: InvestmentAlertsResponse | null;
   isDisabled: boolean;
+  marketDataIntegrations: MarketDataIntegrationsResponse | null;
   marketDataRefresh: MarketDataRefreshResponse | null;
   onCreateAsset: (payload: AssetPayload) => Promise<void>;
   onCreateOperation: (payload: OperationPayload) => Promise<void>;
@@ -104,6 +107,7 @@ export function InvestmentsManager({
   assets,
   investmentAlerts,
   isDisabled,
+  marketDataIntegrations,
   marketDataRefresh,
   onCreateAsset,
   onCreateOperation,
@@ -302,6 +306,8 @@ export function InvestmentsManager({
           ) : null}
         </div>
       ) : null}
+
+      <MarketIntegrationsPanel integrations={marketDataIntegrations} isDisabled={isDisabled} t={t} />
 
       <InvestmentAlertsPanel alerts={investmentAlerts} isDisabled={isDisabled} t={t} />
 

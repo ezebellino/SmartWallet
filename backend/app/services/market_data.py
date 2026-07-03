@@ -1,13 +1,19 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
+from collections.abc import Iterable
 from typing import Any
 
 import httpx
 
 from app.models.investment import InvestmentAsset, InvestmentAssetType
 from app.repositories.investments import InvestmentRepository
-from app.schemas.market_data import MarketDataRefreshResponse, MarketQuoteResult
+from app.schemas.market_data import (
+    MarketDataIntegration,
+    MarketDataIntegrationsResponse,
+    MarketDataRefreshResponse,
+    MarketQuoteResult,
+)
 
 
 CRYPTO_IDS_BY_SYMBOL = {
@@ -102,6 +108,74 @@ class MarketDataService:
             quotes=results,
         )
 
+    def list_integrations(self, user_id: int) -> MarketDataIntegrationsResponse:
+        assets = self.investments.list_assets(user_id)
+        crypto_symbols = sorted(
+            {
+                asset.symbol.upper().strip()
+                for asset in assets
+                if asset.asset_type == InvestmentAssetType.crypto and asset.symbol.upper().strip() in CRYPTO_IDS_BY_SYMBOL
+            }
+        )
+        usd_ars_assets = [
+            asset
+            for asset in assets
+            if asset.symbol.upper().strip() == "USD" and asset.currency.upper().strip() == "ARS"
+        ]
+
+        return MarketDataIntegrationsResponse(
+            integrations=[
+                MarketDataIntegration(
+                    key="coingecko",
+                    name="CoinGecko",
+                    status="active",
+                    auth_required=False,
+                    coverage="Crypto market prices",
+                    supported_asset_types=["crypto"],
+                    supported_symbols=sorted(CRYPTO_IDS_BY_SYMBOL.keys()),
+                    configured_assets_count=len(crypto_symbols),
+                    last_refresh_at=self._latest_refresh_at(
+                        asset for asset in assets if asset.price_source == "coingecko"
+                    ),
+                ),
+                MarketDataIntegration(
+                    key="dolarapi",
+                    name="DolarAPI",
+                    status="active",
+                    auth_required=False,
+                    coverage="USD/ARS reference rate",
+                    supported_asset_types=["currency"],
+                    supported_symbols=["USD/ARS"],
+                    configured_assets_count=len(usd_ars_assets),
+                    last_refresh_at=self._latest_refresh_at(
+                        asset for asset in assets if asset.price_source == "dolarapi"
+                    ),
+                ),
+                MarketDataIntegration(
+                    key="manual",
+                    name="Manual prices",
+                    status="active",
+                    auth_required=False,
+                    coverage="Fallback prices entered by the user",
+                    supported_asset_types=[
+                        "stock",
+                        "bond",
+                        "cedear",
+                        "mutual_fund",
+                        "index",
+                        "etf",
+                        "fixed_term",
+                        "other",
+                    ],
+                    supported_symbols=[],
+                    configured_assets_count=sum(1 for asset in assets if asset.price_source in (None, "manual")),
+                    last_refresh_at=self._latest_refresh_at(
+                        asset for asset in assets if asset.price_source == "manual"
+                    ),
+                ),
+            ]
+        )
+
     def _refresh_asset(self, asset: InvestmentAsset) -> MarketQuoteResult:
         try:
             quote = self._fetch_quote(asset)
@@ -157,3 +231,7 @@ class MarketDataService:
             return self.provider.fetch_usd_ars_rate()
 
         return None
+
+    def _latest_refresh_at(self, assets: Iterable[InvestmentAsset]) -> datetime | None:
+        dates = [asset.price_updated_at for asset in assets if asset.price_updated_at is not None]
+        return max(dates) if dates else None
