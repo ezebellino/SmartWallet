@@ -1,4 +1,4 @@
-import { Check, LineChart, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, LineChart, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Panel } from "@/components/ui";
 import type { TranslationKey } from "@/i18n";
@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/format";
 import type {
   InvestmentAsset,
   InvestmentAssetType,
+  MarketDataRefreshResponse,
   InvestmentOperation,
   InvestmentOperationType,
   InvestmentRiskLevel,
@@ -33,9 +34,11 @@ type OperationPayload = {
 type Props = {
   assets: InvestmentAsset[];
   isDisabled: boolean;
+  marketDataRefresh: MarketDataRefreshResponse | null;
   onCreateAsset: (payload: AssetPayload) => Promise<void>;
   onCreateOperation: (payload: OperationPayload) => Promise<void>;
   onDeleteAsset: (assetId: number) => Promise<void>;
+  onRefreshMarketPrices: () => Promise<void>;
   onUpdateAsset: (assetId: number, payload: Partial<AssetPayload>) => Promise<void>;
   operations: InvestmentOperation[];
   portfolio: PortfolioSummary | null;
@@ -70,9 +73,11 @@ function formatInvestmentMoney(value: string | null | undefined, currency = "USD
 export function InvestmentsManager({
   assets,
   isDisabled,
+  marketDataRefresh,
   onCreateAsset,
   onCreateOperation,
   onDeleteAsset,
+  onRefreshMarketPrices,
   onUpdateAsset,
   operations,
   portfolio,
@@ -204,15 +209,67 @@ export function InvestmentsManager({
     }
   }
 
+  async function handleRefreshMarketPrices() {
+    setIsSaving(true);
+    try {
+      await onRefreshMarketPrices();
+    } catch {
+      // The dashboard status area displays the backend error.
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
     <Panel className="p-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-text">{t("realInvestments")}</h2>
           <p className="mt-1 text-sm text-muted">{t("realInvestmentsSubtitle")}</p>
         </div>
-        <LineChart size={18} className="text-cyan" />
+        <div className="flex items-center gap-2">
+          <button
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-borderSoft px-3 py-2 text-sm font-semibold text-muted transition hover:text-text disabled:cursor-not-allowed disabled:opacity-55"
+            disabled={isDisabled || isSaving || assets.length === 0}
+            onClick={() => void handleRefreshMarketPrices()}
+            type="button"
+          >
+            <RefreshCw size={15} />
+            {t("refreshMarketPrices")}
+          </button>
+          <LineChart size={18} className="text-cyan" />
+        </div>
       </div>
+
+      {marketDataRefresh ? (
+        <div className="mt-4 rounded-md border border-borderSoft bg-background p-3">
+          <div className="grid gap-2 text-sm sm:grid-cols-3">
+            <span className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-emerald">
+              {marketDataRefresh.updated_count} {t("marketPricesUpdatedShort")}
+            </span>
+            <span className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-amber">
+              {marketDataRefresh.skipped_count} {t("marketPricesSkippedShort")}
+            </span>
+            <span className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-rose">
+              {marketDataRefresh.failed_count} {t("marketPricesFailedShort")}
+            </span>
+          </div>
+          {marketDataRefresh.quotes.length ? (
+            <div className="mt-3 space-y-1">
+              {marketDataRefresh.quotes.slice(0, 5).map((quote) => (
+                <div className="flex justify-between gap-3 text-xs text-muted" key={`${quote.asset_id}-${quote.status}`}>
+                  <span className="truncate">
+                    {quote.symbol} - {quote.provider ?? t("notAvailable")}
+                  </span>
+                  <span className="shrink-0">
+                    {quote.price ? formatInvestmentMoney(quote.price, quote.currency) : quote.message}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mt-5 grid gap-4 xl:grid-cols-2">
         <form className="grid gap-3" onSubmit={handleCreateAsset}>

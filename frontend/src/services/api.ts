@@ -12,6 +12,7 @@ import type {
   InvestmentOperation,
   InvestmentOperationType,
   InvestmentRiskLevel,
+  MarketDataRefreshResponse,
   MonthlySummary,
   PortfolioSummary,
   SavingGoal,
@@ -337,6 +338,13 @@ export function createInvestmentOperation(
 
 export function getPortfolioSummary(token: string) {
   return request<PortfolioSummary>("/investments/portfolio", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function refreshMarketPrices(token: string) {
+  return request<MarketDataRefreshResponse>("/market-data/refresh-prices", {
+    method: "POST",
     headers: { Authorization: `Bearer ${token}` }
   });
 }

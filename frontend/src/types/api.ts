@@ -152,6 +152,24 @@ export type PortfolioSummary = {
   risk_warning: string;
 };
 
+export type MarketQuoteResult = {
+  asset_id: number;
+  symbol: string;
+  provider: string | null;
+  price: string | null;
+  currency: string;
+  fetched_at: string | null;
+  status: "updated" | "skipped" | "failed" | string;
+  message: string;
+};
+
+export type MarketDataRefreshResponse = {
+  updated_count: number;
+  skipped_count: number;
+  failed_count: number;
+  quotes: MarketQuoteResult[];
+};
+
 export type SpendingInsight = {
   type: string;
   severity: "low" | "medium" | "high" | string;

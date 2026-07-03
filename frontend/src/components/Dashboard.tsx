@@ -25,6 +25,7 @@ import {
   getSpendingInsights,
   getTransactions,
   addSavingGoalContribution,
+  refreshMarketPrices,
   simulateCompoundInterest,
   updateBudget,
   updateCategory,
@@ -47,6 +48,7 @@ import type {
   InvestmentOperation,
   InvestmentOperationType,
   InvestmentRiskLevel,
+  MarketDataRefreshResponse,
   MonthlySummary,
   PortfolioSummary,
   SavingGoal,
@@ -87,6 +89,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
   const [goals, setGoals] = useState<SavingGoal[]>([]);
   const [investmentAssets, setInvestmentAssets] = useState<InvestmentAsset[]>([]);
   const [investmentOperations, setInvestmentOperations] = useState<InvestmentOperation[]>([]);
+  const [marketDataRefresh, setMarketDataRefresh] = useState<MarketDataRefreshResponse | null>(null);
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
   const [spendingInsights, setSpendingInsights] = useState<SpendingInsightsResponse | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -498,6 +501,23 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
     }
   }
 
+  async function handleRefreshMarketPrices() {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    try {
+      const response = await refreshMarketPrices(token);
+      setMarketDataRefresh(response);
+      await refreshInvestments(token);
+      setStatus(t(response.failed_count > 0 ? "marketPricesPartiallyUpdated" : "marketPricesUpdated"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
   async function handleSimulateCompoundInterest(
     payload: CompoundInterestRequest
   ): Promise<CompoundInterestResponse> {
@@ -699,9 +719,11 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
             <InvestmentsManager
               assets={investmentAssets}
               isDisabled={!token}
+              marketDataRefresh={marketDataRefresh}
               onCreateAsset={handleCreateInvestmentAsset}
               onCreateOperation={handleCreateInvestmentOperation}
               onDeleteAsset={handleDeleteInvestmentAsset}
+              onRefreshMarketPrices={handleRefreshMarketPrices}
               onUpdateAsset={handleUpdateInvestmentAsset}
               operations={investmentOperations}
               portfolio={portfolio}
