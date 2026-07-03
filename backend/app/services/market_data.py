@@ -42,6 +42,13 @@ PROVIDER_DEFAULTS = {
     "alphavantage": {"enabled": False, "auth_required": True},
 }
 
+ALPHA_VANTAGE_ASSET_TYPES = {
+    InvestmentAssetType.cedear,
+    InvestmentAssetType.etf,
+    InvestmentAssetType.index,
+    InvestmentAssetType.stock,
+}
+
 
 @dataclass(frozen=True)
 class ProviderQuote:
@@ -98,6 +105,39 @@ class ExternalMarketDataProvider:
             else datetime.now(timezone.utc),
         )
 
+    def fetch_stock_price(self, symbol: str, currency: str, api_key: str) -> ProviderQuote:
+        normalized_symbol = symbol.upper().strip()
+        response = httpx.get(
+            "https://www.alphavantage.co/query",
+            params={
+                "function": "GLOBAL_QUOTE",
+                "symbol": normalized_symbol,
+                "apikey": api_key,
+            },
+            timeout=self.timeout_seconds,
+        )
+        response.raise_for_status()
+        data: dict[str, Any] = response.json()
+
+        if "Note" in data:
+            raise ValueError("Alpha Vantage rate limit reached. Try again later.")
+        if "Information" in data:
+            raise ValueError(str(data["Information"]))
+        if "Error Message" in data:
+            raise ValueError(str(data["Error Message"]))
+
+        quote = data.get("Global Quote")
+        price = quote.get("05. price") if isinstance(quote, dict) else None
+        if price is None:
+            raise ValueError(f"Alpha Vantage did not return a price for {normalized_symbol}")
+
+        return ProviderQuote(
+            provider="alphavantage",
+            price=Decimal(str(price)),
+            currency=currency.upper(),
+            fetched_at=datetime.now(timezone.utc),
+        )
+
 
 class MarketDataService:
     def __init__(
@@ -137,6 +177,7 @@ class MarketDataService:
             for asset in assets
             if asset.symbol.upper().strip() == "USD" and asset.currency.upper().strip() == "ARS"
         ]
+        alpha_vantage_assets = [asset for asset in assets if asset.asset_type in ALPHA_VANTAGE_ASSET_TYPES]
 
         integrations = [
             self._build_integration(
@@ -165,8 +206,8 @@ class MarketDataService:
                 coverage="Stocks, ETFs, and indexes",
                 supported_asset_types=["stock", "etf", "index", "cedear"],
                 supported_symbols=[],
-                configured_assets_count=0,
-                last_refresh_at=None,
+                configured_assets_count=len(alpha_vantage_assets),
+                last_refresh_at=self._latest_refresh_at(asset for asset in assets if asset.price_source == "alphavantage"),
                 setting=settings_by_key.get("alphavantage"),
             ),
             self._build_integration(
@@ -278,6 +319,14 @@ class MarketDataService:
                 return None
             return self.provider.fetch_usd_ars_rate()
 
+        if asset.asset_type in ALPHA_VANTAGE_ASSET_TYPES:
+            if not self._is_provider_enabled(asset.user_id, "alphavantage"):
+                return None
+            api_key = self._get_provider_api_key(asset.user_id, "alphavantage")
+            if not api_key:
+                raise ValueError("Alpha Vantage API key is required")
+            return self.provider.fetch_stock_price(symbol, currency, api_key)
+
         return None
 
     def _latest_refresh_at(self, assets: Iterable[InvestmentAsset]) -> datetime | None:
@@ -354,3 +403,14 @@ class MarketDataService:
         digest = hashlib.sha256(settings.jwt_secret_key.encode("utf-8")).digest()
         key = base64.urlsafe_b64encode(digest)
         return Fernet(key).encrypt(api_key.encode("utf-8")).decode("utf-8")
+
+    def _decrypt_api_key(self, encrypted_api_key: str) -> str:
+        digest = hashlib.sha256(settings.jwt_secret_key.encode("utf-8")).digest()
+        key = base64.urlsafe_b64encode(digest)
+        return Fernet(key).decrypt(encrypted_api_key.encode("utf-8")).decode("utf-8")
+
+    def _get_provider_api_key(self, user_id: int, provider_key: str) -> str | None:
+        setting = self._list_settings(user_id).get(provider_key)
+        if not setting or not setting.api_key_encrypted:
+            return None
+        return self._decrypt_api_key(setting.api_key_encrypted)

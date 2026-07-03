@@ -96,6 +96,96 @@ def test_market_data_refresh_skips_unsupported_assets(
     assert body["quotes"][0]["status"] == "skipped"
 
 
+def test_market_data_refresh_updates_stock_with_alpha_vantage(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+) -> None:
+    asset_response = client.post(
+        "/investments/assets",
+        headers=auth_headers,
+        json={
+            "name": "Apple",
+            "symbol": "AAPL",
+            "asset_type": "stock",
+            "currency": "USD",
+            "risk_level": "medium",
+            "current_price": "200.0000",
+        },
+    )
+    asset = asset_response.json()
+    client.patch(
+        "/market-data/integrations/alphavantage",
+        headers=auth_headers,
+        json={"enabled": True, "api_key": "demo-secret-1234"},
+    )
+
+    def fake_fetch_stock_price(self, symbol: str, currency: str, api_key: str) -> ProviderQuote:
+        assert symbol == "AAPL"
+        assert currency == "USD"
+        assert api_key == "demo-secret-1234"
+        from datetime import datetime, timezone
+
+        return ProviderQuote(
+            provider="alphavantage",
+            price=Decimal("220.1250"),
+            currency="USD",
+            fetched_at=datetime(2026, 7, 3, tzinfo=timezone.utc),
+        )
+
+    monkeypatch.setattr(
+        "app.services.market_data.ExternalMarketDataProvider.fetch_stock_price",
+        fake_fetch_stock_price,
+    )
+
+    refresh_response = client.post("/market-data/refresh-prices", headers=auth_headers)
+
+    assert refresh_response.status_code == 200
+    body = refresh_response.json()
+    assert body["updated_count"] == 1
+    assert body["failed_count"] == 0
+    assert body["quotes"][0]["asset_id"] == asset["id"]
+    assert body["quotes"][0]["provider"] == "alphavantage"
+    assert body["quotes"][0]["price"] == "220.1250"
+
+    assets_response = client.get("/investments/assets", headers=auth_headers)
+    updated_asset = assets_response.json()[0]
+    assert updated_asset["current_price"] == "220.1250"
+    assert updated_asset["price_source"] == "alphavantage"
+
+
+def test_market_data_refresh_reports_missing_alpha_vantage_key(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    client.post(
+        "/investments/assets",
+        headers=auth_headers,
+        json={
+            "name": "Apple",
+            "symbol": "AAPL",
+            "asset_type": "stock",
+            "currency": "USD",
+            "risk_level": "medium",
+            "current_price": "200.0000",
+        },
+    )
+    client.patch(
+        "/market-data/integrations/alphavantage",
+        headers=auth_headers,
+        json={"enabled": True, "clear_api_key": True},
+    )
+
+    refresh_response = client.post("/market-data/refresh-prices", headers=auth_headers)
+
+    assert refresh_response.status_code == 200
+    body = refresh_response.json()
+    assert body["updated_count"] == 0
+    assert body["failed_count"] == 1
+    assert body["quotes"][0]["status"] == "failed"
+    assert body["quotes"][0]["message"] == "Alpha Vantage API key is required"
+
+
 def test_market_data_integrations_report_available_providers(
     client: TestClient,
     auth_headers: dict[str, str],
@@ -127,6 +217,7 @@ def test_market_data_integrations_report_available_providers(
     assert providers["manual"]["status"] == "active"
     assert providers["alphavantage"]["status"] == "disabled"
     assert providers["alphavantage"]["auth_required"] is True
+    assert providers["alphavantage"]["configured_assets_count"] == 0
 
 
 def test_market_data_integration_settings_can_store_api_key_metadata(
