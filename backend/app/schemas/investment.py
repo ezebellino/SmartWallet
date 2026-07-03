@@ -46,6 +46,8 @@ class InvestmentAssetRead(InvestmentAssetBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    price_source: str | None
+    price_updated_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
@@ -71,6 +73,18 @@ class InvestmentOperationRead(InvestmentOperationBase):
     updated_at: datetime
 
 
+class InvestmentPriceSnapshotRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    asset_id: int
+    provider: str
+    price: Decimal
+    currency: str
+    fetched_at: datetime
+    created_at: datetime
+
+
 class PortfolioPosition(BaseModel):
     asset_id: int
     name: str
@@ -91,4 +105,3 @@ class PortfolioSummary(BaseModel):
     total_unrealized_gain_loss: Decimal
     positions: list[PortfolioPosition]
     risk_warning: str
-

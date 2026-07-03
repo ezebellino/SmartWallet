@@ -22,6 +22,8 @@ def test_investment_asset_operations_and_portfolio(
     asset = asset_response.json()
     assert asset["symbol"] == "BTC"
     assert asset["currency"] == "USD"
+    assert asset["price_source"] == "manual"
+    assert asset["price_updated_at"] is not None
 
     buy_response = client.post(
         "/investments/operations",
@@ -82,4 +84,3 @@ def test_investment_routes_require_auth(client: TestClient) -> None:
     response = client.get("/investments/assets")
 
     assert response.status_code == 401
-

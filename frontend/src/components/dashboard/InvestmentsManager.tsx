@@ -70,6 +70,30 @@ function formatInvestmentMoney(value: string | null | undefined, currency = "USD
   })}`;
 }
 
+function formatInvestmentDateTime(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  return new Intl.DateTimeFormat("es-AR", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "short",
+    year: "numeric"
+  }).format(new Date(value));
+}
+
+function formatPriceSource(value: string | null | undefined, t: (key: TranslationKey) => string) {
+  if (!value) {
+    return t("neverUpdated");
+  }
+  if (value === "manual") {
+    return t("sourceManual");
+  }
+  return value.toUpperCase();
+}
+
 export function InvestmentsManager({
   assets,
   isDisabled,
@@ -599,6 +623,10 @@ export function InvestmentsManager({
                       <div className="mt-1 text-xs text-muted">
                         {t(`assetType${asset.asset_type}` as TranslationKey)} - {t(`risk${asset.risk_level}` as TranslationKey)} -{" "}
                         {formatInvestmentMoney(asset.current_price, asset.currency)}
+                      </div>
+                      <div className="mt-1 text-xs text-muted">
+                        {t("priceSource")}: {formatPriceSource(asset.price_source, t)} - {t("lastPriceUpdate")}:{" "}
+                        {formatInvestmentDateTime(asset.price_updated_at) ?? t("neverUpdated")}
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">

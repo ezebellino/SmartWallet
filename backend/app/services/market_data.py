@@ -7,7 +7,6 @@ import httpx
 
 from app.models.investment import InvestmentAsset, InvestmentAssetType
 from app.repositories.investments import InvestmentRepository
-from app.schemas.investment import InvestmentAssetUpdate
 from app.schemas.market_data import MarketDataRefreshResponse, MarketQuoteResult
 
 
@@ -118,7 +117,13 @@ class MarketDataService:
                     message="No market data provider configured for this asset",
                 )
 
-            self.investments.update_asset(asset, InvestmentAssetUpdate(current_price=quote.price))
+            self.investments.update_asset_market_price(
+                asset=asset,
+                price=quote.price,
+                provider=quote.provider,
+                currency=quote.currency,
+                fetched_at=quote.fetched_at,
+            )
             return MarketQuoteResult(
                 asset_id=asset.id,
                 symbol=asset.symbol,
@@ -152,4 +157,3 @@ class MarketDataService:
             return self.provider.fetch_usd_ars_rate()
 
         return None
-

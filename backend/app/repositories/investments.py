@@ -1,7 +1,11 @@
+from datetime import datetime
+from decimal import Decimal
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.investment import InvestmentAsset, InvestmentOperation
+from app.models.investment import InvestmentAsset, InvestmentOperation, InvestmentPriceSnapshot
+from app.models.mixins import utc_now
 from app.schemas.investment import (
     InvestmentAssetCreate,
     InvestmentAssetUpdate,
@@ -46,15 +50,47 @@ class InvestmentRepository:
         return list(self.db.scalars(statement).all())
 
     def create_asset(self, user_id: int, data: InvestmentAssetCreate) -> InvestmentAsset:
-        asset = InvestmentAsset(user_id=user_id, **data.model_dump())
+        values = data.model_dump()
+        if values.get("current_price") is not None:
+            values["price_source"] = "manual"
+            values["price_updated_at"] = utc_now()
+        asset = InvestmentAsset(user_id=user_id, **values)
         self.db.add(asset)
         self.db.commit()
         self.db.refresh(asset)
         return asset
 
     def update_asset(self, asset: InvestmentAsset, data: InvestmentAssetUpdate) -> InvestmentAsset:
-        for field, value in data.model_dump(exclude_unset=True).items():
+        values = data.model_dump(exclude_unset=True)
+        for field, value in values.items():
             setattr(asset, field, value)
+        if "current_price" in values:
+            asset.price_source = "manual" if values["current_price"] is not None else None
+            asset.price_updated_at = utc_now() if values["current_price"] is not None else None
+        self.db.commit()
+        self.db.refresh(asset)
+        return asset
+
+    def update_asset_market_price(
+        self,
+        asset: InvestmentAsset,
+        price: Decimal,
+        provider: str,
+        currency: str,
+        fetched_at: datetime,
+    ) -> InvestmentAsset:
+        asset.current_price = price
+        asset.price_source = provider
+        asset.price_updated_at = fetched_at
+        snapshot = InvestmentPriceSnapshot(
+            user_id=asset.user_id,
+            asset_id=asset.id,
+            provider=provider,
+            price=price,
+            currency=currency.upper(),
+            fetched_at=fetched_at,
+        )
+        self.db.add(snapshot)
         self.db.commit()
         self.db.refresh(asset)
         return asset
@@ -80,3 +116,19 @@ class InvestmentRepository:
             statement = statement.where(InvestmentOperation.asset_id == asset_id)
         return list(self.db.scalars(statement).all())
 
+    def list_price_snapshots(
+        self,
+        user_id: int,
+        asset_id: int,
+        limit: int = 30,
+    ) -> list[InvestmentPriceSnapshot]:
+        statement = (
+            select(InvestmentPriceSnapshot)
+            .where(
+                InvestmentPriceSnapshot.user_id == user_id,
+                InvestmentPriceSnapshot.asset_id == asset_id,
+            )
+            .order_by(InvestmentPriceSnapshot.fetched_at.desc(), InvestmentPriceSnapshot.id.desc())
+            .limit(limit)
+        )
+        return list(self.db.scalars(statement).all())

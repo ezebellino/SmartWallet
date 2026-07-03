@@ -114,6 +114,8 @@ export type InvestmentAsset = {
   currency: string;
   risk_level: InvestmentRiskLevel;
   current_price: string | null;
+  price_source: string | null;
+  price_updated_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -168,6 +170,16 @@ export type MarketDataRefreshResponse = {
   skipped_count: number;
   failed_count: number;
   quotes: MarketQuoteResult[];
+};
+
+export type InvestmentPriceSnapshot = {
+  id: number;
+  asset_id: number;
+  provider: string;
+  price: string;
+  currency: string;
+  fetched_at: string;
+  created_at: string;
 };
 
 export type SpendingInsight = {

@@ -11,6 +11,7 @@ from app.schemas.investment import (
     InvestmentAssetUpdate,
     InvestmentOperationCreate,
     InvestmentOperationRead,
+    InvestmentPriceSnapshotRead,
     PortfolioSummary,
 )
 from app.services.investments import InvestmentService
@@ -67,6 +68,16 @@ def list_operations(
     return investment_service.list_operations(current_user.id, asset_id)
 
 
+@router.get("/assets/{asset_id}/price-history", response_model=list[InvestmentPriceSnapshotRead])
+def list_price_history(
+    asset_id: int,
+    limit: int = Query(default=30, ge=1, le=200),
+    current_user: User = Depends(get_current_user),
+    investment_service: InvestmentService = Depends(get_investment_service),
+) -> list[InvestmentPriceSnapshotRead]:
+    return investment_service.list_price_snapshots(current_user.id, asset_id, limit)
+
+
 @router.post("/operations", response_model=InvestmentOperationRead, status_code=status.HTTP_201_CREATED)
 def create_operation(
     data: InvestmentOperationCreate,
@@ -82,4 +93,3 @@ def portfolio_summary(
     investment_service: InvestmentService = Depends(get_investment_service),
 ) -> PortfolioSummary:
     return investment_service.get_portfolio_summary(current_user.id)
-

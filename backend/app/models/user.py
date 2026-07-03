@@ -27,5 +27,10 @@ class User(TimestampMixin, Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    investment_price_snapshots = relationship(
+        "InvestmentPriceSnapshot",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
     budgets = relationship("Budget", back_populates="user", cascade="all, delete-orphan")
     ai_reports = relationship("AiReport", back_populates="user", cascade="all, delete-orphan")

@@ -52,7 +52,22 @@ def test_market_data_refresh_updates_crypto_asset(
     assert body["quotes"][0]["price"] == "65000.1234"
 
     assets_response = client.get("/investments/assets", headers=auth_headers)
-    assert assets_response.json()[0]["current_price"] == "65000.1234"
+    updated_asset = assets_response.json()[0]
+    assert updated_asset["current_price"] == "65000.1234"
+    assert updated_asset["price_source"] == "coingecko"
+    assert updated_asset["price_updated_at"].startswith("2026-07-03T00:00:00")
+
+    history_response = client.get(
+        f"/investments/assets/{asset['id']}/price-history",
+        headers=auth_headers,
+    )
+
+    assert history_response.status_code == 200
+    history = history_response.json()
+    assert len(history) == 1
+    assert history[0]["asset_id"] == asset["id"]
+    assert history[0]["provider"] == "coingecko"
+    assert history[0]["price"] == "65000.1234"
 
 
 def test_market_data_refresh_skips_unsupported_assets(
@@ -85,4 +100,3 @@ def test_market_data_routes_require_auth(client: TestClient) -> None:
     response = client.post("/market-data/refresh-prices")
 
     assert response.status_code == 401
-

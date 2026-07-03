@@ -12,6 +12,7 @@ from app.schemas.investment import (
     InvestmentAssetCreate,
     InvestmentAssetUpdate,
     InvestmentOperationCreate,
+    InvestmentPriceSnapshotRead,
     PortfolioPosition,
     PortfolioSummary,
 )
@@ -78,6 +79,15 @@ class InvestmentService:
                 )
 
         return self.investments.create_operation(user_id, data)
+
+    def list_price_snapshots(
+        self,
+        user_id: int,
+        asset_id: int,
+        limit: int = 30,
+    ) -> list[InvestmentPriceSnapshotRead]:
+        self._get_owned_asset(asset_id, user_id)
+        return self.investments.list_price_snapshots(user_id, asset_id, limit)
 
     def get_portfolio_summary(self, user_id: int) -> PortfolioSummary:
         assets = self.investments.list_assets_with_operations(user_id)
@@ -153,4 +163,3 @@ class InvestmentService:
 
     def _money(self, value: Decimal) -> Decimal:
         return value.quantize(MONEY_QUANTIZER, rounding=ROUND_HALF_UP)
-

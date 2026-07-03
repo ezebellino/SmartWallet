@@ -11,6 +11,7 @@ import type {
   InvestmentAssetType,
   InvestmentOperation,
   InvestmentOperationType,
+  InvestmentPriceSnapshot,
   InvestmentRiskLevel,
   MarketDataRefreshResponse,
   MonthlySummary,
@@ -314,6 +315,12 @@ export function deleteInvestmentAsset(token: string, assetId: number) {
 
 export function getInvestmentOperations(token: string) {
   return request<InvestmentOperation[]>("/investments/operations", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function getInvestmentPriceHistory(token: string, assetId: number, limit = 30) {
+  return request<InvestmentPriceSnapshot[]>(`/investments/assets/${assetId}/price-history?limit=${limit}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
 }
