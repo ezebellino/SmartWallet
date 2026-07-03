@@ -186,6 +186,60 @@ def test_market_data_refresh_reports_missing_alpha_vantage_key(
     assert body["quotes"][0]["message"] == "Alpha Vantage API key is required"
 
 
+def test_market_data_refresh_limits_alpha_vantage_free_plan_to_one_asset(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+) -> None:
+    for symbol in ["AAPL", "MSFT"]:
+        client.post(
+            "/investments/assets",
+            headers=auth_headers,
+            json={
+                "name": symbol,
+                "symbol": symbol,
+                "asset_type": "stock",
+                "currency": "USD",
+                "risk_level": "medium",
+                "current_price": "200.0000",
+            },
+        )
+    client.patch(
+        "/market-data/integrations/alphavantage",
+        headers=auth_headers,
+        json={"enabled": True, "api_key": "demo-secret-1234"},
+    )
+
+    requested_symbols: list[str] = []
+
+    def fake_fetch_stock_price(self, symbol: str, currency: str, api_key: str) -> ProviderQuote:
+        requested_symbols.append(symbol)
+        from datetime import datetime, timezone
+
+        return ProviderQuote(
+            provider="alphavantage",
+            price=Decimal("220.1250"),
+            currency="USD",
+            fetched_at=datetime(2026, 7, 3, tzinfo=timezone.utc),
+        )
+
+    monkeypatch.setattr(
+        "app.services.market_data.ExternalMarketDataProvider.fetch_stock_price",
+        fake_fetch_stock_price,
+    )
+
+    refresh_response = client.post("/market-data/refresh-prices", headers=auth_headers)
+
+    assert refresh_response.status_code == 200
+    body = refresh_response.json()
+    assert body["updated_count"] == 1
+    assert body["skipped_count"] == 1
+    assert body["failed_count"] == 0
+    assert requested_symbols == ["AAPL"]
+    assert body["quotes"][1]["status"] == "skipped"
+    assert body["quotes"][1]["message"] == "Alpha Vantage free plan allows one stock price per refresh"
+
+
 def test_market_data_integrations_report_available_providers(
     client: TestClient,
     auth_headers: dict[str, str],

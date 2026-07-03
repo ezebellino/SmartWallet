@@ -48,6 +48,7 @@ ALPHA_VANTAGE_ASSET_TYPES = {
     InvestmentAssetType.index,
     InvestmentAssetType.stock,
 }
+ALPHA_VANTAGE_FREE_REQUESTS_PER_REFRESH = 1
 
 
 @dataclass(frozen=True)
@@ -150,9 +151,10 @@ class MarketDataService:
 
     def refresh_investment_prices(self, user_id: int) -> MarketDataRefreshResponse:
         results: list[MarketQuoteResult] = []
+        provider_requests = {"alphavantage": 0}
 
         for asset in self.investments.list_assets(user_id):
-            quote = self._refresh_asset(asset)
+            quote = self._refresh_asset(asset, provider_requests)
             results.append(quote)
 
         return MarketDataRefreshResponse(
@@ -261,9 +263,9 @@ class MarketDataService:
             if integration.key == normalized_key
         )
 
-    def _refresh_asset(self, asset: InvestmentAsset) -> MarketQuoteResult:
+    def _refresh_asset(self, asset: InvestmentAsset, provider_requests: dict[str, int]) -> MarketQuoteResult:
         try:
-            quote = self._fetch_quote(asset)
+            quote = self._fetch_quote(asset, provider_requests)
             if quote is None:
                 return MarketQuoteResult(
                     asset_id=asset.id,
@@ -273,7 +275,7 @@ class MarketDataService:
                     currency=asset.currency,
                     fetched_at=None,
                     status="skipped",
-                    message="No market data provider configured for this asset",
+                    message=self._skipped_message(asset, provider_requests),
                 )
 
             self.investments.update_asset_market_price(
@@ -305,7 +307,7 @@ class MarketDataService:
                 message=str(exc),
             )
 
-    def _fetch_quote(self, asset: InvestmentAsset) -> ProviderQuote | None:
+    def _fetch_quote(self, asset: InvestmentAsset, provider_requests: dict[str, int]) -> ProviderQuote | None:
         symbol = asset.symbol.upper().strip()
         currency = asset.currency.upper().strip()
 
@@ -322,12 +324,25 @@ class MarketDataService:
         if asset.asset_type in ALPHA_VANTAGE_ASSET_TYPES:
             if not self._is_provider_enabled(asset.user_id, "alphavantage"):
                 return None
+            if provider_requests["alphavantage"] >= ALPHA_VANTAGE_FREE_REQUESTS_PER_REFRESH:
+                return None
             api_key = self._get_provider_api_key(asset.user_id, "alphavantage")
             if not api_key:
                 raise ValueError("Alpha Vantage API key is required")
+            provider_requests["alphavantage"] += 1
             return self.provider.fetch_stock_price(symbol, currency, api_key)
 
         return None
+
+    def _skipped_message(self, asset: InvestmentAsset, provider_requests: dict[str, int]) -> str:
+        if (
+            asset.asset_type in ALPHA_VANTAGE_ASSET_TYPES
+            and self._is_provider_enabled(asset.user_id, "alphavantage")
+            and provider_requests["alphavantage"] >= ALPHA_VANTAGE_FREE_REQUESTS_PER_REFRESH
+        ):
+            return "Alpha Vantage free plan allows one stock price per refresh"
+
+        return "No market data provider configured for this asset"
 
     def _latest_refresh_at(self, assets: Iterable[InvestmentAsset]) -> datetime | None:
         dates = [asset.price_updated_at for asset in assets if asset.price_updated_at is not None]
