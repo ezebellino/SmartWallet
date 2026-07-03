@@ -119,11 +119,65 @@ def test_market_data_integrations_report_available_providers(
     integrations = response.json()["integrations"]
     providers = {integration["key"]: integration for integration in integrations}
     assert providers["coingecko"]["status"] == "active"
+    assert providers["coingecko"]["enabled"] is True
     assert providers["coingecko"]["auth_required"] is False
     assert providers["coingecko"]["configured_assets_count"] == 1
     assert "ETH" in providers["coingecko"]["supported_symbols"]
     assert providers["dolarapi"]["status"] == "active"
     assert providers["manual"]["status"] == "active"
+    assert providers["alphavantage"]["status"] == "disabled"
+    assert providers["alphavantage"]["auth_required"] is True
+
+
+def test_market_data_integration_settings_can_store_api_key_metadata(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    response = client.patch(
+        "/market-data/integrations/alphavantage",
+        headers=auth_headers,
+        json={"enabled": True, "api_key": "demo-secret-1234"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["key"] == "alphavantage"
+    assert body["enabled"] is True
+    assert body["status"] == "active"
+    assert body["has_api_key"] is True
+    assert body["api_key_last4"] == "1234"
+    assert "demo-secret" not in str(body)
+
+
+def test_disabled_market_provider_is_not_used_for_refresh(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    client.post(
+        "/investments/assets",
+        headers=auth_headers,
+        json={
+            "name": "Bitcoin",
+            "symbol": "BTC",
+            "asset_type": "crypto",
+            "currency": "USD",
+            "risk_level": "high",
+            "current_price": "50000.0000",
+        },
+    )
+    client.patch(
+        "/market-data/integrations/coingecko",
+        headers=auth_headers,
+        json={"enabled": False},
+    )
+
+    refresh_response = client.post("/market-data/refresh-prices", headers=auth_headers)
+
+    assert refresh_response.status_code == 200
+    body = refresh_response.json()
+    assert body["updated_count"] == 0
+    assert body["skipped_count"] == 1
+    assert body["quotes"][0]["status"] == "skipped"
 
 
 def test_market_data_routes_require_auth(client: TestClient) -> None:
@@ -134,3 +188,7 @@ def test_market_data_routes_require_auth(client: TestClient) -> None:
     integrations_response = client.get("/market-data/integrations")
 
     assert integrations_response.status_code == 401
+
+    update_response = client.patch("/market-data/integrations/coingecko", json={"enabled": False})
+
+    assert update_response.status_code == 401

@@ -175,8 +175,11 @@ export type MarketDataRefreshResponse = {
 export type MarketDataIntegration = {
   key: string;
   name: string;
-  status: "active" | "planned" | "disabled" | string;
+  status: "active" | "needs_key" | "disabled" | string;
+  enabled: boolean;
   auth_required: boolean;
+  has_api_key: boolean;
+  api_key_last4: string | null;
   coverage: string;
   supported_asset_types: string[];
   supported_symbols: string[];
@@ -186,6 +189,12 @@ export type MarketDataIntegration = {
 
 export type MarketDataIntegrationsResponse = {
   integrations: MarketDataIntegration[];
+};
+
+export type MarketDataIntegrationUpdate = {
+  enabled?: boolean;
+  api_key?: string | null;
+  clear_api_key?: boolean;
 };
 
 export type InvestmentPriceSnapshot = {

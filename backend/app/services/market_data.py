@@ -1,16 +1,23 @@
+import base64
+import hashlib
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
-from collections.abc import Iterable
 from typing import Any
 
 import httpx
+from cryptography.fernet import Fernet
+from sqlalchemy import select
 
+from app.core.config import settings
 from app.models.investment import InvestmentAsset, InvestmentAssetType
+from app.models.market_integration import MarketIntegrationSetting
 from app.repositories.investments import InvestmentRepository
 from app.schemas.market_data import (
     MarketDataIntegration,
     MarketDataIntegrationsResponse,
+    MarketDataIntegrationUpdate,
     MarketDataRefreshResponse,
     MarketQuoteResult,
 )
@@ -26,6 +33,13 @@ CRYPTO_IDS_BY_SYMBOL = {
     "USDC": "usd-coin",
     "USDT": "tether",
     "XRP": "ripple",
+}
+
+PROVIDER_DEFAULTS = {
+    "coingecko": {"enabled": True, "auth_required": False},
+    "dolarapi": {"enabled": True, "auth_required": False},
+    "manual": {"enabled": True, "auth_required": False},
+    "alphavantage": {"enabled": False, "auth_required": True},
 }
 
 
@@ -110,6 +124,7 @@ class MarketDataService:
 
     def list_integrations(self, user_id: int) -> MarketDataIntegrationsResponse:
         assets = self.investments.list_assets(user_id)
+        settings_by_key = self._list_settings(user_id)
         crypto_symbols = sorted(
             {
                 asset.symbol.upper().strip()
@@ -123,57 +138,86 @@ class MarketDataService:
             if asset.symbol.upper().strip() == "USD" and asset.currency.upper().strip() == "ARS"
         ]
 
-        return MarketDataIntegrationsResponse(
-            integrations=[
-                MarketDataIntegration(
-                    key="coingecko",
-                    name="CoinGecko",
-                    status="active",
-                    auth_required=False,
-                    coverage="Crypto market prices",
-                    supported_asset_types=["crypto"],
-                    supported_symbols=sorted(CRYPTO_IDS_BY_SYMBOL.keys()),
-                    configured_assets_count=len(crypto_symbols),
-                    last_refresh_at=self._latest_refresh_at(
-                        asset for asset in assets if asset.price_source == "coingecko"
-                    ),
-                ),
-                MarketDataIntegration(
-                    key="dolarapi",
-                    name="DolarAPI",
-                    status="active",
-                    auth_required=False,
-                    coverage="USD/ARS reference rate",
-                    supported_asset_types=["currency"],
-                    supported_symbols=["USD/ARS"],
-                    configured_assets_count=len(usd_ars_assets),
-                    last_refresh_at=self._latest_refresh_at(
-                        asset for asset in assets if asset.price_source == "dolarapi"
-                    ),
-                ),
-                MarketDataIntegration(
-                    key="manual",
-                    name="Manual prices",
-                    status="active",
-                    auth_required=False,
-                    coverage="Fallback prices entered by the user",
-                    supported_asset_types=[
-                        "stock",
-                        "bond",
-                        "cedear",
-                        "mutual_fund",
-                        "index",
-                        "etf",
-                        "fixed_term",
-                        "other",
-                    ],
-                    supported_symbols=[],
-                    configured_assets_count=sum(1 for asset in assets if asset.price_source in (None, "manual")),
-                    last_refresh_at=self._latest_refresh_at(
-                        asset for asset in assets if asset.price_source == "manual"
-                    ),
-                ),
-            ]
+        integrations = [
+            self._build_integration(
+                key="coingecko",
+                name="CoinGecko",
+                coverage="Crypto market prices",
+                supported_asset_types=["crypto"],
+                supported_symbols=sorted(CRYPTO_IDS_BY_SYMBOL.keys()),
+                configured_assets_count=len(crypto_symbols),
+                last_refresh_at=self._latest_refresh_at(asset for asset in assets if asset.price_source == "coingecko"),
+                setting=settings_by_key.get("coingecko"),
+            ),
+            self._build_integration(
+                key="dolarapi",
+                name="DolarAPI",
+                coverage="USD/ARS reference rate",
+                supported_asset_types=["currency"],
+                supported_symbols=["USD/ARS"],
+                configured_assets_count=len(usd_ars_assets),
+                last_refresh_at=self._latest_refresh_at(asset for asset in assets if asset.price_source == "dolarapi"),
+                setting=settings_by_key.get("dolarapi"),
+            ),
+            self._build_integration(
+                key="alphavantage",
+                name="Alpha Vantage",
+                coverage="Stocks, ETFs, and indexes",
+                supported_asset_types=["stock", "etf", "index", "cedear"],
+                supported_symbols=[],
+                configured_assets_count=0,
+                last_refresh_at=None,
+                setting=settings_by_key.get("alphavantage"),
+            ),
+            self._build_integration(
+                key="manual",
+                name="Manual prices",
+                coverage="Fallback prices entered by the user",
+                supported_asset_types=[
+                    "stock",
+                    "bond",
+                    "cedear",
+                    "mutual_fund",
+                    "index",
+                    "etf",
+                    "fixed_term",
+                    "other",
+                ],
+                supported_symbols=[],
+                configured_assets_count=sum(1 for asset in assets if asset.price_source in (None, "manual")),
+                last_refresh_at=self._latest_refresh_at(asset for asset in assets if asset.price_source == "manual"),
+                setting=settings_by_key.get("manual"),
+            ),
+        ]
+        return MarketDataIntegrationsResponse(integrations=integrations)
+
+    def update_integration(
+        self,
+        user_id: int,
+        provider_key: str,
+        data: MarketDataIntegrationUpdate,
+    ) -> MarketDataIntegration:
+        normalized_key = provider_key.lower().strip()
+        if normalized_key not in PROVIDER_DEFAULTS:
+            raise ValueError("Unknown market data provider")
+
+        setting = self._get_or_create_setting(user_id, normalized_key)
+        if data.enabled is not None:
+            setting.enabled = data.enabled
+
+        if data.clear_api_key:
+            setting.api_key_encrypted = None
+            setting.api_key_last4 = None
+        elif data.api_key is not None and data.api_key.strip():
+            api_key = data.api_key.strip()
+            setting.api_key_encrypted = self._encrypt_api_key(api_key)
+            setting.api_key_last4 = api_key[-4:]
+
+        self.investments.db.commit()
+        return next(
+            integration
+            for integration in self.list_integrations(user_id).integrations
+            if integration.key == normalized_key
         )
 
     def _refresh_asset(self, asset: InvestmentAsset) -> MarketQuoteResult:
@@ -225,9 +269,13 @@ class MarketDataService:
         currency = asset.currency.upper().strip()
 
         if asset.asset_type == InvestmentAssetType.crypto:
+            if not self._is_provider_enabled(asset.user_id, "coingecko"):
+                return None
             return self.provider.fetch_crypto_price(symbol, currency)
 
         if symbol == "USD" and currency == "ARS":
+            if not self._is_provider_enabled(asset.user_id, "dolarapi"):
+                return None
             return self.provider.fetch_usd_ars_rate()
 
         return None
@@ -235,3 +283,74 @@ class MarketDataService:
     def _latest_refresh_at(self, assets: Iterable[InvestmentAsset]) -> datetime | None:
         dates = [asset.price_updated_at for asset in assets if asset.price_updated_at is not None]
         return max(dates) if dates else None
+
+    def _build_integration(
+        self,
+        *,
+        key: str,
+        name: str,
+        coverage: str,
+        supported_asset_types: list[str],
+        supported_symbols: list[str],
+        configured_assets_count: int,
+        last_refresh_at: datetime | None,
+        setting: MarketIntegrationSetting | None,
+    ) -> MarketDataIntegration:
+        defaults = PROVIDER_DEFAULTS[key]
+        enabled = setting.enabled if setting else bool(defaults["enabled"])
+        has_api_key = bool(setting and setting.api_key_encrypted)
+        auth_required = bool(defaults["auth_required"])
+        status = self._integration_status(enabled=enabled, auth_required=auth_required, has_api_key=has_api_key)
+
+        return MarketDataIntegration(
+            key=key,
+            name=name,
+            status=status,
+            enabled=enabled,
+            auth_required=auth_required,
+            has_api_key=has_api_key,
+            api_key_last4=setting.api_key_last4 if setting else None,
+            coverage=coverage,
+            supported_asset_types=supported_asset_types,
+            supported_symbols=supported_symbols,
+            configured_assets_count=configured_assets_count,
+            last_refresh_at=last_refresh_at,
+        )
+
+    def _integration_status(self, *, enabled: bool, auth_required: bool, has_api_key: bool) -> str:
+        if not enabled:
+            return "disabled"
+        if auth_required and not has_api_key:
+            return "needs_key"
+        return "active"
+
+    def _list_settings(self, user_id: int) -> dict[str, MarketIntegrationSetting]:
+        statement = select(MarketIntegrationSetting).where(MarketIntegrationSetting.user_id == user_id)
+        return {setting.provider_key: setting for setting in self.investments.db.scalars(statement).all()}
+
+    def _get_or_create_setting(self, user_id: int, provider_key: str) -> MarketIntegrationSetting:
+        statement = select(MarketIntegrationSetting).where(
+            MarketIntegrationSetting.user_id == user_id,
+            MarketIntegrationSetting.provider_key == provider_key,
+        )
+        setting = self.investments.db.scalar(statement)
+        if setting:
+            return setting
+
+        setting = MarketIntegrationSetting(
+            user_id=user_id,
+            provider_key=provider_key,
+            enabled=bool(PROVIDER_DEFAULTS[provider_key]["enabled"]),
+        )
+        self.investments.db.add(setting)
+        self.investments.db.flush()
+        return setting
+
+    def _is_provider_enabled(self, user_id: int, provider_key: str) -> bool:
+        setting = self._list_settings(user_id).get(provider_key)
+        return setting.enabled if setting else bool(PROVIDER_DEFAULTS[provider_key]["enabled"])
+
+    def _encrypt_api_key(self, api_key: str) -> str:
+        digest = hashlib.sha256(settings.jwt_secret_key.encode("utf-8")).digest()
+        key = base64.urlsafe_b64encode(digest)
+        return Fernet(key).encrypt(api_key.encode("utf-8")).decode("utf-8")

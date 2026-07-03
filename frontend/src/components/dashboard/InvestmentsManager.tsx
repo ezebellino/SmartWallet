@@ -11,6 +11,7 @@ import type {
   InvestmentAlertsResponse,
   InvestmentAssetType,
   MarketDataIntegrationsResponse,
+  MarketDataIntegrationUpdate,
   MarketDataRefreshResponse,
   InvestmentOperation,
   InvestmentOperationType,
@@ -48,6 +49,7 @@ type Props = {
   onDeleteAsset: (assetId: number) => Promise<void>;
   onLoadPriceHistory: (assetId: number, limit?: number) => Promise<InvestmentPriceSnapshot[]>;
   onRefreshMarketPrices: () => Promise<void>;
+  onUpdateMarketIntegration: (providerKey: string, payload: MarketDataIntegrationUpdate) => Promise<void>;
   onUpdateAsset: (assetId: number, payload: Partial<AssetPayload>) => Promise<void>;
   operations: InvestmentOperation[];
   portfolio: PortfolioSummary | null;
@@ -114,6 +116,7 @@ export function InvestmentsManager({
   onDeleteAsset,
   onLoadPriceHistory,
   onRefreshMarketPrices,
+  onUpdateMarketIntegration,
   onUpdateAsset,
   operations,
   portfolio,
@@ -307,7 +310,12 @@ export function InvestmentsManager({
         </div>
       ) : null}
 
-      <MarketIntegrationsPanel integrations={marketDataIntegrations} isDisabled={isDisabled} t={t} />
+      <MarketIntegrationsPanel
+        integrations={marketDataIntegrations}
+        isDisabled={isDisabled}
+        onUpdate={onUpdateMarketIntegration}
+        t={t}
+      />
 
       <InvestmentAlertsPanel alerts={investmentAlerts} isDisabled={isDisabled} t={t} />
 

@@ -14,7 +14,9 @@ import type {
   InvestmentOperationType,
   InvestmentPriceSnapshot,
   InvestmentRiskLevel,
+  MarketDataIntegration,
   MarketDataIntegrationsResponse,
+  MarketDataIntegrationUpdate,
   MarketDataRefreshResponse,
   MonthlySummary,
   PortfolioSummary,
@@ -367,6 +369,14 @@ export function refreshMarketPrices(token: string) {
 export function getMarketDataIntegrations(token: string) {
   return request<MarketDataIntegrationsResponse>("/market-data/integrations", {
     headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function updateMarketDataIntegration(token: string, providerKey: string, payload: MarketDataIntegrationUpdate) {
+  return request<MarketDataIntegration>(`/market-data/integrations/${providerKey}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
   });
 }
 

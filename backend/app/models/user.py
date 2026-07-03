@@ -34,3 +34,8 @@ class User(TimestampMixin, Base):
     )
     budgets = relationship("Budget", back_populates="user", cascade="all, delete-orphan")
     ai_reports = relationship("AiReport", back_populates="user", cascade="all, delete-orphan")
+    market_integration_settings = relationship(
+        "MarketIntegrationSetting",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )

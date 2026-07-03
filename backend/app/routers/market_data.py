@@ -1,11 +1,16 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user
 from app.database.session import get_db
 from app.models.user import User
 from app.repositories.investments import InvestmentRepository
-from app.schemas.market_data import MarketDataIntegrationsResponse, MarketDataRefreshResponse
+from app.schemas.market_data import (
+    MarketDataIntegration,
+    MarketDataIntegrationsResponse,
+    MarketDataIntegrationUpdate,
+    MarketDataRefreshResponse,
+)
 from app.services.market_data import MarketDataService
 
 router = APIRouter(prefix="/market-data", tags=["market-data"])
@@ -29,3 +34,16 @@ def list_integrations(
     market_data_service: MarketDataService = Depends(get_market_data_service),
 ) -> MarketDataIntegrationsResponse:
     return market_data_service.list_integrations(current_user.id)
+
+
+@router.patch("/integrations/{provider_key}", response_model=MarketDataIntegration)
+def update_integration(
+    provider_key: str,
+    data: MarketDataIntegrationUpdate,
+    current_user: User = Depends(get_current_user),
+    market_data_service: MarketDataService = Depends(get_market_data_service),
+) -> MarketDataIntegration:
+    try:
+        return market_data_service.update_integration(current_user.id, provider_key, data)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

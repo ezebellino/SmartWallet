@@ -33,6 +33,7 @@ import {
   updateBudget,
   updateCategory,
   updateInvestmentAsset,
+  updateMarketDataIntegration,
   updateSavingGoal,
   updateTransaction
 } from "@/services/api";
@@ -54,6 +55,7 @@ import type {
   InvestmentPriceSnapshot,
   InvestmentRiskLevel,
   MarketDataIntegrationsResponse,
+  MarketDataIntegrationUpdate,
   MarketDataRefreshResponse,
   MonthlySummary,
   PortfolioSummary,
@@ -615,6 +617,25 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
     }
   }
 
+  async function handleUpdateMarketIntegration(providerKey: string, payload: MarketDataIntegrationUpdate) {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    try {
+      const integration = await updateMarketDataIntegration(token, providerKey, payload);
+      setMarketDataIntegrations((current) => ({
+        integrations:
+          current?.integrations.map((item) => (item.key === integration.key ? integration : item)) ?? [integration]
+      }));
+      setStatus(t("integrationUpdated"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
   const handleLoadInvestmentPriceHistory = useCallback(async (assetId: number, limit = 30): Promise<InvestmentPriceSnapshot[]> => {
     if (!token) {
       setStatus(t("signInToManageData"));
@@ -839,6 +860,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
               onDeleteAsset={handleDeleteInvestmentAsset}
               onLoadPriceHistory={handleLoadInvestmentPriceHistory}
               onRefreshMarketPrices={handleRefreshMarketPrices}
+              onUpdateMarketIntegration={handleUpdateMarketIntegration}
               onUpdateAsset={handleUpdateInvestmentAsset}
               operations={investmentOperations}
               portfolio={portfolio}
