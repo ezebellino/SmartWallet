@@ -102,6 +102,14 @@ cd backend
 uvicorn app.main:app --reload
 ```
 
+Run the Docker development stack:
+
+```powershell
+docker compose up --build -d
+```
+
+The Docker backend runs Alembic migrations before starting Uvicorn and mounts `backend/app` plus `backend/alembic`, so code and migration changes are picked up without rebuilding the image for every source edit.
+
 The frontend expects the API at:
 
 ```text
