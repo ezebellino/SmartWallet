@@ -67,6 +67,7 @@ import { InvestmentsManager } from "@/components/dashboard/InvestmentsManager";
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
 import { PlanningPanel } from "@/components/dashboard/PlanningPanel";
 import { Sidebar } from "@/components/dashboard/Sidebar";
+import { StatusToast } from "@/components/dashboard/StatusToast";
 import { TransactionManager } from "@/components/dashboard/TransactionManager";
 
 type Props = {
@@ -720,6 +721,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
             />
           </div>
         ) : null}
+        <StatusToast message={status} mutedMessage={t("localPreviewData")} />
       </main>
     </div>
   );
