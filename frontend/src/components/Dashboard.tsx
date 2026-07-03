@@ -67,6 +67,7 @@ import { CashflowChart } from "@/components/dashboard/CashflowChart";
 import { CategoryManager } from "@/components/dashboard/CategoryManager";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardSectionNav, type DashboardSection } from "@/components/dashboard/DashboardSectionNav";
+import { DashboardSectionHero } from "@/components/dashboard/DashboardSectionHero";
 import { ExpenseCategories } from "@/components/dashboard/ExpenseCategories";
 import { GoalsManager } from "@/components/dashboard/GoalsManager";
 import { InvestmentsManager } from "@/components/dashboard/InvestmentsManager";
@@ -142,6 +143,84 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
       })) ?? [],
     [summary]
   );
+
+  const sectionSummaryItems = useMemo(() => {
+    const activeBudgetAlerts = budgetUsage.filter((budget) => budget.is_over_budget || budget.is_near_limit).length;
+    const activeGoals = goals.filter((goal) => goal.status === "active").length;
+    const investmentAlertCount = investmentAlerts?.alerts.length ?? 0;
+    const insightCount = spendingInsights?.insights.length ?? 0;
+
+    const itemsBySection = {
+      dashboard: [
+        { label: t("summaryMovements"), value: String(transactions.length), tone: "neutral" as const },
+        { label: t("summaryCategories"), value: String(categories.length), tone: "neutral" as const },
+        {
+          label: t("summaryBudgetAlerts"),
+          value: String(activeBudgetAlerts),
+          tone: activeBudgetAlerts > 0 ? ("warn" as const) : ("good" as const)
+        },
+        {
+          label: t("summaryInvestmentAlerts"),
+          value: String(investmentAlertCount),
+          tone: investmentAlertCount > 0 ? ("warn" as const) : ("good" as const)
+        }
+      ],
+      movements: [
+        { label: t("summaryMovements"), value: String(transactions.length), tone: "neutral" as const },
+        { label: t("summaryCategories"), value: String(categories.length), tone: "neutral" as const },
+        { label: t("summaryIncomeCategories"), value: String(categories.filter((category) => category.type === "income").length), tone: "good" as const },
+        { label: t("summaryExpenseCategories"), value: String(categories.filter((category) => category.type === "expense").length), tone: "bad" as const }
+      ],
+      budgets: [
+        { label: t("summaryActiveBudgets"), value: String(budgets.length), tone: "neutral" as const },
+        {
+          label: t("summaryBudgetAlerts"),
+          value: String(activeBudgetAlerts),
+          tone: activeBudgetAlerts > 0 ? ("warn" as const) : ("good" as const)
+        },
+        { label: t("summaryExpenseCategories"), value: String(categories.filter((category) => category.type === "expense").length), tone: "neutral" as const },
+        { label: t("summaryCurrentMonth"), value: `${new Date().getMonth() + 1}/${new Date().getFullYear()}`, tone: "neutral" as const }
+      ],
+      goals: [
+        { label: t("summaryGoals"), value: String(goals.length), tone: "neutral" as const },
+        { label: t("summaryActiveGoals"), value: String(activeGoals), tone: "good" as const },
+        { label: t("summaryCompletedGoals"), value: String(goals.filter((goal) => goal.status === "completed").length), tone: "good" as const },
+        { label: t("summaryPausedGoals"), value: String(goals.filter((goal) => goal.status === "paused").length), tone: "warn" as const }
+      ],
+      investments: [
+        { label: t("summaryAssets"), value: String(investmentAssets.length), tone: "neutral" as const },
+        { label: t("summaryOperations"), value: String(investmentOperations.length), tone: "neutral" as const },
+        {
+          label: t("summaryInvestmentAlerts"),
+          value: String(investmentAlertCount),
+          tone: investmentAlertCount > 0 ? ("warn" as const) : ("good" as const)
+        },
+        { label: t("summaryMarketRefresh"), value: marketDataRefresh ? t("marketPricesUpdatedShort") : t("neverUpdated"), tone: marketDataRefresh ? ("good" as const) : ("warn" as const) }
+      ],
+      aiReports: [
+        { label: t("summaryReport"), value: report ? t("reportReady") : t("reportPending"), tone: report ? ("good" as const) : ("warn" as const) },
+        { label: t("summaryInsights"), value: String(insightCount), tone: insightCount > 0 ? ("warn" as const) : ("good" as const) },
+        { label: t("summaryBudgetAlerts"), value: String(activeBudgetAlerts), tone: activeBudgetAlerts > 0 ? ("warn" as const) : ("good" as const) },
+        { label: t("summarySimulations"), value: t("available"), tone: "neutral" as const }
+      ]
+    };
+
+    return itemsBySection[activeSection];
+  }, [
+    activeSection,
+    budgetUsage,
+    budgets.length,
+    categories,
+    goals,
+    investmentAlerts,
+    investmentAssets.length,
+    investmentOperations.length,
+    language,
+    marketDataRefresh,
+    report,
+    spendingInsights,
+    transactions.length
+  ]);
 
   const refreshFromApi = useCallback(async () => {
     if (!token) {
@@ -652,6 +731,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
         />
         <MetricsGrid metrics={metrics} t={t} />
         <DashboardSectionNav activeSection={activeSection} onChange={setActiveSection} t={t} />
+        <DashboardSectionHero activeSection={activeSection} items={sectionSummaryItems} t={t} />
 
         {activeSection === "dashboard" ? (
           <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
