@@ -19,6 +19,7 @@ import {
   getCategories,
   getInvestmentAssets,
   getInvestmentOperations,
+  getInvestmentPriceHistory,
   getMonthlySummary,
   getPortfolioSummary,
   getSavingGoals,
@@ -47,6 +48,7 @@ import type {
   InvestmentAssetType,
   InvestmentOperation,
   InvestmentOperationType,
+  InvestmentPriceSnapshot,
   InvestmentRiskLevel,
   MarketDataRefreshResponse,
   MonthlySummary,
@@ -518,6 +520,20 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
     }
   }
 
+  const handleLoadInvestmentPriceHistory = useCallback(async (assetId: number, limit = 30): Promise<InvestmentPriceSnapshot[]> => {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return [];
+    }
+
+    try {
+      return await getInvestmentPriceHistory(token, assetId, limit);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }, [token, language]);
+
   async function handleSimulateCompoundInterest(
     payload: CompoundInterestRequest
   ): Promise<CompoundInterestResponse> {
@@ -723,6 +739,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
               onCreateAsset={handleCreateInvestmentAsset}
               onCreateOperation={handleCreateInvestmentOperation}
               onDeleteAsset={handleDeleteInvestmentAsset}
+              onLoadPriceHistory={handleLoadInvestmentPriceHistory}
               onRefreshMarketPrices={handleRefreshMarketPrices}
               onUpdateAsset={handleUpdateInvestmentAsset}
               operations={investmentOperations}

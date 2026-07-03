@@ -1,5 +1,6 @@
 import { Check, LineChart, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { InvestmentPerformancePanel } from "@/components/dashboard/InvestmentPerformancePanel";
 import { Panel } from "@/components/ui";
 import type { TranslationKey } from "@/i18n";
 import { formatDate } from "@/lib/format";
@@ -9,6 +10,7 @@ import type {
   MarketDataRefreshResponse,
   InvestmentOperation,
   InvestmentOperationType,
+  InvestmentPriceSnapshot,
   InvestmentRiskLevel,
   PortfolioSummary
 } from "@/types/api";
@@ -38,6 +40,7 @@ type Props = {
   onCreateAsset: (payload: AssetPayload) => Promise<void>;
   onCreateOperation: (payload: OperationPayload) => Promise<void>;
   onDeleteAsset: (assetId: number) => Promise<void>;
+  onLoadPriceHistory: (assetId: number, limit?: number) => Promise<InvestmentPriceSnapshot[]>;
   onRefreshMarketPrices: () => Promise<void>;
   onUpdateAsset: (assetId: number, payload: Partial<AssetPayload>) => Promise<void>;
   operations: InvestmentOperation[];
@@ -101,6 +104,7 @@ export function InvestmentsManager({
   onCreateAsset,
   onCreateOperation,
   onDeleteAsset,
+  onLoadPriceHistory,
   onRefreshMarketPrices,
   onUpdateAsset,
   operations,
@@ -294,6 +298,13 @@ export function InvestmentsManager({
           ) : null}
         </div>
       ) : null}
+
+      <InvestmentPerformancePanel
+        assets={assets}
+        isDisabled={isDisabled}
+        onLoadPriceHistory={onLoadPriceHistory}
+        t={t}
+      />
 
       <div className="mt-5 grid gap-4 xl:grid-cols-2">
         <form className="grid gap-3" onSubmit={handleCreateAsset}>
