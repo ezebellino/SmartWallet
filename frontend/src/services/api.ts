@@ -7,6 +7,7 @@ import type {
   CategoryType,
   CompoundInterestRequest,
   CompoundInterestResponse,
+  InvestmentAlertsResponse,
   InvestmentAsset,
   InvestmentAssetType,
   InvestmentOperation,
@@ -321,6 +322,12 @@ export function getInvestmentOperations(token: string) {
 
 export function getInvestmentPriceHistory(token: string, assetId: number, limit = 30) {
   return request<InvestmentPriceSnapshot[]>(`/investments/assets/${assetId}/price-history?limit=${limit}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function getInvestmentAlerts(token: string) {
+  return request<InvestmentAlertsResponse>("/investments/alerts", {
     headers: { Authorization: `Bearer ${token}` }
   });
 }

@@ -1,11 +1,13 @@
 import { Check, LineChart, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { InvestmentAlertsPanel } from "@/components/dashboard/InvestmentAlertsPanel";
 import { InvestmentPerformancePanel } from "@/components/dashboard/InvestmentPerformancePanel";
 import { Panel } from "@/components/ui";
 import type { TranslationKey } from "@/i18n";
 import { formatDate } from "@/lib/format";
 import type {
   InvestmentAsset,
+  InvestmentAlertsResponse,
   InvestmentAssetType,
   MarketDataRefreshResponse,
   InvestmentOperation,
@@ -35,6 +37,7 @@ type OperationPayload = {
 
 type Props = {
   assets: InvestmentAsset[];
+  investmentAlerts: InvestmentAlertsResponse | null;
   isDisabled: boolean;
   marketDataRefresh: MarketDataRefreshResponse | null;
   onCreateAsset: (payload: AssetPayload) => Promise<void>;
@@ -99,6 +102,7 @@ function formatPriceSource(value: string | null | undefined, t: (key: Translatio
 
 export function InvestmentsManager({
   assets,
+  investmentAlerts,
   isDisabled,
   marketDataRefresh,
   onCreateAsset,
@@ -298,6 +302,8 @@ export function InvestmentsManager({
           ) : null}
         </div>
       ) : null}
+
+      <InvestmentAlertsPanel alerts={investmentAlerts} isDisabled={isDisabled} t={t} />
 
       <InvestmentPerformancePanel
         assets={assets}

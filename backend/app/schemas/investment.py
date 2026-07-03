@@ -105,3 +105,18 @@ class PortfolioSummary(BaseModel):
     total_unrealized_gain_loss: Decimal
     positions: list[PortfolioPosition]
     risk_warning: str
+
+
+class InvestmentAlert(BaseModel):
+    type: str
+    severity: str
+    title: str
+    description: str
+    asset_id: int | None = None
+    symbol: str | None = None
+    value: Decimal | None = None
+    percentage: Decimal | None = None
+
+
+class InvestmentAlertsResponse(BaseModel):
+    alerts: list[InvestmentAlert]

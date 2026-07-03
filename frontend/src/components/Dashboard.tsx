@@ -17,6 +17,7 @@ import {
   getBudgets,
   getBudgetUsage,
   getCategories,
+  getInvestmentAlerts,
   getInvestmentAssets,
   getInvestmentOperations,
   getInvestmentPriceHistory,
@@ -44,6 +45,7 @@ import type {
   CategoryType,
   CompoundInterestRequest,
   CompoundInterestResponse,
+  InvestmentAlertsResponse,
   InvestmentAsset,
   InvestmentAssetType,
   InvestmentOperation,
@@ -90,6 +92,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
   const [categories, setCategories] = useState<Category[]>([]);
   const [goals, setGoals] = useState<SavingGoal[]>([]);
   const [investmentAssets, setInvestmentAssets] = useState<InvestmentAsset[]>([]);
+  const [investmentAlerts, setInvestmentAlerts] = useState<InvestmentAlertsResponse | null>(null);
   const [investmentOperations, setInvestmentOperations] = useState<InvestmentOperation[]>([]);
   const [marketDataRefresh, setMarketDataRefresh] = useState<MarketDataRefreshResponse | null>(null);
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
@@ -157,6 +160,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
         budgetUsageResponse,
         categoriesResponse,
         goalsResponse,
+        investmentAlertsResponse,
         investmentAssetsResponse,
         investmentOperationsResponse,
         portfolioResponse,
@@ -169,6 +173,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
         getBudgetUsage(token, year, month),
         getCategories(token),
         getSavingGoals(token),
+        getInvestmentAlerts(token),
         getInvestmentAssets(token),
         getInvestmentOperations(token),
         getPortfolioSummary(token),
@@ -181,6 +186,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
       setBudgetUsage(budgetUsageResponse);
       setCategories(categoriesResponse);
       setGoals(goalsResponse);
+      setInvestmentAlerts(investmentAlertsResponse);
       setInvestmentAssets(investmentAssetsResponse);
       setInvestmentOperations(investmentOperationsResponse);
       setPortfolio(portfolioResponse);
@@ -210,11 +216,13 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
   }
 
   async function refreshInvestments(tokenValue: string) {
-    const [assetsResponse, operationsResponse, portfolioResponse] = await Promise.all([
+    const [alertsResponse, assetsResponse, operationsResponse, portfolioResponse] = await Promise.all([
+      getInvestmentAlerts(tokenValue),
       getInvestmentAssets(tokenValue),
       getInvestmentOperations(tokenValue),
       getPortfolioSummary(tokenValue)
     ]);
+    setInvestmentAlerts(alertsResponse);
     setInvestmentAssets(assetsResponse);
     setInvestmentOperations(operationsResponse);
     setPortfolio(portfolioResponse);
@@ -735,6 +743,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
             <InvestmentsManager
               assets={investmentAssets}
               isDisabled={!token}
+              investmentAlerts={investmentAlerts}
               marketDataRefresh={marketDataRefresh}
               onCreateAsset={handleCreateInvestmentAsset}
               onCreateOperation={handleCreateInvestmentOperation}

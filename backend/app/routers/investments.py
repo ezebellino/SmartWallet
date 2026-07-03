@@ -7,6 +7,7 @@ from app.models.user import User
 from app.repositories.investments import InvestmentRepository
 from app.schemas.investment import (
     InvestmentAssetCreate,
+    InvestmentAlertsResponse,
     InvestmentAssetRead,
     InvestmentAssetUpdate,
     InvestmentOperationCreate,
@@ -93,3 +94,11 @@ def portfolio_summary(
     investment_service: InvestmentService = Depends(get_investment_service),
 ) -> PortfolioSummary:
     return investment_service.get_portfolio_summary(current_user.id)
+
+
+@router.get("/alerts", response_model=InvestmentAlertsResponse)
+def investment_alerts(
+    current_user: User = Depends(get_current_user),
+    investment_service: InvestmentService = Depends(get_investment_service),
+) -> InvestmentAlertsResponse:
+    return investment_service.get_investment_alerts(current_user.id)

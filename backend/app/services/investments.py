@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi import HTTPException, status
@@ -10,6 +11,8 @@ from app.models.investment import (
 from app.repositories.investments import InvestmentRepository
 from app.schemas.investment import (
     InvestmentAssetCreate,
+    InvestmentAlert,
+    InvestmentAlertsResponse,
     InvestmentAssetUpdate,
     InvestmentOperationCreate,
     InvestmentPriceSnapshotRead,
@@ -20,6 +23,9 @@ from app.schemas.investment import (
 
 MONEY_QUANTIZER = Decimal("0.01")
 QUANTITY_QUANTIZER = Decimal("0.00000001")
+STALE_PRICE_DAYS = 7
+SHARP_PRICE_MOVE_PERCENT = Decimal("10.00")
+HIGH_RISK_CONCENTRATION_PERCENT = Decimal("60.00")
 
 
 class InvestmentService:
@@ -89,6 +95,21 @@ class InvestmentService:
         self._get_owned_asset(asset_id, user_id)
         return self.investments.list_price_snapshots(user_id, asset_id, limit)
 
+    def get_investment_alerts(self, user_id: int) -> InvestmentAlertsResponse:
+        assets = self.investments.list_assets_with_operations(user_id)
+        positions = [self._build_position(asset) for asset in assets]
+        positions = [position for position in positions if position.quantity > 0]
+        alerts: list[InvestmentAlert] = []
+
+        alerts.extend(self._build_price_alerts(user_id, assets))
+        concentration_alert = self._build_high_risk_concentration_alert(positions)
+        if concentration_alert:
+            alerts.append(concentration_alert)
+
+        severity_order = {"high": 0, "medium": 1, "low": 2}
+        alerts.sort(key=lambda alert: severity_order.get(alert.severity, 99))
+        return InvestmentAlertsResponse(alerts=alerts)
+
     def get_portfolio_summary(self, user_id: int) -> PortfolioSummary:
         assets = self.investments.list_assets_with_operations(user_id)
         positions = [self._build_position(asset) for asset in assets]
@@ -111,6 +132,97 @@ class InvestmentService:
                 "Investment information is educational and does not constitute professional "
                 "financial advice."
             ),
+        )
+
+    def _build_price_alerts(self, user_id: int, assets: list[InvestmentAsset]) -> list[InvestmentAlert]:
+        alerts: list[InvestmentAlert] = []
+        stale_before = datetime.now(timezone.utc) - timedelta(days=STALE_PRICE_DAYS)
+
+        for asset in assets:
+            if asset.current_price is None or asset.price_updated_at is None:
+                alerts.append(
+                    InvestmentAlert(
+                        type="missing_price",
+                        severity="high",
+                        title=f"{asset.symbol} has no current price",
+                        description="Add a manual price or run the market refresh to include this asset in portfolio estimates.",
+                        asset_id=asset.id,
+                        symbol=asset.symbol,
+                    )
+                )
+                continue
+
+            price_updated_at = self._ensure_timezone(asset.price_updated_at)
+            if price_updated_at < stale_before:
+                alerts.append(
+                    InvestmentAlert(
+                        type="stale_price",
+                        severity="medium",
+                        title=f"{asset.symbol} price is stale",
+                        description=f"The last price update is more than {STALE_PRICE_DAYS} days old.",
+                        asset_id=asset.id,
+                        symbol=asset.symbol,
+                    )
+                )
+
+            snapshots = self.investments.list_latest_price_snapshots(user_id, asset.id, 2)
+            if len(snapshots) < 2:
+                continue
+
+            latest, previous = snapshots[0], snapshots[1]
+            if previous.price == 0:
+                continue
+
+            percentage = ((latest.price - previous.price) / previous.price * Decimal("100")).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP,
+            )
+            if abs(percentage) >= SHARP_PRICE_MOVE_PERCENT:
+                alerts.append(
+                    InvestmentAlert(
+                        type="sharp_price_move",
+                        severity="high" if abs(percentage) >= Decimal("20.00") else "medium",
+                        title=f"{asset.symbol} moved {percentage:+}%",
+                        description="The latest market refresh changed this asset price meaningfully versus the previous snapshot.",
+                        asset_id=asset.id,
+                        symbol=asset.symbol,
+                        value=(latest.price - previous.price).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP),
+                        percentage=percentage,
+                    )
+                )
+
+        return alerts
+
+    def _build_high_risk_concentration_alert(
+        self,
+        positions: list[PortfolioPosition],
+    ) -> InvestmentAlert | None:
+        total_value = sum((position.estimated_value or position.invested_amount for position in positions), Decimal("0"))
+        if total_value <= 0:
+            return None
+
+        high_risk_value = sum(
+            (
+                position.estimated_value or position.invested_amount
+                for position in positions
+                if position.risk_level.value == "high"
+            ),
+            Decimal("0"),
+        )
+        percentage = (high_risk_value / total_value * Decimal("100")).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
+        if percentage < HIGH_RISK_CONCENTRATION_PERCENT:
+            return None
+
+        return InvestmentAlert(
+            type="high_risk_concentration",
+            severity="medium",
+            title=f"High risk concentration is {percentage}%",
+            description="A large share of the portfolio is allocated to high-risk assets. Review whether that matches your plan.",
+            value=self._money(high_risk_value),
+            percentage=percentage,
         )
 
     def _get_owned_asset(self, asset_id: int, user_id: int) -> InvestmentAsset:
@@ -163,3 +275,6 @@ class InvestmentService:
 
     def _money(self, value: Decimal) -> Decimal:
         return value.quantize(MONEY_QUANTIZER, rounding=ROUND_HALF_UP)
+
+    def _ensure_timezone(self, value: datetime) -> datetime:
+        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value

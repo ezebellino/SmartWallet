@@ -132,3 +132,6 @@ class InvestmentRepository:
             .limit(limit)
         )
         return list(self.db.scalars(statement).all())
+
+    def list_latest_price_snapshots(self, user_id: int, asset_id: int, limit: int = 2) -> list[InvestmentPriceSnapshot]:
+        return self.list_price_snapshots(user_id, asset_id, limit)

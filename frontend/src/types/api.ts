@@ -182,6 +182,21 @@ export type InvestmentPriceSnapshot = {
   created_at: string;
 };
 
+export type InvestmentAlert = {
+  type: string;
+  severity: "low" | "medium" | "high" | string;
+  title: string;
+  description: string;
+  asset_id: number | null;
+  symbol: string | null;
+  value: string | null;
+  percentage: string | null;
+};
+
+export type InvestmentAlertsResponse = {
+  alerts: InvestmentAlert[];
+};
+
 export type SpendingInsight = {
   type: string;
   severity: "low" | "medium" | "high" | string;
