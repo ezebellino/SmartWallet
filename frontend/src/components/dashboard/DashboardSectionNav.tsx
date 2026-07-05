@@ -24,7 +24,7 @@ const sections: Array<{
 
 export function DashboardSectionNav({ activeSection, onChange, t }: Props) {
   return (
-    <nav className="mt-4 overflow-x-auto rounded-lg border border-borderSoft bg-panel/78 p-1">
+    <nav className="mt-4 overflow-x-auto rounded-lg border border-borderSoft/90 bg-panel/70 p-1 shadow-panel ring-1 ring-white/[0.025]">
       <div className="grid min-w-[920px] grid-cols-6 gap-1 md:min-w-0">
         {sections.map((section) => {
           const Icon = section.icon;
@@ -33,7 +33,9 @@ export function DashboardSectionNav({ activeSection, onChange, t }: Props) {
           return (
             <button
               className={`inline-flex h-11 items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold transition ${
-                isActive ? "bg-cyan text-background" : "text-muted hover:bg-panelSoft hover:text-text"
+                isActive
+                  ? "border border-cyan/40 bg-cyan/15 text-cyan"
+                  : "border border-transparent text-muted hover:border-borderSoft hover:bg-panelSoft hover:text-text"
               }`}
               key={section.id}
               onClick={() => onChange(section.id)}

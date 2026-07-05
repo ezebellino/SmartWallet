@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.ai_report import AiReport
@@ -40,7 +41,14 @@ class AiReportRepository:
             **draft.model_dump(),
         )
         self.db.add(report)
-        self.db.commit()
+        try:
+            self.db.commit()
+        except IntegrityError:
+            self.db.rollback()
+            existing_report = self.get_by_period(user_id=user_id, year=year, month=month)
+            if existing_report:
+                return existing_report
+            raise
         self.db.refresh(report)
         return report
 
@@ -50,4 +58,3 @@ class AiReportRepository:
         self.db.commit()
         self.db.refresh(report)
         return report
-

@@ -749,6 +749,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
       />
 
       <main className="min-w-0 flex-1 px-4 py-5 md:px-6 xl:px-8">
+        <div className="mx-auto max-w-[1480px]">
         <DashboardHeader
           language={language}
           onLanguageChange={onLanguageChange}
@@ -881,6 +882,7 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
           </div>
         ) : null}
         <StatusToast message={status} mutedMessage={t("localPreviewData")} />
+        </div>
       </main>
     </div>
   );

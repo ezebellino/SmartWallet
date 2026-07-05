@@ -73,10 +73,11 @@ export function DashboardSectionHero({ activeSection, items, t }: Props) {
   const Icon = meta.icon;
 
   return (
-    <section className="mt-4 overflow-hidden rounded-lg border border-borderSoft bg-panel/72">
+    <section className="mt-4 overflow-hidden rounded-lg border border-borderSoft/90 bg-panel/72 shadow-panel ring-1 ring-white/[0.025]">
+      <div className="h-px bg-gradient-to-r from-cyan/40 via-emerald/30 to-transparent" />
       <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-start gap-3">
-          <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-md bg-panelSoft ${meta.accent}`}>
+          <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-md border border-borderSoft bg-background/70 ${meta.accent}`}>
             <Icon size={20} />
           </div>
           <div className="min-w-0">
@@ -87,7 +88,7 @@ export function DashboardSectionHero({ activeSection, items, t }: Props) {
 
         <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[380px]">
           {items.map((item) => (
-            <div className="rounded-md border border-borderSoft bg-background/58 px-3 py-2" key={item.label}>
+            <div className="rounded-md border border-borderSoft bg-background/62 px-3 py-2 transition hover:border-cyan/25 hover:bg-background/80" key={item.label}>
               <div className="text-[11px] font-semibold uppercase text-muted">{item.label}</div>
               <div className={`mt-1 text-base font-semibold ${toneClass[item.tone ?? "neutral"]}`}>{item.value}</div>
             </div>

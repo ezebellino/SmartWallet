@@ -26,9 +26,9 @@ export function Sidebar({
   const activeAlerts = budgetUsage.filter((budget) => budget.is_over_budget || budget.is_near_limit).slice(0, 3);
 
   return (
-    <aside className="hidden w-64 shrink-0 border-r border-borderSoft bg-background/88 px-4 py-5 lg:block">
+    <aside className="hidden w-64 shrink-0 border-r border-borderSoft/80 bg-background/82 px-4 py-5 shadow-panel lg:block">
       <div className="flex items-center gap-3 px-2">
-        <div className="grid h-10 w-10 place-items-center rounded-md bg-emerald/12 text-emerald">
+        <div className="grid h-10 w-10 place-items-center rounded-md border border-emerald/25 bg-emerald/12 text-emerald">
           <WalletCards size={21} />
         </div>
         <div>
@@ -44,7 +44,9 @@ export function Sidebar({
           return (
             <button
               className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-medium transition ${
-                isActive ? "bg-panelSoft text-text" : "text-muted hover:bg-panelSoft hover:text-text"
+                isActive
+                  ? "border border-cyan/30 bg-cyan/10 text-cyan"
+                  : "border border-transparent text-muted hover:border-borderSoft hover:bg-panelSoft hover:text-text"
               }`}
               key={label}
               onClick={() => onSectionChange(section)}
@@ -57,7 +59,7 @@ export function Sidebar({
         })}
       </nav>
 
-      <div className="mt-8 rounded-lg border border-borderSoft bg-panel p-4">
+      <div className="mt-8 rounded-lg border border-borderSoft/90 bg-panel/82 p-4 ring-1 ring-white/[0.025]">
         <div className="flex items-center gap-2 text-sm font-medium text-text">
           <Bell size={16} className="text-amber" />
             {t("budgetAlerts")}
