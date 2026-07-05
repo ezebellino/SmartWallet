@@ -259,6 +259,15 @@ export function InvestmentsManager({
     }
   }
 
+  function applyUsdArsPreset() {
+    setAssetName(t("usdArsPresetName"));
+    setSymbol("USD");
+    setAssetType("other");
+    setCurrency("ARS");
+    setRiskLevel("medium");
+    setCurrentPrice("");
+  }
+
   return (
     <Panel className="p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -350,7 +359,18 @@ export function InvestmentsManager({
 
       <div className="mt-5 grid gap-4 xl:grid-cols-2">
         <form className="grid gap-3" onSubmit={handleCreateAsset}>
-          <div className="text-sm font-medium text-text">{t("investmentAssets")}</div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm font-medium text-text">{t("investmentAssets")}</div>
+            <button
+              className="rounded-md border border-borderSoft px-3 py-1.5 text-xs font-semibold text-muted transition hover:text-text disabled:cursor-not-allowed disabled:opacity-55"
+              disabled={isDisabled || isSaving}
+              onClick={applyUsdArsPreset}
+              type="button"
+            >
+              {t("useUsdArsPreset")}
+            </button>
+          </div>
+          <p className="text-xs leading-5 text-muted">{t("usdArsPresetHint")}</p>
           <input
             className="rounded-md border border-borderSoft bg-background px-3 py-2.5 text-sm text-text outline-none transition placeholder:text-muted focus:border-cyan"
             disabled={isDisabled || isSaving}
