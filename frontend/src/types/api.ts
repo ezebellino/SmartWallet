@@ -170,6 +170,16 @@ export type MarketDataRefreshResponse = {
   skipped_count: number;
   failed_count: number;
   quotes: MarketQuoteResult[];
+  refresh_plan: MarketRefreshPlanItem[];
+};
+
+export type MarketRefreshPlanItem = {
+  provider: string;
+  limit: number | null;
+  updated_symbols: string[];
+  skipped_symbols: string[];
+  next_symbol: string | null;
+  message: string;
 };
 
 export type MarketDataIntegration = {

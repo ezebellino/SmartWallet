@@ -238,6 +238,62 @@ def test_market_data_refresh_limits_alpha_vantage_free_plan_to_one_asset(
     assert requested_symbols == ["AAPL"]
     assert body["quotes"][1]["status"] == "skipped"
     assert body["quotes"][1]["message"] == "Alpha Vantage free plan allows one stock price per refresh"
+    assert body["refresh_plan"][0]["provider"] == "alphavantage"
+    assert body["refresh_plan"][0]["updated_symbols"] == ["AAPL"]
+    assert body["refresh_plan"][0]["skipped_symbols"] == ["MSFT"]
+    assert body["refresh_plan"][0]["next_symbol"] == "MSFT"
+
+
+def test_market_data_refresh_rotates_alpha_vantage_to_stalest_asset(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+) -> None:
+    for symbol in ["AAPL", "MSFT"]:
+        client.post(
+            "/investments/assets",
+            headers=auth_headers,
+            json={
+                "name": symbol,
+                "symbol": symbol,
+                "asset_type": "stock",
+                "currency": "USD",
+                "risk_level": "medium",
+                "current_price": "200.0000",
+            },
+        )
+    client.patch(
+        "/market-data/integrations/alphavantage",
+        headers=auth_headers,
+        json={"enabled": True, "api_key": "demo-secret-1234"},
+    )
+
+    requested_symbols: list[str] = []
+
+    def fake_fetch_stock_price(self, symbol: str, currency: str, api_key: str) -> ProviderQuote:
+        requested_symbols.append(symbol)
+        from datetime import datetime, timezone
+
+        return ProviderQuote(
+            provider="alphavantage",
+            price=Decimal("220.1250"),
+            currency="USD",
+            fetched_at=datetime(2026, 7, 3, tzinfo=timezone.utc),
+        )
+
+    monkeypatch.setattr(
+        "app.services.market_data.ExternalMarketDataProvider.fetch_stock_price",
+        fake_fetch_stock_price,
+    )
+
+    first_response = client.post("/market-data/refresh-prices", headers=auth_headers)
+    second_response = client.post("/market-data/refresh-prices", headers=auth_headers)
+
+    assert first_response.status_code == 200
+    assert second_response.status_code == 200
+    assert requested_symbols == ["AAPL", "MSFT"]
+    assert second_response.json()["refresh_plan"][0]["updated_symbols"] == ["MSFT"]
+    assert second_response.json()["refresh_plan"][0]["next_symbol"] == "AAPL"
 
 
 def test_market_data_integrations_report_available_providers(

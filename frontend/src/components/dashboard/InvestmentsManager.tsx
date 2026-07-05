@@ -307,6 +307,28 @@ export function InvestmentsManager({
               ))}
             </div>
           ) : null}
+          {marketDataRefresh.refresh_plan.length ? (
+            <div className="mt-3 grid gap-2">
+              {marketDataRefresh.refresh_plan.map((plan) => (
+                <div className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-xs text-muted" key={plan.provider}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-semibold text-text">{t("refreshPlan")}: {plan.provider.toUpperCase()}</span>
+                    <span>{plan.provider === "alphavantage" ? t("refreshPlanAlpha") : plan.message}</span>
+                  </div>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <span>
+                      {t("refreshedNow")}:{" "}
+                      <strong className="text-emerald">{plan.updated_symbols.join(", ") || "-"}</strong>
+                    </span>
+                    <span>
+                      {t("nextRefresh")}:{" "}
+                      <strong className="text-amber">{plan.next_symbol ?? t("noQueuedAssets")}</strong>
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
 

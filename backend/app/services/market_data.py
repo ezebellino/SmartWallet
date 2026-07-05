@@ -19,6 +19,7 @@ from app.schemas.market_data import (
     MarketDataIntegrationsResponse,
     MarketDataIntegrationUpdate,
     MarketDataRefreshResponse,
+    MarketRefreshPlanItem,
     MarketQuoteResult,
 )
 
@@ -152,8 +153,9 @@ class MarketDataService:
     def refresh_investment_prices(self, user_id: int) -> MarketDataRefreshResponse:
         results: list[MarketQuoteResult] = []
         provider_requests = {"alphavantage": 0}
+        assets = self._order_assets_for_refresh(self.investments.list_assets(user_id))
 
-        for asset in self.investments.list_assets(user_id):
+        for asset in assets:
             quote = self._refresh_asset(asset, provider_requests)
             results.append(quote)
 
@@ -162,6 +164,7 @@ class MarketDataService:
             skipped_count=sum(1 for quote in results if quote.status == "skipped"),
             failed_count=sum(1 for quote in results if quote.status == "failed"),
             quotes=results,
+            refresh_plan=self._build_refresh_plan(results),
         )
 
     def list_integrations(self, user_id: int) -> MarketDataIntegrationsResponse:
@@ -429,3 +432,37 @@ class MarketDataService:
         if not setting or not setting.api_key_encrypted:
             return None
         return self._decrypt_api_key(setting.api_key_encrypted)
+
+    def _order_assets_for_refresh(self, assets: list[InvestmentAsset]) -> list[InvestmentAsset]:
+        alpha_vantage_assets = [asset for asset in assets if asset.asset_type in ALPHA_VANTAGE_ASSET_TYPES]
+        other_assets = [asset for asset in assets if asset.asset_type not in ALPHA_VANTAGE_ASSET_TYPES]
+        alpha_vantage_assets.sort(
+            key=lambda asset: (
+                asset.price_source == "alphavantage" and asset.price_updated_at is not None,
+                asset.price_updated_at or datetime.min.replace(tzinfo=timezone.utc),
+                asset.symbol,
+            )
+        )
+        return alpha_vantage_assets + other_assets
+
+    def _build_refresh_plan(self, results: list[MarketQuoteResult]) -> list[MarketRefreshPlanItem]:
+        alpha_updated = [quote.symbol for quote in results if quote.provider == "alphavantage" and quote.status == "updated"]
+        alpha_skipped = [
+            quote.symbol
+            for quote in results
+            if quote.status == "skipped"
+            and quote.message == "Alpha Vantage free plan allows one stock price per refresh"
+        ]
+        if not alpha_updated and not alpha_skipped:
+            return []
+
+        return [
+            MarketRefreshPlanItem(
+                provider="alphavantage",
+                limit=ALPHA_VANTAGE_FREE_REQUESTS_PER_REFRESH,
+                updated_symbols=alpha_updated,
+                skipped_symbols=alpha_skipped,
+                next_symbol=alpha_skipped[0] if alpha_skipped else None,
+                message="Alpha Vantage free plan rotates one stock price per refresh",
+            )
+        ]

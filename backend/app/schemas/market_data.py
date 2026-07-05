@@ -20,6 +20,16 @@ class MarketDataRefreshResponse(BaseModel):
     skipped_count: int
     failed_count: int
     quotes: list[MarketQuoteResult]
+    refresh_plan: list["MarketRefreshPlanItem"] = []
+
+
+class MarketRefreshPlanItem(BaseModel):
+    provider: str
+    limit: int | None
+    updated_symbols: list[str]
+    skipped_symbols: list[str]
+    next_symbol: str | None
+    message: str
 
 
 class MarketDataIntegration(BaseModel):
