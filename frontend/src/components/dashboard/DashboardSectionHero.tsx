@@ -1,4 +1,4 @@
-import { BarChart3, Bot, CreditCard, Gauge, LineChart, Target } from "lucide-react";
+import { Banknote, BarChart3, Bot, CreditCard, Gauge, LineChart, Target } from "lucide-react";
 import type { TranslationKey } from "@/i18n";
 import type { DashboardSection } from "@/components/dashboard/DashboardSectionNav";
 
@@ -46,6 +46,12 @@ const sectionMeta: Record<
     description: "sectionGoalsSubtitle",
     icon: Target,
     title: "goals"
+  },
+  dollars: {
+    accent: "text-emerald",
+    description: "sectionDollarsSubtitle",
+    icon: Banknote,
+    title: "dollarSavings"
   },
   investments: {
     accent: "text-cyan",

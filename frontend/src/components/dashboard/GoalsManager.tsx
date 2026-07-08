@@ -2,6 +2,7 @@ import { Check, Pencil, Plus, PiggyBank, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { Panel, ProgressBar } from "@/components/ui";
 import type { TranslationKey } from "@/i18n";
+import { confirmAction } from "@/lib/alerts";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { SavingGoal, SavingGoalStatus } from "@/types/api";
 
@@ -120,7 +121,13 @@ export function GoalsManager({ goals, isDisabled, onContribute, onCreate, onDele
   }
 
   async function handleDelete(goal: SavingGoal) {
-    if (!confirm(t("confirmDeleteGoal"))) {
+    const confirmed = await confirmAction({
+      cancelText: t("cancel"),
+      confirmText: t("delete"),
+      title: t("confirmDeleteGoal")
+    });
+
+    if (!confirmed) {
       return;
     }
 

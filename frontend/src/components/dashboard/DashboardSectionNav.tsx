@@ -1,7 +1,7 @@
-import { BarChart3, Bot, Gauge, LineChart, Target, WalletCards } from "lucide-react";
+import { BarChart3, Banknote, Bot, Gauge, LineChart, Target, WalletCards } from "lucide-react";
 import type { TranslationKey } from "@/i18n";
 
-export type DashboardSection = "dashboard" | "movements" | "budgets" | "goals" | "investments" | "aiReports";
+export type DashboardSection = "dashboard" | "movements" | "budgets" | "goals" | "dollars" | "investments" | "aiReports";
 
 type Props = {
   activeSection: DashboardSection;
@@ -18,6 +18,7 @@ const sections: Array<{
   { id: "movements", labelKey: "movements", icon: WalletCards },
   { id: "budgets", labelKey: "budgets", icon: BarChart3 },
   { id: "goals", labelKey: "goals", icon: Target },
+  { id: "dollars", labelKey: "dollarSavings", icon: Banknote },
   { id: "investments", labelKey: "investments", icon: LineChart },
   { id: "aiReports", labelKey: "aiReports", icon: Bot }
 ];
@@ -25,7 +26,7 @@ const sections: Array<{
 export function DashboardSectionNav({ activeSection, onChange, t }: Props) {
   return (
     <nav className="mt-4 overflow-x-auto rounded-lg border border-borderSoft/90 bg-panel/70 p-1 shadow-panel ring-1 ring-white/[0.025]">
-      <div className="grid min-w-[920px] grid-cols-6 gap-1 md:min-w-0">
+      <div className="grid min-w-[1040px] grid-cols-7 gap-1 md:min-w-0">
         {sections.map((section) => {
           const Icon = section.icon;
           const isActive = activeSection === section.id;

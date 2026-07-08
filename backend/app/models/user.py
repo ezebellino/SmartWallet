@@ -17,6 +17,7 @@ class User(TimestampMixin, Base):
     categories = relationship("Category", back_populates="user", cascade="all, delete-orphan")
     transactions = relationship("Transaction", back_populates="user", cascade="all, delete-orphan")
     saving_goals = relationship("SavingGoal", back_populates="user", cascade="all, delete-orphan")
+    dollar_savings = relationship("DollarSaving", back_populates="user", cascade="all, delete-orphan")
     investment_assets = relationship(
         "InvestmentAsset",
         back_populates="user",

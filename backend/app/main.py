@@ -7,6 +7,7 @@ from app.routers.auth import router as auth_router
 from app.routers.budgets import router as budgets_router
 from app.routers.categories import router as categories_router
 from app.routers.dashboard import router as dashboard_router
+from app.routers.dollar_savings import router as dollar_savings_router
 from app.routers.health import router as health_router
 from app.routers.insights import router as insights_router
 from app.routers.investments import router as investments_router
@@ -36,6 +37,7 @@ def create_app() -> FastAPI:
     app.include_router(transactions_router)
     app.include_router(budgets_router)
     app.include_router(saving_goals_router)
+    app.include_router(dollar_savings_router)
     app.include_router(investments_router)
     app.include_router(market_data_router)
     app.include_router(insights_router)

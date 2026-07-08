@@ -91,6 +91,18 @@ export type SavingGoal = {
   updated_at: string;
 };
 
+export type DollarSavingSource = "manual" | "bank" | "mercado_pago" | "cash" | "other";
+
+export type DollarSaving = {
+  id: number;
+  amount: string;
+  source: DollarSavingSource;
+  notes: string | null;
+  saved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type InvestmentAssetType =
   | "stock"
   | "crypto"

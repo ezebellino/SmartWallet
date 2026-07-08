@@ -1,7 +1,8 @@
-import { Check, CreditCard, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { CalendarDays, Check, CreditCard, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Panel } from "@/components/ui";
 import type { TranslationKey } from "@/i18n";
+import { confirmAction } from "@/lib/alerts";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { Category, Transaction, TransactionType } from "@/types/api";
 
@@ -34,12 +35,44 @@ type Props = {
 
 const today = new Date().toISOString().slice(0, 10);
 const initialVisibleCount = 8;
+const dayMs = 24 * 60 * 60 * 1000;
+const yesterday = new Date(Date.now() - dayMs).toISOString().slice(0, 10);
+const lastWeek = new Date(Date.now() - dayMs * 6).toISOString().slice(0, 10);
+const movementGroupOrder = ["today", "yesterday", "week", "older"] as const;
+type MovementGroupKey = (typeof movementGroupOrder)[number];
+
+function getMovementGroupKey(date: string): MovementGroupKey {
+  if (date === today) {
+    return "today";
+  }
+
+  if (date === yesterday) {
+    return "yesterday";
+  }
+
+  if (date >= lastWeek) {
+    return "week";
+  }
+
+  return "older";
+}
+
+function getMovementGroupLabel(key: MovementGroupKey): TranslationKey {
+  return {
+    older: "movementGroupOlder",
+    today: "movementGroupToday",
+    week: "movementGroupThisWeek",
+    yesterday: "movementGroupYesterday"
+  }[key] as TranslationKey;
+}
 
 export function TransactionManager({ categories, isDisabled, onCreate, onDelete, onUpdate, transactions, t }: Props) {
   const [type, setType] = useState<TransactionType>("expense");
   const [categoryId, setCategoryId] = useState("");
   const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState("ARS");
   const [description, setDescription] = useState("");
+  const [usdQuantity, setUsdQuantity] = useState("");
   const [transactionDate, setTransactionDate] = useState(today);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingCategoryId, setEditingCategoryId] = useState("");
@@ -89,6 +122,35 @@ export function TransactionManager({ categories, isDisabled, onCreate, onDelete,
     [filteredTransactions]
   );
   const visibleTransactions = filteredTransactions.slice(0, visibleCount);
+  const groupedVisibleTransactions = useMemo(() => {
+    const groups = new Map<
+      MovementGroupKey,
+      { expenses: number; income: number; items: Transaction[]; key: MovementGroupKey }
+    >();
+
+    for (const transaction of visibleTransactions) {
+      const groupKey = getMovementGroupKey(transaction.transaction_date);
+      const current = groups.get(groupKey) ?? { expenses: 0, income: 0, items: [], key: groupKey };
+      const amountValue = Number(transaction.amount);
+
+      current.items.push(transaction);
+      if (transaction.type === "income") {
+        current.income += amountValue;
+      } else {
+        current.expenses += amountValue;
+      }
+
+      groups.set(groupKey, current);
+    }
+
+    return movementGroupOrder.map((key) => groups.get(key)).filter(Boolean) as Array<{
+      expenses: number;
+      income: number;
+      items: Transaction[];
+      key: MovementGroupKey;
+    }>;
+  }, [visibleTransactions]);
+  const filteredNet = filteredTotals.income - filteredTotals.expenses;
 
   function resetFilters() {
     setFilterType("all");
@@ -106,16 +168,24 @@ export function TransactionManager({ categories, isDisabled, onCreate, onDelete,
 
     setIsSaving(true);
     try {
+      const normalizedDescription = description.trim();
+      const finalDescription =
+        type === "expense" && currency === "ARS" && usdQuantity
+          ? `Compra USD ${usdQuantity}${normalizedDescription ? ` - ${normalizedDescription}` : ""}`
+          : normalizedDescription;
+
       await onCreate({
         category_id: selectedCategoryId,
         type,
         amount,
-        currency: "ARS",
-        description: description.trim() || undefined,
+        currency,
+        description: finalDescription || undefined,
         transaction_date: transactionDate
       });
       setAmount("");
+      setCurrency("ARS");
       setDescription("");
+      setUsdQuantity("");
       setCategoryId("");
       setTransactionDate(today);
     } catch {
@@ -157,7 +227,13 @@ export function TransactionManager({ categories, isDisabled, onCreate, onDelete,
   }
 
   async function handleDelete(transaction: Transaction) {
-    if (!confirm(t("confirmDeleteMovement"))) {
+    const confirmed = await confirmAction({
+      cancelText: t("cancel"),
+      confirmText: t("delete"),
+      title: t("confirmDeleteMovement")
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -212,6 +288,15 @@ export function TransactionManager({ categories, isDisabled, onCreate, onDelete,
             type="number"
             value={amount}
           />
+          <select
+            className="rounded-md border border-borderSoft bg-background px-3 py-2.5 text-sm text-text outline-none transition focus:border-cyan"
+            disabled={isDisabled || isSaving}
+            onChange={(event) => setCurrency(event.target.value)}
+            value={currency}
+          >
+            <option value="ARS">ARS</option>
+            <option value="USD">USD</option>
+          </select>
           <input
             className="rounded-md border border-borderSoft bg-background px-3 py-2.5 text-sm text-text outline-none transition focus:border-cyan"
             disabled={isDisabled || isSaving}
@@ -220,6 +305,27 @@ export function TransactionManager({ categories, isDisabled, onCreate, onDelete,
             value={transactionDate}
           />
         </div>
+
+        {type === "expense" && currency === "ARS" ? (
+          <div className="rounded-md border border-cyan/20 bg-cyan/8 p-3">
+            <label className="text-xs font-semibold uppercase text-cyan" htmlFor="usd-quantity">
+              {t("usdPurchasedQuantity")}
+            </label>
+            <input
+              className="mt-2 h-10 w-full rounded-md border border-borderSoft bg-background px-3 text-sm text-text outline-none transition placeholder:text-muted focus:border-cyan"
+              disabled={isDisabled || isSaving}
+              id="usd-quantity"
+              inputMode="decimal"
+              min="0"
+              onChange={(event) => setUsdQuantity(event.target.value)}
+              placeholder="100"
+              step="0.01"
+              type="number"
+              value={usdQuantity}
+            />
+            <p className="mt-2 text-xs leading-5 text-muted">{t("usdPurchasedQuantityHint")}</p>
+          </div>
+        ) : null}
 
         <select
           className="rounded-md border border-borderSoft bg-background px-3 py-2.5 text-sm text-text outline-none transition focus:border-cyan"
@@ -304,17 +410,23 @@ export function TransactionManager({ categories, isDisabled, onCreate, onDelete,
                 ))}
             </select>
           </div>
-          <div className="grid gap-2 text-sm sm:grid-cols-[1fr_auto] sm:items-center">
-            <div className="grid gap-2 sm:grid-cols-3">
-              <span className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-muted">
-                {filteredTransactions.length} {t("results")}
-              </span>
-              <span className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-emerald">
-                {formatMoney(filteredTotals.income)}
-              </span>
-              <span className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-rose">
-                {formatMoney(filteredTotals.expenses)}
-              </span>
+          <div className="grid gap-2 text-sm xl:grid-cols-[1fr_auto] xl:items-end">
+            <div>
+              <div className="mb-2 text-xs font-semibold uppercase text-muted">{t("filteredSummary")}</div>
+              <div className="grid gap-2 sm:grid-cols-4">
+                <span className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-muted">
+                  {filteredTransactions.length} {t("results")}
+                </span>
+                <span className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-emerald">
+                  {formatMoney(filteredTotals.income)}
+                </span>
+                <span className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-rose">
+                  {formatMoney(filteredTotals.expenses)}
+                </span>
+                <span className={filteredNet >= 0 ? "rounded-md border border-emerald/25 bg-emerald/10 px-3 py-2 text-emerald" : "rounded-md border border-rose/25 bg-rose/10 px-3 py-2 text-rose"}>
+                  {formatMoney(filteredNet)}
+                </span>
+              </div>
             </div>
             <button
               className="inline-flex items-center justify-center gap-2 rounded-md border border-borderSoft px-3 py-2 text-sm font-medium text-muted transition hover:text-text"
@@ -338,111 +450,129 @@ export function TransactionManager({ categories, isDisabled, onCreate, onDelete,
             {t("noFilteredMovements")}
           </p>
         ) : (
-          visibleTransactions.map((transaction) => {
-            const category = categoryById.get(transaction.category_id);
-            const amountValue = Number(transaction.amount);
-            const signedAmount = transaction.type === "income" ? amountValue : -amountValue;
-            const editableCategories = categories.filter((item) => item.type === transaction.type);
+          groupedVisibleTransactions.map((group) => {
+            const groupNet = group.income - group.expenses;
 
             return (
-              <div className="rounded-md border border-borderSoft bg-background px-3 py-2.5" key={transaction.id}>
-                {editingId === transaction.id ? (
-                  <div className="grid gap-3">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <input
-                        className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-sm text-text outline-none transition focus:border-cyan"
-                        disabled={isDisabled || isSaving}
-                        min="0"
-                        onChange={(event) => setEditingAmount(event.target.value)}
-                        step="0.01"
-                        type="number"
-                        value={editingAmount}
-                      />
-                      <input
-                        className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-sm text-text outline-none transition focus:border-cyan"
-                        disabled={isDisabled || isSaving}
-                        onChange={(event) => setEditingDate(event.target.value)}
-                        type="date"
-                        value={editingDate}
-                      />
-                    </div>
-                    <select
-                      className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-sm text-text outline-none transition focus:border-cyan"
-                      disabled={isDisabled || isSaving}
-                      onChange={(event) => setEditingCategoryId(event.target.value)}
-                      value={editingCategoryId}
-                    >
-                      {editableCategories.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-sm text-text outline-none transition placeholder:text-muted focus:border-cyan"
-                      disabled={isDisabled || isSaving}
-                      maxLength={500}
-                      onChange={(event) => setEditingDescription(event.target.value)}
-                      placeholder={t("descriptionOptional")}
-                      value={editingDescription}
-                    />
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        className="grid h-8 w-8 place-items-center rounded-md border border-borderSoft text-muted transition hover:text-text"
-                        disabled={isSaving}
-                        onClick={() => setEditingId(null)}
-                        title={t("cancel")}
-                        type="button"
-                      >
-                        <X size={15} />
-                      </button>
-                      <button
-                        className="grid h-8 w-8 place-items-center rounded-md bg-emerald text-background transition hover:brightness-110 disabled:opacity-55"
-                        disabled={isSaving || !editingAmount || !editingCategoryId}
-                        onClick={() => void handleUpdate(transaction)}
-                        title={t("saveChanges")}
-                        type="button"
-                      >
-                        <Check size={15} />
-                      </button>
-                    </div>
+              <section className="space-y-2" key={group.key}>
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-borderSoft/80 bg-panel/70 px-3 py-2">
+                  <div className="inline-flex items-center gap-2 text-sm font-semibold text-text">
+                    <CalendarDays size={15} className="text-cyan" />
+                    {t(getMovementGroupLabel(group.key))}
+                    <span className="rounded-full bg-background px-2 py-0.5 text-xs text-muted">{group.items.length}</span>
                   </div>
-                ) : (
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium text-text">
-                        {transaction.description || category?.name || t("uncategorized")}
-                      </div>
-                      <div className="mt-1 text-xs text-muted">
-                        {category?.name || t("uncategorized")} - {formatDate(transaction.transaction_date)}
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <div className={transaction.type === "income" ? "text-sm font-semibold text-emerald" : "text-sm font-semibold text-rose"}>
-                        {formatMoney(signedAmount)}
-                      </div>
-                      <button
-                        className="grid h-8 w-8 place-items-center rounded-md border border-borderSoft text-muted transition hover:text-text"
-                        disabled={isDisabled || isSaving}
-                        onClick={() => startEditing(transaction)}
-                        title={t("edit")}
-                        type="button"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        className="grid h-8 w-8 place-items-center rounded-md border border-borderSoft text-muted transition hover:border-rose hover:text-rose"
-                        disabled={isDisabled || isSaving}
-                        onClick={() => void handleDelete(transaction)}
-                        title={t("delete")}
-                        type="button"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+                  <div className={groupNet >= 0 ? "text-sm font-semibold text-emerald" : "text-sm font-semibold text-rose"}>
+                    {formatMoney(groupNet)}
                   </div>
-                )}
-              </div>
+                </div>
+                {group.items.map((transaction) => {
+                  const category = categoryById.get(transaction.category_id);
+                  const amountValue = Number(transaction.amount);
+                  const signedAmount = transaction.type === "income" ? amountValue : -amountValue;
+                  const editableCategories = categories.filter((item) => item.type === transaction.type);
+
+                  return (
+                    <div className="rounded-md border border-borderSoft bg-background px-3 py-2.5" key={transaction.id}>
+                      {editingId === transaction.id ? (
+                        <div className="grid gap-3">
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <input
+                              className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-sm text-text outline-none transition focus:border-cyan"
+                              disabled={isDisabled || isSaving}
+                              min="0"
+                              onChange={(event) => setEditingAmount(event.target.value)}
+                              step="0.01"
+                              type="number"
+                              value={editingAmount}
+                            />
+                            <input
+                              className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-sm text-text outline-none transition focus:border-cyan"
+                              disabled={isDisabled || isSaving}
+                              onChange={(event) => setEditingDate(event.target.value)}
+                              type="date"
+                              value={editingDate}
+                            />
+                          </div>
+                          <select
+                            className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-sm text-text outline-none transition focus:border-cyan"
+                            disabled={isDisabled || isSaving}
+                            onChange={(event) => setEditingCategoryId(event.target.value)}
+                            value={editingCategoryId}
+                          >
+                            {editableCategories.map((item) => (
+                              <option key={item.id} value={item.id}>
+                                {item.name}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-sm text-text outline-none transition placeholder:text-muted focus:border-cyan"
+                            disabled={isDisabled || isSaving}
+                            maxLength={500}
+                            onChange={(event) => setEditingDescription(event.target.value)}
+                            placeholder={t("descriptionOptional")}
+                            value={editingDescription}
+                          />
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              className="grid h-8 w-8 place-items-center rounded-md border border-borderSoft text-muted transition hover:text-text"
+                              disabled={isSaving}
+                              onClick={() => setEditingId(null)}
+                              title={t("cancel")}
+                              type="button"
+                            >
+                              <X size={15} />
+                            </button>
+                            <button
+                              className="grid h-8 w-8 place-items-center rounded-md bg-emerald text-background transition hover:brightness-110 disabled:opacity-55"
+                              disabled={isSaving || !editingAmount || !editingCategoryId}
+                              onClick={() => void handleUpdate(transaction)}
+                              title={t("saveChanges")}
+                              type="button"
+                            >
+                              <Check size={15} />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium text-text">
+                              {transaction.description || category?.name || t("uncategorized")}
+                            </div>
+                            <div className="mt-1 text-xs text-muted">
+                              {category?.name || t("uncategorized")} - {formatDate(transaction.transaction_date)}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <div className={transaction.type === "income" ? "text-sm font-semibold text-emerald" : "text-sm font-semibold text-rose"}>
+                              {formatMoney(signedAmount)}
+                            </div>
+                            <button
+                              className="grid h-8 w-8 place-items-center rounded-md border border-borderSoft text-muted transition hover:text-text"
+                              disabled={isDisabled || isSaving}
+                              onClick={() => startEditing(transaction)}
+                              title={t("edit")}
+                              type="button"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              className="grid h-8 w-8 place-items-center rounded-md border border-borderSoft text-muted transition hover:border-rose hover:text-rose"
+                              disabled={isDisabled || isSaving}
+                              onClick={() => void handleDelete(transaction)}
+                              title={t("delete")}
+                              type="button"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </section>
             );
           })
         )}

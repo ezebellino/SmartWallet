@@ -1,4 +1,4 @@
-import { BarChart3, Bell, Bot, CreditCard, Gauge, LineChart, Target, WalletCards } from "lucide-react";
+import { Banknote, BarChart3, Bell, Bot, CreditCard, Gauge, LineChart, Target, WalletCards } from "lucide-react";
 import type { TranslationKey } from "@/i18n";
 import type { BudgetUsage } from "@/types/api";
 import type { DashboardSection } from "@/components/dashboard/DashboardSectionNav";
@@ -8,6 +8,7 @@ const navigation = [
   ["movements", "movements", CreditCard],
   ["budgets", "budgets", BarChart3],
   ["goals", "goals", Target],
+  ["dollarSavings", "dollars", Banknote],
   ["investments", "investments", LineChart],
   ["aiReports", "aiReports", Bot]
 ] as const;

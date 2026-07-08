@@ -5,6 +5,7 @@ import { InvestmentPerformancePanel } from "@/components/dashboard/InvestmentPer
 import { MarketIntegrationsPanel } from "@/components/dashboard/MarketIntegrationsPanel";
 import { Panel } from "@/components/ui";
 import type { TranslationKey } from "@/i18n";
+import { confirmAction } from "@/lib/alerts";
 import { formatDate } from "@/lib/format";
 import type {
   InvestmentAsset,
@@ -234,7 +235,13 @@ export function InvestmentsManager({
   }
 
   async function handleDeleteAsset(asset: InvestmentAsset) {
-    if (!confirm(t("confirmDeleteInvestmentAsset"))) {
+    const confirmed = await confirmAction({
+      cancelText: t("cancel"),
+      confirmText: t("delete"),
+      title: t("confirmDeleteInvestmentAsset")
+    });
+
+    if (!confirmed) {
       return;
     }
 

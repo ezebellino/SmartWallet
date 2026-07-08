@@ -6,17 +6,21 @@ import {
   createInvestmentOperation,
   createCategory,
   createBudget,
+  createDollarSaving,
   createSavingGoal,
   createTransaction,
   deleteBudget,
   deleteCategory,
+  deleteDollarSaving,
   deleteInvestmentAsset,
   deleteSavingGoal,
   deleteTransaction,
   generateMonthlyReport,
+  getAiReports,
   getBudgets,
   getBudgetUsage,
   getCategories,
+  getDollarSavings,
   getInvestmentAlerts,
   getInvestmentAssets,
   getInvestmentOperations,
@@ -32,6 +36,7 @@ import {
   simulateCompoundInterest,
   updateBudget,
   updateCategory,
+  updateDollarSaving,
   updateInvestmentAsset,
   updateMarketDataIntegration,
   updateSavingGoal,
@@ -47,6 +52,8 @@ import type {
   CategoryType,
   CompoundInterestRequest,
   CompoundInterestResponse,
+  DollarSaving,
+  DollarSavingSource,
   InvestmentAlertsResponse,
   InvestmentAsset,
   InvestmentAssetType,
@@ -65,6 +72,7 @@ import type {
   Transaction,
   TransactionType
 } from "@/types/api";
+import { AiAssistantBubble } from "@/components/dashboard/AiAssistantBubble";
 import { AiReportPanel } from "@/components/dashboard/AiReportPanel";
 import { BudgetManager } from "@/components/dashboard/BudgetManager";
 import { CashflowChart } from "@/components/dashboard/CashflowChart";
@@ -72,7 +80,9 @@ import { CategoryManager } from "@/components/dashboard/CategoryManager";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardSectionNav, type DashboardSection } from "@/components/dashboard/DashboardSectionNav";
 import { DashboardSectionHero } from "@/components/dashboard/DashboardSectionHero";
+import { DollarSavingsManager, buildDollarSavingsSnapshot } from "@/components/dashboard/DollarSavingsManager";
 import { ExpenseCategories } from "@/components/dashboard/ExpenseCategories";
+import { ExecutiveFocus, focusIcons } from "@/components/dashboard/ExecutiveFocus";
 import { GoalsManager } from "@/components/dashboard/GoalsManager";
 import { InvestmentsManager } from "@/components/dashboard/InvestmentsManager";
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
@@ -80,21 +90,24 @@ import { PlanningPanel } from "@/components/dashboard/PlanningPanel";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { StatusToast } from "@/components/dashboard/StatusToast";
 import { TransactionManager } from "@/components/dashboard/TransactionManager";
+import { formatMoney } from "@/lib/format";
 
 type Props = {
   token: string | null;
   userName: string;
+  sessionRemainingMs: number;
   onLogout: () => void;
   language: Language;
   onLanguageChange: (language: Language) => void;
 };
 
-export function Dashboard({ token, userName, onLogout, language, onLanguageChange }: Props) {
+export function Dashboard({ token, userName, sessionRemainingMs, onLogout, language, onLanguageChange }: Props) {
   const [summary, setSummary] = useState<MonthlySummary | null>(null);
   const [report, setReport] = useState<AiReport | null>(null);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetUsage, setBudgetUsage] = useState<BudgetUsage[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [dollarSavings, setDollarSavings] = useState<DollarSaving[]>([]);
   const [goals, setGoals] = useState<SavingGoal[]>([]);
   const [investmentAssets, setInvestmentAssets] = useState<InvestmentAsset[]>([]);
   const [investmentAlerts, setInvestmentAlerts] = useState<InvestmentAlertsResponse | null>(null);
@@ -105,6 +118,9 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
   const [spendingInsights, setSpendingInsights] = useState<SpendingInsightsResponse | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [activeSection, setActiveSection] = useState<DashboardSection>("dashboard");
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const t = (key: TranslationKey) => translations[language][key];
   const [status, setStatus] = useState(t("localPreviewData"));
 
@@ -147,6 +163,16 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
         value: Number(category.total)
       })) ?? [],
     [summary]
+  );
+
+  const dollarSavingsSnapshot = useMemo(
+    () =>
+      buildDollarSavingsSnapshot({
+        categories,
+        manualAmount: dollarSavings.reduce((total, saving) => total + Number(saving.amount), 0),
+        transactions
+      }),
+    [categories, dollarSavings, transactions]
   );
 
   const sectionSummaryItems = useMemo(() => {
@@ -192,6 +218,12 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
         { label: t("summaryCompletedGoals"), value: String(goals.filter((goal) => goal.status === "completed").length), tone: "good" as const },
         { label: t("summaryPausedGoals"), value: String(goals.filter((goal) => goal.status === "paused").length), tone: "warn" as const }
       ],
+      dollars: [
+        { label: t("summaryDollarTotal"), value: `USD ${dollarSavingsSnapshot.totalUsd.toFixed(2)}`, tone: "good" as const },
+        { label: t("manualDollarStock"), value: `USD ${dollarSavingsSnapshot.manualAmount.toFixed(2)}`, tone: "neutral" as const },
+        { label: t("detectedDollarPurchases"), value: `USD ${dollarSavingsSnapshot.totalPurchased.toFixed(2)}`, tone: "good" as const },
+        { label: t("detectedMovements"), value: String(dollarSavingsSnapshot.detectedMovements.length), tone: "neutral" as const }
+      ],
       investments: [
         { label: t("summaryAssets"), value: String(investmentAssets.length), tone: "neutral" as const },
         { label: t("summaryOperations"), value: String(investmentOperations.length), tone: "neutral" as const },
@@ -221,11 +253,164 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
     investmentAssets.length,
     investmentOperations.length,
     language,
+    dollarSavingsSnapshot,
     marketDataRefresh,
     report,
     spendingInsights,
     transactions.length
   ]);
+
+  const executiveFocusItems = useMemo(() => {
+    const activeBudgetAlerts = budgetUsage.filter((budget) => budget.is_over_budget || budget.is_near_limit).length;
+    const activeGoals = goals.filter((goal) => goal.status === "active").length;
+    const items = [];
+
+    if (transactions.length === 0) {
+      items.push({
+        actionKey: "focusAddMovementAction" as const,
+        bodyKey: "focusAddMovementBody" as const,
+        icon: focusIcons.movement,
+        section: "movements" as const,
+        titleKey: "focusAddMovementTitle" as const,
+        tone: "cyan" as const
+      });
+    }
+
+    if (activeBudgetAlerts > 0) {
+      items.push({
+        actionKey: "focusBudgetAlertAction" as const,
+        bodyKey: "focusBudgetAlertBody" as const,
+        icon: focusIcons.budget,
+        section: "budgets" as const,
+        titleKey: "focusBudgetAlertTitle" as const,
+        tone: "amber" as const
+      });
+    } else if (budgets.length === 0) {
+      items.push({
+        actionKey: "focusCreateBudgetAction" as const,
+        bodyKey: "focusCreateBudgetBody" as const,
+        icon: focusIcons.budget,
+        section: "budgets" as const,
+        titleKey: "focusCreateBudgetTitle" as const,
+        tone: "cyan" as const
+      });
+    }
+
+    if (activeGoals === 0) {
+      items.push({
+        actionKey: "focusGoalAction" as const,
+        bodyKey: "focusGoalBody" as const,
+        icon: focusIcons.goal,
+        section: "goals" as const,
+        titleKey: "focusGoalTitle" as const,
+        tone: "emerald" as const
+      });
+    }
+
+    if (!report) {
+      items.push({
+        actionKey: "focusAiReportAction" as const,
+        bodyKey: "focusAiReportBody" as const,
+        icon: focusIcons.ai,
+        section: "aiReports" as const,
+        titleKey: "focusAiReportTitle" as const,
+        tone: "cyan" as const
+      });
+    }
+
+    if (items.length === 0) {
+      items.push({
+        actionKey: "focusHealthyAction" as const,
+        bodyKey: "focusHealthyBody" as const,
+        icon: focusIcons.healthy,
+        section: "dashboard" as const,
+        titleKey: "focusHealthyTitle" as const,
+        tone: "emerald" as const
+      });
+    }
+
+    return items.slice(0, 3);
+  }, [budgetUsage, budgets.length, goals, report, transactions.length]);
+
+  const assistantItems = useMemo(() => {
+    const activeBudgetAlerts = budgetUsage.filter((budget) => budget.is_over_budget || budget.is_near_limit);
+    const activeGoals = goals.filter((goal) => goal.status === "active");
+    const sortedExpenseCategories = [...expenseCategoryData].sort((left, right) => right.value - left.value);
+    const topExpenseCategory = sortedExpenseCategories[0];
+    const items = [];
+
+    if (metrics.balance < 0) {
+      items.push({
+        actionKey: "aiAssistantReviewMovementsAction" as const,
+        bodyKey: "aiAssistantNegativeBalanceBody" as const,
+        detail: formatMoney(metrics.balance),
+        icon: focusIcons.movement,
+        section: "movements" as const,
+        titleKey: "aiAssistantNegativeBalanceTitle" as const,
+        tone: "rose" as const
+      });
+    }
+
+    if (activeBudgetAlerts.length > 0) {
+      items.push({
+        actionKey: "focusBudgetAlertAction" as const,
+        bodyKey: "aiAssistantBudgetAlertBody" as const,
+        detail: `${activeBudgetAlerts.length} ${t("summaryBudgetAlerts").toLowerCase()}`,
+        icon: focusIcons.budget,
+        section: "budgets" as const,
+        titleKey: "aiAssistantBudgetAlertTitle" as const,
+        tone: "amber" as const
+      });
+    }
+
+    if (topExpenseCategory) {
+      items.push({
+        actionKey: "aiAssistantReviewMovementsAction" as const,
+        bodyKey: "aiAssistantTopExpenseBody" as const,
+        detail: `${topExpenseCategory.name} - ${formatMoney(topExpenseCategory.value)}`,
+        icon: focusIcons.movement,
+        section: "movements" as const,
+        titleKey: "aiAssistantTopExpenseTitle" as const,
+        tone: "cyan" as const
+      });
+    }
+
+    if (activeGoals.length === 0) {
+      items.push({
+        actionKey: "focusGoalAction" as const,
+        bodyKey: "focusGoalBody" as const,
+        icon: focusIcons.goal,
+        section: "goals" as const,
+        titleKey: "focusGoalTitle" as const,
+        tone: "emerald" as const
+      });
+    }
+
+    if (!report) {
+      items.push({
+        actionKey: "focusAiReportAction" as const,
+        bodyKey: "focusAiReportBody" as const,
+        icon: focusIcons.ai,
+        section: "aiReports" as const,
+        titleKey: "focusAiReportTitle" as const,
+        tone: "cyan" as const
+      });
+    }
+
+    if (items.length === 0) {
+      items.push({
+        actionKey: "focusHealthyAction" as const,
+        bodyKey: "aiAssistantHealthyBody" as const,
+        detail: `${t("savingsRate")}: ${Math.round(metrics.savingsRate)}%`,
+        icon: focusIcons.healthy,
+        section: "dashboard" as const,
+        titleKey: "focusHealthyTitle" as const,
+        tone: "emerald" as const
+      });
+    }
+
+    return items.slice(0, 4);
+  }, [budgetUsage, expenseCategoryData, goals, metrics, report, language]);
 
   const refreshFromApi = useCallback(async () => {
     if (!token) {
@@ -233,16 +418,19 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
       return;
     }
 
+    setIsSyncing(true);
+
     try {
       const now = new Date();
       const year = now.getFullYear();
       const month = now.getMonth() + 1;
       const [
         summaryResponse,
-        reportResponse,
+        reportsResponse,
         budgetsResponse,
         budgetUsageResponse,
         categoriesResponse,
+        dollarSavingsResponse,
         goalsResponse,
         investmentAlertsResponse,
         investmentAssetsResponse,
@@ -253,10 +441,11 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
         transactionsResponse
       ] = await Promise.all([
         getMonthlySummary(token, year, month),
-        generateMonthlyReport(token, year, month),
+        getAiReports(token),
         getBudgets(token, year, month),
         getBudgetUsage(token, year, month),
         getCategories(token),
+        getDollarSavings(token),
         getSavingGoals(token),
         getInvestmentAlerts(token),
         getInvestmentAssets(token),
@@ -267,10 +456,11 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
         getTransactions(token)
       ]);
       setSummary(summaryResponse);
-      setReport(reportResponse);
+      setReport(reportsResponse[0] ?? null);
       setBudgets(budgetsResponse);
       setBudgetUsage(budgetUsageResponse);
       setCategories(categoriesResponse);
+      setDollarSavings(dollarSavingsResponse);
       setGoals(goalsResponse);
       setInvestmentAlerts(investmentAlertsResponse);
       setInvestmentAssets(investmentAssetsResponse);
@@ -283,8 +473,36 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
     } catch (error) {
       const message = error instanceof Error ? error.message : t("networkError");
       setStatus(message.includes("Could not connect") ? t("networkError") : message);
+    } finally {
+      setIsSyncing(false);
     }
   }, [token, language]);
+
+  async function refreshDollarSavings(tokenValue: string) {
+    const dollarSavingsResponse = await getDollarSavings(tokenValue);
+    setDollarSavings(dollarSavingsResponse);
+  }
+
+  async function handleGenerateMonthlyReport() {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    setIsGeneratingReport(true);
+
+    try {
+      const now = new Date();
+      const reportResponse = await generateMonthlyReport(token, now.getFullYear(), now.getMonth() + 1);
+      setReport(reportResponse);
+      setStatus(t("reportReady"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  }
 
   async function refreshCurrentMonth(tokenValue: string) {
     const now = new Date();
@@ -506,6 +724,67 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
       await deleteSavingGoal(token, goalId);
       setGoals((current) => current.filter((item) => item.id !== goalId));
       setStatus(t("goalDeleted"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
+  async function handleCreateDollarSaving(payload: {
+    amount: string;
+    source: DollarSavingSource;
+    notes?: string | null;
+    saved_at?: string | null;
+  }) {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    try {
+      await createDollarSaving(token, payload);
+      await refreshDollarSavings(token);
+      setStatus(t("dollarSavingCreated"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
+  async function handleUpdateDollarSaving(
+    dollarSavingId: number,
+    payload: {
+      amount?: string;
+      source?: DollarSavingSource;
+      notes?: string | null;
+      saved_at?: string | null;
+    }
+  ) {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    try {
+      await updateDollarSaving(token, dollarSavingId, payload);
+      await refreshDollarSavings(token);
+      setStatus(t("dollarSavingUpdated"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
+  async function handleDeleteDollarSaving(dollarSavingId: number) {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    try {
+      await deleteDollarSaving(token, dollarSavingId);
+      await refreshDollarSavings(token);
+      setStatus(t("dollarSavingDeleted"));
     } catch (error) {
       setStatus(error instanceof Error ? error.message : t("authFailed"));
       throw error;
@@ -750,18 +1029,21 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
 
       <main className="min-w-0 flex-1 px-4 py-5 md:px-6 xl:px-8">
         <div className="mx-auto max-w-[1480px]">
-        <DashboardHeader
-          language={language}
-          onLanguageChange={onLanguageChange}
-          status={status}
-          t={t}
-          userName={userName}
-          onSync={refreshFromApi}
-          onLogout={onLogout}
-        />
-        <MetricsGrid metrics={metrics} t={t} />
-        <DashboardSectionNav activeSection={activeSection} onChange={setActiveSection} t={t} />
-        <DashboardSectionHero activeSection={activeSection} items={sectionSummaryItems} t={t} />
+          <DashboardHeader
+            isSyncing={isSyncing}
+            language={language}
+            onLanguageChange={onLanguageChange}
+            sessionRemainingMs={sessionRemainingMs}
+            status={status}
+            t={t}
+            userName={userName}
+            onSync={refreshFromApi}
+            onLogout={onLogout}
+          />
+          <ExecutiveFocus items={executiveFocusItems} onSectionChange={setActiveSection} t={t} />
+          <MetricsGrid metrics={metrics} onSectionChange={setActiveSection} t={t} />
+          <DashboardSectionNav activeSection={activeSection} onChange={setActiveSection} t={t} />
+          <DashboardSectionHero activeSection={activeSection} items={sectionSummaryItems} t={t} />
 
         {activeSection === "dashboard" ? (
           <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -848,6 +1130,21 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
           </div>
         ) : null}
 
+        {activeSection === "dollars" ? (
+          <div className="mt-4">
+            <DollarSavingsManager
+              categories={categories}
+              dollarSavings={dollarSavings}
+              isDisabled={!token}
+              onCreate={handleCreateDollarSaving}
+              onDelete={handleDeleteDollarSaving}
+              onUpdate={handleUpdateDollarSaving}
+              t={t}
+              transactions={transactions}
+            />
+          </div>
+        ) : null}
+
         {activeSection === "investments" ? (
           <div className="mt-4">
             <InvestmentsManager
@@ -872,7 +1169,13 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
 
         {activeSection === "aiReports" ? (
           <div className="mt-4 grid gap-4 xl:grid-cols-[380px_minmax(0,1fr)]">
-            <AiReportPanel report={report} t={t} />
+            <AiReportPanel
+              isDisabled={!token}
+              isGenerating={isGeneratingReport}
+              onGenerate={handleGenerateMonthlyReport}
+              report={report}
+              t={t}
+            />
             <PlanningPanel
               insights={spendingInsights}
               isDisabled={!token}
@@ -882,6 +1185,13 @@ export function Dashboard({ token, userName, onLogout, language, onLanguageChang
           </div>
         ) : null}
         <StatusToast message={status} mutedMessage={t("localPreviewData")} />
+        <AiAssistantBubble
+          isOpen={isAssistantOpen}
+          items={assistantItems}
+          onOpenChange={setIsAssistantOpen}
+          onSectionChange={setActiveSection}
+          t={t}
+        />
         </div>
       </main>
     </div>

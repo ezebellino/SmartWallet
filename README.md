@@ -118,6 +118,18 @@ http://localhost:8000
 
 Local frontend origins are enabled through `CORS_ORIGINS` in `backend/.env.example`.
 
+Recommended local app start:
+
+```powershell
+.\start-app.ps1
+```
+
+If port `3000` is stuck with an old frontend process, use:
+
+```powershell
+.\start-app.ps1 -Restart
+```
+
 Run migrations against the configured database:
 
 ```powershell

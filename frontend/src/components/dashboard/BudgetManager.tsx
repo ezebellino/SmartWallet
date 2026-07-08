@@ -2,6 +2,7 @@ import { Check, Pencil, Plus, Target, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Panel, ProgressBar } from "@/components/ui";
 import type { TranslationKey } from "@/i18n";
+import { confirmAction } from "@/lib/alerts";
 import { formatMoney } from "@/lib/format";
 import type { Budget, BudgetUsage, Category } from "@/types/api";
 
@@ -113,7 +114,13 @@ export function BudgetManager({
   }
 
   async function handleDelete(budget: Budget) {
-    if (!confirm(t("confirmDeleteBudget"))) {
+    const confirmed = await confirmAction({
+      cancelText: t("cancel"),
+      confirmText: t("delete"),
+      title: t("confirmDeleteBudget")
+    });
+
+    if (!confirmed) {
       return;
     }
 

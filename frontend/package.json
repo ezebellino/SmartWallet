@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --disable-source-maps -H 127.0.0.1",
     "build": "next build",
+    "start": "next start -H 127.0.0.1",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
@@ -14,7 +15,8 @@
     "next": "^15.5.9",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "recharts": "^3.9.1"
+    "recharts": "^3.9.1",
+    "sweetalert2": "^11.26.25"
   },
   "devDependencies": {
     "@types/node": "22.10.2",

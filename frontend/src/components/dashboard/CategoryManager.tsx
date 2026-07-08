@@ -2,6 +2,7 @@ import { Check, Pencil, Plus, Tags, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { Panel } from "@/components/ui";
 import type { TranslationKey } from "@/i18n";
+import { confirmAction } from "@/lib/alerts";
 import type { Category, CategoryType } from "@/types/api";
 
 const categoryColors = ["#16f2a4", "#38bdf8", "#fbbf24", "#fb7185", "#a78bfa"];
@@ -68,7 +69,13 @@ export function CategoryManager({ categories, isDisabled, onCreate, onDelete, on
   }
 
   async function handleDelete(category: Category) {
-    if (!confirm(t("confirmDeleteCategory"))) {
+    const confirmed = await confirmAction({
+      cancelText: t("cancel"),
+      confirmText: t("delete"),
+      title: t("confirmDeleteCategory")
+    });
+
+    if (!confirmed) {
       return;
     }
 

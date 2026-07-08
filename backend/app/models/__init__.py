@@ -1,6 +1,7 @@
 from app.models.ai_report import AiReport
 from app.models.budget import Budget
 from app.models.category import Category
+from app.models.dollar_saving import DollarSaving
 from app.models.investment import InvestmentAsset, InvestmentOperation, InvestmentPriceSnapshot
 from app.models.market_integration import MarketIntegrationSetting
 from app.models.saving_goal import SavingGoal
@@ -11,6 +12,7 @@ __all__ = [
     "Category",
     "Budget",
     "AiReport",
+    "DollarSaving",
     "InvestmentAsset",
     "InvestmentOperation",
     "InvestmentPriceSnapshot",

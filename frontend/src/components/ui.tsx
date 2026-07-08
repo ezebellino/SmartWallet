@@ -1,5 +1,8 @@
 import { clsx } from "clsx";
+import { ArrowUpRight } from "lucide-react";
 import type { ReactNode } from "react";
+
+const panelClassName = "rounded-lg border border-borderSoft/90 bg-panel/88 shadow-panel ring-1 ring-white/[0.025]";
 
 export function Panel({
   children,
@@ -11,7 +14,7 @@ export function Panel({
   return (
     <section
       className={clsx(
-        "rounded-lg border border-borderSoft/90 bg-panel/88 shadow-panel ring-1 ring-white/[0.025]",
+        panelClassName,
         className
       )}
     >
@@ -21,12 +24,18 @@ export function Panel({
 }
 
 export function MetricCard({
+  actionLabel,
+  icon,
   label,
+  onClick,
   value,
   detail,
   tone = "neutral"
 }: {
+  actionLabel?: string;
+  icon?: ReactNode;
   label: string;
+  onClick?: () => void;
   value: string;
   detail: string;
   tone?: "neutral" | "good" | "warn" | "bad";
@@ -49,16 +58,47 @@ export function MetricCard({
     warn: "bg-amber",
     bad: "bg-rose"
   }[tone];
-
-  return (
-    <Panel className="group relative overflow-hidden p-4 transition duration-200 hover:-translate-y-0.5 hover:border-cyan/35 hover:bg-panelSoft/70">
+  const content = (
+    <>
       <div className={clsx("absolute inset-x-0 top-0 h-px bg-gradient-to-r to-transparent", accentClass)} />
       <div className="flex items-start justify-between gap-3">
-        <p className="text-xs font-semibold uppercase text-muted">{label}</p>
-        <span className={clsx("mt-0.5 h-2 w-2 rounded-full", dotClass)} />
+        <div className="flex items-center gap-2">
+          {icon ? (
+            <span className={clsx("grid h-8 w-8 shrink-0 place-items-center rounded-md bg-white/5", toneClass)}>{icon}</span>
+          ) : null}
+          <p className="text-xs font-semibold uppercase text-muted">{label}</p>
+        </div>
+        <span className={clsx("mt-0.5 h-2 w-2 shrink-0 rounded-full", dotClass)} />
       </div>
       <div className="mt-3 text-2xl font-semibold leading-none text-text">{value}</div>
-      <p className={clsx("mt-3 text-sm leading-5", toneClass)}>{detail}</p>
+      <p className={clsx("mt-3 min-h-10 text-sm leading-5", toneClass)}>{detail}</p>
+      {actionLabel ? (
+        <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-cyan transition group-hover:gap-2">
+          {actionLabel}
+          <ArrowUpRight size={14} />
+        </span>
+      ) : null}
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        className={clsx(
+          panelClassName,
+          "group relative min-h-[168px] overflow-hidden p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-cyan/35 hover:bg-panelSoft/70 focus:outline-none focus-visible:border-cyan/55 focus-visible:ring-2 focus-visible:ring-cyan/25"
+        )}
+        onClick={onClick}
+        type="button"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Panel className="group relative min-h-[168px] overflow-hidden p-4 transition duration-200 hover:-translate-y-0.5 hover:border-cyan/35 hover:bg-panelSoft/70">
+      {content}
     </Panel>
   );
 }

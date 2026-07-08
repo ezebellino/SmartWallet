@@ -7,6 +7,8 @@ import type {
   CategoryType,
   CompoundInterestRequest,
   CompoundInterestResponse,
+  DollarSaving,
+  DollarSavingSource,
   InvestmentAlertsResponse,
   InvestmentAsset,
   InvestmentAssetType,
@@ -267,6 +269,52 @@ export function deleteSavingGoal(token: string, goalId: number) {
   });
 }
 
+export function getDollarSavings(token: string) {
+  return request<DollarSaving[]>("/dollar-savings", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function createDollarSaving(
+  token: string,
+  payload: {
+    amount: string;
+    source: DollarSavingSource;
+    notes?: string | null;
+    saved_at?: string | null;
+  }
+) {
+  return request<DollarSaving>("/dollar-savings", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateDollarSaving(
+  token: string,
+  dollarSavingId: number,
+  payload: {
+    amount?: string;
+    source?: DollarSavingSource;
+    notes?: string | null;
+    saved_at?: string | null;
+  }
+) {
+  return request<DollarSaving>(`/dollar-savings/${dollarSavingId}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deleteDollarSaving(token: string, dollarSavingId: number) {
+  return request<void>(`/dollar-savings/${dollarSavingId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
 export function getInvestmentAssets(token: string) {
   return request<InvestmentAsset[]>("/investments/assets", {
     headers: { Authorization: `Bearer ${token}` }
@@ -390,6 +438,12 @@ export function simulateCompoundInterest(payload: CompoundInterestRequest) {
   return request<CompoundInterestResponse>("/simulations/compound-interest", {
     method: "POST",
     body: JSON.stringify(payload)
+  });
+}
+
+export function getAiReports(token: string) {
+  return request<AiReport[]>("/ai/reports", {
+    headers: { Authorization: `Bearer ${token}` }
   });
 }
 
