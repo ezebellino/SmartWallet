@@ -87,6 +87,7 @@ import { GoalsManager } from "@/components/dashboard/GoalsManager";
 import { InvestmentsManager } from "@/components/dashboard/InvestmentsManager";
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
 import { PlanningPanel } from "@/components/dashboard/PlanningPanel";
+import { QuickActionsBar, quickActionIcons } from "@/components/dashboard/QuickActionsBar";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { StatusToast } from "@/components/dashboard/StatusToast";
 import { TransactionManager } from "@/components/dashboard/TransactionManager";
@@ -411,6 +412,40 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
 
     return items.slice(0, 4);
   }, [budgetUsage, expenseCategoryData, goals, metrics, report, language]);
+
+  const quickActionItems = useMemo(
+    () => [
+      {
+        descriptionKey: "quickAddMovementDescription" as const,
+        icon: quickActionIcons.movement,
+        labelKey: "quickAddMovement" as const,
+        section: "movements" as const,
+        value: String(transactions.length)
+      },
+      {
+        descriptionKey: "quickReviewCategoriesDescription" as const,
+        icon: quickActionIcons.wallet,
+        labelKey: "quickReviewCategories" as const,
+        section: "movements" as const,
+        value: String(categories.length)
+      },
+      {
+        descriptionKey: "quickTrackDollarsDescription" as const,
+        icon: quickActionIcons.dollars,
+        labelKey: "quickTrackDollars" as const,
+        section: "dollars" as const,
+        value: `USD ${dollarSavingsSnapshot.totalUsd.toFixed(0)}`
+      },
+      {
+        descriptionKey: "quickAiReportDescription" as const,
+        icon: quickActionIcons.ai,
+        labelKey: "quickAiReport" as const,
+        section: "aiReports" as const,
+        value: report ? t("reportReady") : t("reportPending")
+      }
+    ],
+    [categories.length, dollarSavingsSnapshot.totalUsd, language, report, transactions.length]
+  );
 
   const refreshFromApi = useCallback(async () => {
     if (!token) {
@@ -1039,6 +1074,13 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
             userName={userName}
             onSync={refreshFromApi}
             onLogout={onLogout}
+          />
+          <QuickActionsBar
+            isSyncing={isSyncing}
+            items={quickActionItems}
+            onSectionChange={setActiveSection}
+            onSync={refreshFromApi}
+            t={t}
           />
           <ExecutiveFocus items={executiveFocusItems} onSectionChange={setActiveSection} t={t} />
           <MetricsGrid metrics={metrics} onSectionChange={setActiveSection} t={t} />
