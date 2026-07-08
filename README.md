@@ -14,6 +14,10 @@ Stage 0 and Stage 1 are being built first:
 - Docker-based local development.
 - Initial tests and healthcheck.
 
+## Product Planning
+
+- [SDD and live roadmap](docs/sdd-roadmap.md)
+
 ## Planned Stack
 
 - Backend: FastAPI, SQLAlchemy, Alembic, PostgreSQL, Pydantic.
