@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
+from app.ai.monthly_report_provider import OpenAIMonthlyReportProvider, StubMonthlyReportProvider
 from app.auth.dependencies import get_current_user
+from app.core.config import settings
 from app.database.session import get_db
 from app.models.user import User
 from app.repositories.ai_reports import AiReportRepository
@@ -30,10 +32,19 @@ def get_ai_report_service(db: Session = Depends(get_db)) -> AiReportService:
         budget_service,
         transaction_repository,
     )
+    provider = StubMonthlyReportProvider()
+    if settings.ai_provider.lower() == "openai" and settings.openai_api_key:
+        provider = OpenAIMonthlyReportProvider(
+            api_key=settings.openai_api_key,
+            model=settings.openai_model,
+            timeout_seconds=settings.openai_timeout_seconds,
+        )
     return AiReportService(
         AiReportRepository(db),
         DashboardService(transaction_repository),
         insight_service,
+        provider=provider,
+        fallback_provider=StubMonthlyReportProvider(),
     )
 
 
@@ -57,4 +68,3 @@ def generate_monthly_report(
         month=data.month,
         force_regenerate=data.force_regenerate,
     )
-
