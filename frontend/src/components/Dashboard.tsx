@@ -88,6 +88,7 @@ import { InvestmentsManager } from "@/components/dashboard/InvestmentsManager";
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
 import { PlanningPanel } from "@/components/dashboard/PlanningPanel";
 import { QuickActionsBar, quickActionIcons } from "@/components/dashboard/QuickActionsBar";
+import { QuickTransactionPanel } from "@/components/dashboard/QuickTransactionPanel";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { StatusToast } from "@/components/dashboard/StatusToast";
 import { TransactionManager } from "@/components/dashboard/TransactionManager";
@@ -121,6 +122,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
   const [activeSection, setActiveSection] = useState<DashboardSection>("dashboard");
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [isQuickTransactionOpen, setIsQuickTransactionOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const t = (key: TranslationKey) => translations[language][key];
   const [status, setStatus] = useState(t("localPreviewData"));
@@ -419,7 +421,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         descriptionKey: "quickAddMovementDescription" as const,
         icon: quickActionIcons.movement,
         labelKey: "quickAddMovement" as const,
-        section: "movements" as const,
+        type: "quickTransaction" as const,
         value: String(transactions.length)
       },
       {
@@ -427,6 +429,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         icon: quickActionIcons.wallet,
         labelKey: "quickReviewCategories" as const,
         section: "movements" as const,
+        type: "section" as const,
         value: String(categories.length)
       },
       {
@@ -434,6 +437,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         icon: quickActionIcons.dollars,
         labelKey: "quickTrackDollars" as const,
         section: "dollars" as const,
+        type: "section" as const,
         value: `USD ${dollarSavingsSnapshot.totalUsd.toFixed(0)}`
       },
       {
@@ -441,6 +445,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         icon: quickActionIcons.ai,
         labelKey: "quickAiReport" as const,
         section: "aiReports" as const,
+        type: "section" as const,
         value: report ? t("reportReady") : t("reportPending")
       }
     ],
@@ -1078,6 +1083,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
           <QuickActionsBar
             isSyncing={isSyncing}
             items={quickActionItems}
+            onQuickTransactionOpen={() => setIsQuickTransactionOpen(true)}
             onSectionChange={setActiveSection}
             onSync={refreshFromApi}
             t={t}
@@ -1232,6 +1238,14 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
           items={assistantItems}
           onOpenChange={setIsAssistantOpen}
           onSectionChange={setActiveSection}
+          t={t}
+        />
+        <QuickTransactionPanel
+          categories={categories}
+          isDisabled={!token}
+          isOpen={isQuickTransactionOpen}
+          onClose={() => setIsQuickTransactionOpen(false)}
+          onCreate={handleCreateTransaction}
           t={t}
         />
         </div>

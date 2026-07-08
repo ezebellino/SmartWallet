@@ -50,8 +50,9 @@ El producto debe sentirse practico para uso diario: cargar datos rapido, ver ale
 
 Objetivo: que cargar y revisar datos sea inmediato.
 
-- [ ] Panel/modal global de carga rapida.
-- [ ] Acciones rapidas para ingreso, gasto, compra USD e inversion.
+- [x] ~~Panel/modal global de carga rapida.~~
+- [x] ~~Acciones rapidas para ingreso, gasto y compra USD.~~
+- [ ] Accion rapida para registrar inversion.
 - [ ] Crear categoria desde el flujo de movimiento si no existe.
 - [ ] Duplicar movimiento frecuente.
 - [ ] Plantillas de movimientos comunes.
