@@ -63,7 +63,7 @@ Objetivo: que cargar y revisar datos sea inmediato.
 Objetivo: pasar de mostrar numeros a explicar cambios.
 
 - [x] ~~Comparacion contra mes anterior.~~
-- [ ] Top 3 categorias de gasto.
+- [x] ~~Top 3 categorias de gasto.~~
 - [ ] Categoria que mas subio.
 - [ ] Saldo proyectado de fin de mes.
 - [ ] Indicador de salud financiera.

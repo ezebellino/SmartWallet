@@ -95,6 +95,7 @@ import { QuickActionsBar, quickActionIcons } from "@/components/dashboard/QuickA
 import { QuickTransactionPanel } from "@/components/dashboard/QuickTransactionPanel";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { StatusToast } from "@/components/dashboard/StatusToast";
+import { TopExpenseCategoriesPanel } from "@/components/dashboard/TopExpenseCategoriesPanel";
 import { TransactionManager } from "@/components/dashboard/TransactionManager";
 import { formatMoney } from "@/lib/format";
 
@@ -1152,6 +1153,11 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
             </div>
 
             <aside className="space-y-4">
+              <TopExpenseCategoriesPanel
+                categories={summary?.expense_by_category ?? []}
+                onReviewMovements={() => setActiveSection("movements")}
+                t={t}
+              />
               <CategoryManager
                 categories={categories}
                 isDisabled={!token}
