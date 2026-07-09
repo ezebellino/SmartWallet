@@ -65,6 +65,15 @@ class InvestmentOperationCreate(InvestmentOperationBase):
     pass
 
 
+class InvestmentOperationUpdate(BaseModel):
+    asset_id: int | None = None
+    operation_type: InvestmentOperationType | None = None
+    quantity: Decimal | None = Field(default=None, gt=0, max_digits=18, decimal_places=8)
+    unit_price: Decimal | None = Field(default=None, gt=0, max_digits=14, decimal_places=4)
+    fees: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
+    operation_date: date | None = None
+
+
 class InvestmentOperationRead(InvestmentOperationBase):
     model_config = ConfigDict(from_attributes=True)
 

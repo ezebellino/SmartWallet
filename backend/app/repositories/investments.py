@@ -10,6 +10,7 @@ from app.schemas.investment import (
     InvestmentAssetCreate,
     InvestmentAssetUpdate,
     InvestmentOperationCreate,
+    InvestmentOperationUpdate,
 )
 
 
@@ -102,6 +103,25 @@ class InvestmentRepository:
     def create_operation(self, user_id: int, data: InvestmentOperationCreate) -> InvestmentOperation:
         operation = InvestmentOperation(user_id=user_id, **data.model_dump())
         self.db.add(operation)
+        self.db.commit()
+        self.db.refresh(operation)
+        return operation
+
+    def get_operation(self, operation_id: int, user_id: int) -> InvestmentOperation | None:
+        statement = select(InvestmentOperation).where(
+            InvestmentOperation.id == operation_id,
+            InvestmentOperation.user_id == user_id,
+        )
+        return self.db.scalar(statement)
+
+    def update_operation(
+        self,
+        operation: InvestmentOperation,
+        data: InvestmentOperationUpdate,
+    ) -> InvestmentOperation:
+        values = data.model_dump(exclude_unset=True)
+        for field, value in values.items():
+            setattr(operation, field, value)
         self.db.commit()
         self.db.refresh(operation)
         return operation

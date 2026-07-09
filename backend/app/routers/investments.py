@@ -12,6 +12,7 @@ from app.schemas.investment import (
     InvestmentAssetUpdate,
     InvestmentOperationCreate,
     InvestmentOperationRead,
+    InvestmentOperationUpdate,
     InvestmentPriceSnapshotRead,
     PortfolioSummary,
 )
@@ -86,6 +87,16 @@ def create_operation(
     investment_service: InvestmentService = Depends(get_investment_service),
 ) -> InvestmentOperationRead:
     return investment_service.create_operation(current_user.id, data)
+
+
+@router.patch("/operations/{operation_id}", response_model=InvestmentOperationRead)
+def update_operation(
+    operation_id: int,
+    data: InvestmentOperationUpdate,
+    current_user: User = Depends(get_current_user),
+    investment_service: InvestmentService = Depends(get_investment_service),
+) -> InvestmentOperationRead:
+    return investment_service.update_operation(operation_id, current_user.id, data)
 
 
 @router.get("/portfolio", response_model=PortfolioSummary)

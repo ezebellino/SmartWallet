@@ -52,6 +52,7 @@ type Props = {
   onRefreshMarketPrices: () => Promise<void>;
   onUpdateMarketIntegration: (providerKey: string, payload: MarketDataIntegrationUpdate) => Promise<void>;
   onUpdateAsset: (assetId: number, payload: Partial<AssetPayload>) => Promise<void>;
+  onUpdateOperation: (operationId: number, payload: Partial<OperationPayload>) => Promise<void>;
   operations: InvestmentOperation[];
   portfolio: PortfolioSummary | null;
   t: (key: TranslationKey) => string;
@@ -119,6 +120,7 @@ export function InvestmentsManager({
   onRefreshMarketPrices,
   onUpdateMarketIntegration,
   onUpdateAsset,
+  onUpdateOperation,
   operations,
   portfolio,
   t
@@ -142,6 +144,13 @@ export function InvestmentsManager({
   const [editingCurrency, setEditingCurrency] = useState("USD");
   const [editingRiskLevel, setEditingRiskLevel] = useState<InvestmentRiskLevel>("medium");
   const [editingCurrentPrice, setEditingCurrentPrice] = useState("");
+  const [editingOperationId, setEditingOperationId] = useState<number | null>(null);
+  const [editingOperationAssetId, setEditingOperationAssetId] = useState("");
+  const [editingOperationType, setEditingOperationType] = useState<InvestmentOperationType>("buy");
+  const [editingQuantity, setEditingQuantity] = useState("");
+  const [editingUnitPrice, setEditingUnitPrice] = useState("");
+  const [editingFees, setEditingFees] = useState("0");
+  const [editingOperationDate, setEditingOperationDate] = useState(today);
   const [isSaving, setIsSaving] = useState(false);
 
   const assetById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
@@ -211,6 +220,16 @@ export function InvestmentsManager({
     setEditingCurrentPrice(asset.current_price ?? "");
   }
 
+  function startEditingOperation(operation: InvestmentOperation) {
+    setEditingOperationId(operation.id);
+    setEditingOperationAssetId(String(operation.asset_id));
+    setEditingOperationType(operation.operation_type);
+    setEditingQuantity(operation.quantity);
+    setEditingUnitPrice(operation.unit_price);
+    setEditingFees(operation.fees);
+    setEditingOperationDate(operation.operation_date);
+  }
+
   async function handleUpdateAsset(asset: InvestmentAsset) {
     if (!editingName.trim() || !editingSymbol.trim()) {
       return;
@@ -227,6 +246,30 @@ export function InvestmentsManager({
         current_price: editingCurrentPrice || null
       });
       setEditingId(null);
+    } catch {
+      // The dashboard status area displays the backend error.
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleUpdateOperation(operation: InvestmentOperation) {
+    const selectedAssetId = Number(editingOperationAssetId);
+    if (!selectedAssetId || !editingQuantity || !editingUnitPrice) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await onUpdateOperation(operation.id, {
+        asset_id: selectedAssetId,
+        operation_type: editingOperationType,
+        quantity: editingQuantity,
+        unit_price: editingUnitPrice,
+        fees: editingFees || "0",
+        operation_date: editingOperationDate
+      });
+      setEditingOperationId(null);
     } catch {
       // The dashboard status area displays the backend error.
     } finally {
@@ -749,21 +792,120 @@ export function InvestmentsManager({
 
               return (
                 <div className="rounded-md border border-borderSoft bg-background px-3 py-2.5" key={operation.id}>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium text-text">
-                        {asset?.symbol ?? t("uncategorized")} -{" "}
-                        {t(operation.operation_type === "buy" ? "operationBuy" : "operationSell")}
+                  {editingOperationId === operation.id ? (
+                    <div className="grid gap-3">
+                      <select
+                        className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-sm text-text outline-none transition focus:border-cyan"
+                        disabled={isDisabled || isSaving || assets.length === 0}
+                        onChange={(event) => setEditingOperationAssetId(event.target.value)}
+                        value={editingOperationAssetId}
+                      >
+                        {assets.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.symbol} - {item.name}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="grid grid-cols-2 rounded-md border border-borderSoft bg-panel p-1">
+                        {(["buy", "sell"] as const).map((option) => (
+                          <button
+                            className={`rounded px-3 py-2 text-sm font-medium transition ${
+                              editingOperationType === option ? "bg-background text-text" : "text-muted hover:text-text"
+                            }`}
+                            disabled={isDisabled || isSaving}
+                            key={option}
+                            onClick={() => setEditingOperationType(option)}
+                            type="button"
+                          >
+                            {t(option === "buy" ? "operationBuy" : "operationSell")}
+                          </button>
+                        ))}
                       </div>
-                      <div className="mt-1 text-xs text-muted">
-                        {Number(operation.quantity).toLocaleString("es-AR", { maximumFractionDigits: 8 })} -{" "}
-                        {formatDate(operation.operation_date)}
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <input
+                          className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-sm text-text outline-none transition focus:border-cyan"
+                          disabled={isDisabled || isSaving}
+                          min="0"
+                          onChange={(event) => setEditingQuantity(event.target.value)}
+                          step="0.00000001"
+                          type="number"
+                          value={editingQuantity}
+                        />
+                        <input
+                          className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-sm text-text outline-none transition focus:border-cyan"
+                          disabled={isDisabled || isSaving}
+                          min="0"
+                          onChange={(event) => setEditingUnitPrice(event.target.value)}
+                          step="0.0001"
+                          type="number"
+                          value={editingUnitPrice}
+                        />
+                        <input
+                          className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-sm text-text outline-none transition focus:border-cyan"
+                          disabled={isDisabled || isSaving}
+                          min="0"
+                          onChange={(event) => setEditingFees(event.target.value)}
+                          step="0.01"
+                          type="number"
+                          value={editingFees}
+                        />
+                      </div>
+                      <input
+                        className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-sm text-text outline-none transition focus:border-cyan"
+                        disabled={isDisabled || isSaving}
+                        onChange={(event) => setEditingOperationDate(event.target.value)}
+                        type="date"
+                        value={editingOperationDate}
+                      />
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          className="grid h-8 w-8 place-items-center rounded-md border border-borderSoft text-muted transition hover:text-text"
+                          disabled={isSaving}
+                          onClick={() => setEditingOperationId(null)}
+                          title={t("cancel")}
+                          type="button"
+                        >
+                          <X size={15} />
+                        </button>
+                        <button
+                          className="grid h-8 w-8 place-items-center rounded-md bg-emerald text-background transition hover:brightness-110 disabled:opacity-55"
+                          disabled={isSaving || !editingOperationAssetId || !editingQuantity || !editingUnitPrice}
+                          onClick={() => void handleUpdateOperation(operation)}
+                          title={t("saveChanges")}
+                          type="button"
+                        >
+                          <Check size={15} />
+                        </button>
                       </div>
                     </div>
-                    <div className={operation.operation_type === "buy" ? "text-sm font-semibold text-rose" : "text-sm font-semibold text-emerald"}>
-                      {formatInvestmentMoney(String(total), asset?.currency)}
+                  ) : (
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-text">
+                          {asset?.symbol ?? t("uncategorized")} -{" "}
+                          {t(operation.operation_type === "buy" ? "operationBuy" : "operationSell")}
+                        </div>
+                        <div className="mt-1 text-xs text-muted">
+                          {Number(operation.quantity).toLocaleString("es-AR", { maximumFractionDigits: 8 })} -{" "}
+                          {formatDate(operation.operation_date)}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <div className={operation.operation_type === "buy" ? "text-sm font-semibold text-rose" : "text-sm font-semibold text-emerald"}>
+                          {formatInvestmentMoney(String(total), asset?.currency)}
+                        </div>
+                        <button
+                          className="grid h-8 w-8 place-items-center rounded-md border border-borderSoft text-muted transition hover:text-text"
+                          disabled={isDisabled || isSaving}
+                          onClick={() => startEditingOperation(operation)}
+                          title={t("edit")}
+                          type="button"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               );
             })

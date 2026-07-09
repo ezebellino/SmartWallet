@@ -38,6 +38,7 @@ import {
   updateCategory,
   updateDollarSaving,
   updateInvestmentAsset,
+  updateInvestmentOperation,
   updateMarketDataIntegration,
   updateSavingGoal,
   updateTransaction
@@ -928,6 +929,37 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     }
   }
 
+  async function handleUpdateInvestmentOperation(
+    operationId: number,
+    payload: {
+      asset_id?: number;
+      operation_type?: InvestmentOperationType;
+      quantity?: string;
+      unit_price?: string;
+      fees?: string;
+      operation_date?: string;
+    }
+  ) {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    try {
+      const operation = await updateInvestmentOperation(token, operationId, payload);
+      setInvestmentOperations((current) =>
+        current
+          .map((item) => (item.id === operation.id ? operation : item))
+          .sort((left, right) => right.operation_date.localeCompare(left.operation_date))
+      );
+      await refreshInvestments(token);
+      setStatus(t("investmentOperationUpdated"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
   async function handleRefreshMarketPrices() {
     if (!token) {
       setStatus(t("signInToManageData"));
@@ -1216,6 +1248,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
               onDeleteAsset={handleDeleteInvestmentAsset}
               onLoadPriceHistory={handleLoadInvestmentPriceHistory}
               onRefreshMarketPrices={handleRefreshMarketPrices}
+              onUpdateOperation={handleUpdateInvestmentOperation}
               onUpdateMarketIntegration={handleUpdateMarketIntegration}
               onUpdateAsset={handleUpdateInvestmentAsset}
               operations={investmentOperations}

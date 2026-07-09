@@ -15,6 +15,7 @@ from app.schemas.investment import (
     InvestmentAlertsResponse,
     InvestmentAssetUpdate,
     InvestmentOperationCreate,
+    InvestmentOperationUpdate,
     InvestmentPriceSnapshotRead,
     PortfolioPosition,
     PortfolioSummary,
@@ -85,6 +86,34 @@ class InvestmentService:
                 )
 
         return self.investments.create_operation(user_id, data)
+
+    def update_operation(
+        self,
+        operation_id: int,
+        user_id: int,
+        data: InvestmentOperationUpdate,
+    ) -> InvestmentOperation:
+        operation = self.investments.get_operation(operation_id, user_id)
+        if not operation:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Investment operation not found")
+
+        target_asset_id = data.asset_id if data.asset_id is not None else operation.asset_id
+        asset = self.investments.get_asset_with_operations(target_asset_id, user_id)
+        if not asset:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Investment asset not found")
+
+        updated_type = data.operation_type if data.operation_type is not None else operation.operation_type
+        updated_quantity = data.quantity if data.quantity is not None else operation.quantity
+        if updated_type == InvestmentOperationType.sell:
+            other_operations = [item for item in asset.operations if item.id != operation.id]
+            available_quantity = self._calculate_quantity(other_operations)
+            if updated_quantity > available_quantity:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot sell more quantity than currently owned",
+                )
+
+        return self.investments.update_operation(operation, data)
 
     def list_price_snapshots(
         self,

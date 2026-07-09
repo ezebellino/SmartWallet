@@ -53,6 +53,24 @@ def test_investment_asset_operations_and_portfolio(
     assert buy_response.status_code == 201
     assert sell_response.status_code == 201
 
+    updated_buy_response = client.patch(
+        f"/investments/operations/{buy_response.json()['id']}",
+        headers=auth_headers,
+        json={
+            "quantity": "0.12000000",
+            "unit_price": "41000.0000",
+            "fees": "12.00",
+            "operation_date": "2026-07-04",
+        },
+    )
+
+    assert updated_buy_response.status_code == 200
+    updated_buy = updated_buy_response.json()
+    assert updated_buy["quantity"] == "0.12000000"
+    assert updated_buy["unit_price"] == "41000.0000"
+    assert updated_buy["fees"] == "12.00"
+    assert updated_buy["operation_date"] == "2026-07-04"
+
     invalid_sell_response = client.post(
         "/investments/operations",
         headers=auth_headers,
@@ -72,11 +90,11 @@ def test_investment_asset_operations_and_portfolio(
 
     assert portfolio_response.status_code == 200
     portfolio = portfolio_response.json()
-    assert portfolio["total_invested"] == "3115.00"
-    assert portfolio["total_estimated_value"] == "4000.00"
-    assert portfolio["total_unrealized_gain_loss"] == "885.00"
-    assert portfolio["positions"][0]["quantity"] == "0.08000000"
-    assert portfolio["positions"][0]["average_cost"] == "38937.50"
+    assert portfolio["total_invested"] == "4037.00"
+    assert portfolio["total_estimated_value"] == "5000.00"
+    assert portfolio["total_unrealized_gain_loss"] == "963.00"
+    assert portfolio["positions"][0]["quantity"] == "0.10000000"
+    assert portfolio["positions"][0]["average_cost"] == "40370.00"
     assert "does not constitute professional financial advice" in portfolio["risk_warning"]
 
 

@@ -401,6 +401,25 @@ export function createInvestmentOperation(
   });
 }
 
+export function updateInvestmentOperation(
+  token: string,
+  operationId: number,
+  payload: {
+    asset_id?: number;
+    operation_type?: InvestmentOperationType;
+    quantity?: string;
+    unit_price?: string;
+    fees?: string;
+    operation_date?: string;
+  }
+) {
+  return request<InvestmentOperation>(`/investments/operations/${operationId}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  });
+}
+
 export function getPortfolioSummary(token: string) {
   return request<PortfolioSummary>("/investments/portfolio", {
     headers: { Authorization: `Bearer ${token}` }
