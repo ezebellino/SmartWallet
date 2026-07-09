@@ -1,7 +1,8 @@
 import { Banknote, CreditCard, Plus, ReceiptText, WalletCards, X } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { TranslationKey } from "@/i18n";
-import type { Category, TransactionType } from "@/types/api";
+import { InlineCategoryCreator } from "@/components/dashboard/InlineCategoryCreator";
+import type { Category, CategoryType, TransactionType } from "@/types/api";
 
 type TransactionPayload = {
   category_id: number;
@@ -17,6 +18,7 @@ type Props = {
   isDisabled: boolean;
   isOpen: boolean;
   onClose: () => void;
+  onCreateCategory: (payload: { name: string; type: CategoryType; color: string; icon: string }) => Promise<Category | void>;
   onCreate: (payload: TransactionPayload) => Promise<void>;
   t: (key: TranslationKey) => string;
 };
@@ -29,7 +31,7 @@ const presets = [
   { currency: "ARS", icon: Banknote, key: "quickPresetUsd", type: "expense" }
 ] as const;
 
-export function QuickTransactionPanel({ categories, isDisabled, isOpen, onClose, onCreate, t }: Props) {
+export function QuickTransactionPanel({ categories, isDisabled, isOpen, onClose, onCreate, onCreateCategory, t }: Props) {
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [currency, setCurrency] = useState("ARS");
@@ -230,6 +232,14 @@ export function QuickTransactionPanel({ categories, isDisabled, isOpen, onClose,
               )}
             </select>
           </div>
+
+          <InlineCategoryCreator
+            isDisabled={isDisabled || isSaving}
+            onCreate={onCreateCategory}
+            onCreated={(category) => setCategoryId(String(category.id))}
+            t={t}
+            type={type}
+          />
 
           {type === "expense" && currency === "ARS" ? (
             <div className="rounded-md border border-cyan/20 bg-cyan/8 p-3">

@@ -53,7 +53,7 @@ Objetivo: que cargar y revisar datos sea inmediato.
 - [x] ~~Panel/modal global de carga rapida.~~
 - [x] ~~Acciones rapidas para ingreso, gasto y compra USD.~~
 - [ ] Accion rapida para registrar inversion.
-- [ ] Crear categoria desde el flujo de movimiento si no existe.
+- [x] ~~Crear categoria desde el flujo de movimiento si no existe.~~
 - [ ] Duplicar movimiento frecuente.
 - [ ] Plantillas de movimientos comunes.
 - [ ] Atajos mobile-first para carga desde celular.

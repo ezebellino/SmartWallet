@@ -2,9 +2,10 @@ import { CalendarDays, Check, CreditCard, Pencil, Plus, RotateCcw, Search, Trash
 import { useMemo, useState } from "react";
 import { Panel } from "@/components/ui";
 import type { TranslationKey } from "@/i18n";
+import { InlineCategoryCreator } from "@/components/dashboard/InlineCategoryCreator";
 import { confirmAction } from "@/lib/alerts";
 import { formatDate, formatMoney } from "@/lib/format";
-import type { Category, Transaction, TransactionType } from "@/types/api";
+import type { Category, CategoryType, Transaction, TransactionType } from "@/types/api";
 
 type TransactionPayload = {
   category_id: number;
@@ -26,6 +27,7 @@ type TransactionUpdatePayload = {
 type Props = {
   categories: Category[];
   isDisabled: boolean;
+  onCreateCategory: (payload: { name: string; type: CategoryType; color: string; icon: string }) => Promise<Category | void>;
   onCreate: (payload: TransactionPayload) => Promise<void>;
   onDelete: (transactionId: number) => Promise<void>;
   onUpdate: (transactionId: number, payload: TransactionUpdatePayload) => Promise<void>;
@@ -66,7 +68,7 @@ function getMovementGroupLabel(key: MovementGroupKey): TranslationKey {
   }[key] as TranslationKey;
 }
 
-export function TransactionManager({ categories, isDisabled, onCreate, onDelete, onUpdate, transactions, t }: Props) {
+export function TransactionManager({ categories, isDisabled, onCreate, onCreateCategory, onDelete, onUpdate, transactions, t }: Props) {
   const [type, setType] = useState<TransactionType>("expense");
   const [categoryId, setCategoryId] = useState("");
   const [amount, setAmount] = useState("");
@@ -343,6 +345,14 @@ export function TransactionManager({ categories, isDisabled, onCreate, onDelete,
             ))
           )}
         </select>
+
+        <InlineCategoryCreator
+          isDisabled={isDisabled || isSaving}
+          onCreate={onCreateCategory}
+          onCreated={(category) => setCategoryId(String(category.id))}
+          t={t}
+          type={type}
+        />
 
         <input
           className="rounded-md border border-borderSoft bg-background px-3 py-2.5 text-sm text-text outline-none transition placeholder:text-muted focus:border-cyan"

@@ -582,13 +582,14 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
   async function handleCreateCategory(payload: { name: string; type: CategoryType; color: string; icon: string }) {
     if (!token) {
       setStatus(t("signInToManageData"));
-      return;
+      return undefined;
     }
 
     try {
       const category = await createCategory(token, payload);
       setCategories((current) => [...current, category].sort((left, right) => left.name.localeCompare(right.name)));
       setStatus(t("categoryCreated"));
+      return category;
     } catch (error) {
       setStatus(error instanceof Error ? error.message : t("authFailed"));
       throw error;
@@ -1119,6 +1120,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
               categories={categories}
               isDisabled={!token}
               onCreate={handleCreateTransaction}
+              onCreateCategory={handleCreateCategory}
               onDelete={handleDeleteTransaction}
               onUpdate={handleUpdateTransaction}
               transactions={transactions}
@@ -1246,6 +1248,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
           isOpen={isQuickTransactionOpen}
           onClose={() => setIsQuickTransactionOpen(false)}
           onCreate={handleCreateTransaction}
+          onCreateCategory={handleCreateCategory}
           t={t}
         />
         </div>

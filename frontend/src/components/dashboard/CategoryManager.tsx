@@ -10,7 +10,7 @@ const categoryColors = ["#16f2a4", "#38bdf8", "#fbbf24", "#fb7185", "#a78bfa"];
 type Props = {
   categories: Category[];
   isDisabled: boolean;
-  onCreate: (payload: { name: string; type: CategoryType; color: string; icon: string }) => Promise<void>;
+  onCreate: (payload: { name: string; type: CategoryType; color: string; icon: string }) => Promise<unknown>;
   onDelete: (categoryId: number) => Promise<void>;
   onUpdate: (categoryId: number, payload: { name?: string; color?: string; icon?: string }) => Promise<void>;
   t: (key: TranslationKey) => string;
