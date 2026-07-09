@@ -441,6 +441,14 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         value: `USD ${dollarSavingsSnapshot.totalUsd.toFixed(0)}`
       },
       {
+        descriptionKey: "quickRegisterInvestmentDescription" as const,
+        icon: quickActionIcons.investment,
+        labelKey: "quickRegisterInvestment" as const,
+        section: "investments" as const,
+        type: "section" as const,
+        value: String(investmentAssets.length)
+      },
+      {
         descriptionKey: "quickAiReportDescription" as const,
         icon: quickActionIcons.ai,
         labelKey: "quickAiReport" as const,
@@ -449,7 +457,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         value: report ? t("reportReady") : t("reportPending")
       }
     ],
-    [categories.length, dollarSavingsSnapshot.totalUsd, language, report, transactions.length]
+    [categories.length, dollarSavingsSnapshot.totalUsd, investmentAssets.length, language, report, transactions.length]
   );
 
   const refreshFromApi = useCallback(async () => {

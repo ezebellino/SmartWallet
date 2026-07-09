@@ -1,4 +1,4 @@
-import { Banknote, Bot, PlusCircle, RefreshCw, Target, WalletCards } from "lucide-react";
+import { Banknote, Bot, LineChart, PlusCircle, RefreshCw, Target, WalletCards } from "lucide-react";
 import type { TranslationKey } from "@/i18n";
 import type { DashboardSection } from "@/components/dashboard/DashboardSectionNav";
 
@@ -24,6 +24,7 @@ export const quickActionIcons = {
   ai: Bot,
   dollars: Banknote,
   goal: Target,
+  investment: LineChart,
   movement: PlusCircle,
   wallet: WalletCards
 };
@@ -48,7 +49,7 @@ export function QuickActionsBar({ isSyncing, items, onQuickTransactionOpen, onSe
         </button>
       </div>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
         {items.map((item) => {
           const Icon = item.icon;
 
