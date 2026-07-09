@@ -67,4 +67,5 @@ def generate_monthly_report(
         year=data.year,
         month=data.month,
         force_regenerate=data.force_regenerate,
+        language=data.language,
     )

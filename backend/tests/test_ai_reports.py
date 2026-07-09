@@ -76,11 +76,11 @@ def test_generate_monthly_ai_report_stub(
     report = response.json()
     assert report["provider"] == "stub"
     assert report["prompt_version"] == "monthly-report-v1"
-    assert "Monthly report for 07/2026" in report["summary"]
-    assert "Income was 1000.00" in report["summary"]
-    assert "Detected signals" in report["recommendations"]
+    assert "Reporte mensual para 07/2026" in report["summary"]
+    assert "Los ingresos fueron 1000.00" in report["summary"]
+    assert "Senales detectadas" in report["recommendations"]
     assert "Food exceeded its monthly budget" in report["recommendations"]
-    assert "not professional financial advice" in report["risk_warnings"]
+    assert "asesoramiento financiero profesional" in report["risk_warnings"]
 
     second_response = client.post(
         "/ai/monthly-report",
@@ -103,6 +103,24 @@ def test_ai_reports_require_auth(client: TestClient) -> None:
     assert response.status_code == 401
 
 
+def test_generate_monthly_ai_report_respects_english_language(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    response = client.post(
+        "/ai/monthly-report",
+        headers=auth_headers,
+        json={"year": 2026, "month": 7, "language": "en"},
+    )
+
+    assert response.status_code == 201
+    report = response.json()
+    assert report["provider"] == "stub"
+    assert "Monthly report for 07/2026" in report["summary"]
+    assert "No alerts detected" in report["recommendations"]
+    assert "not professional financial advice" in report["risk_warnings"]
+
+
 def test_generate_monthly_ai_report_openai_provider(
     client: TestClient,
     auth_headers: dict[str, str],
@@ -114,6 +132,8 @@ def test_generate_monthly_ai_report_openai_provider(
 
     def fake_post(*args, **kwargs) -> FakeOpenAIResponse:
         assert kwargs["json"]["model"] == "test-model"
+        system_prompt = kwargs["json"]["input"][0]["content"]
+        assert "Spanish" in system_prompt
         return FakeOpenAIResponse(
             {
                 "output_text": json.dumps(
@@ -131,7 +151,7 @@ def test_generate_monthly_ai_report_openai_provider(
     response = client.post(
         "/ai/monthly-report",
         headers=auth_headers,
-        json={"year": 2026, "month": 8},
+        json={"year": 2026, "month": 8, "language": "es"},
     )
 
     assert response.status_code == 201
@@ -163,4 +183,4 @@ def test_generate_monthly_ai_report_falls_back_to_stub_when_openai_fails(
     assert response.status_code == 201
     report = response.json()
     assert report["provider"] == "stub"
-    assert "Monthly report for 09/2026" in report["summary"]
+    assert "Reporte mensual para 09/2026" in report["summary"]

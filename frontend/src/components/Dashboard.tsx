@@ -533,7 +533,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
 
     try {
       const now = new Date();
-      const reportResponse = await generateMonthlyReport(token, now.getFullYear(), now.getMonth() + 1);
+      const reportResponse = await generateMonthlyReport(token, now.getFullYear(), now.getMonth() + 1, language);
       setReport(reportResponse);
       setStatus(t("reportReady"));
     } catch (error) {

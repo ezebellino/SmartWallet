@@ -447,10 +447,10 @@ export function getAiReports(token: string) {
   });
 }
 
-export function generateMonthlyReport(token: string, year: number, month: number) {
+export function generateMonthlyReport(token: string, year: number, month: number, language: "es" | "en") {
   return request<AiReport>("/ai/monthly-report", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ year, month })
+    body: JSON.stringify({ year, month, language, force_regenerate: true })
   });
 }

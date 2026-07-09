@@ -7,6 +7,7 @@ class AiReportGenerateRequest(BaseModel):
     year: int = Field(ge=2000, le=2100)
     month: int = Field(ge=1, le=12)
     force_regenerate: bool = False
+    language: str = Field(default="es", pattern="^(es|en)$")
 
 
 class AiReportRead(BaseModel):
@@ -27,6 +28,7 @@ class AiReportRead(BaseModel):
 class AiReportContext(BaseModel):
     year: int
     month: int
+    language: str = "es"
     total_income: str
     total_expense: str
     net_balance: str
@@ -40,4 +42,3 @@ class AiReportDraft(BaseModel):
     summary: str
     recommendations: str
     risk_warnings: str
-

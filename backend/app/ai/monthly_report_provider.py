@@ -18,9 +18,14 @@ class StubMonthlyReportProvider(MonthlyReportProvider):
     provider_name = "stub"
 
     def generate(self, context: AiReportContext) -> AiReportDraft:
+        if context.language == "en":
+            return self._generate_en(context)
+
+        return self._generate_es(context)
+
+    def _generate_en(self, context: AiReportContext) -> AiReportDraft:
         savings_label = "positive" if context.savings_rate >= 0 else "negative"
         insights_text = "\n".join(f"- {insight}" for insight in context.insights) or "- No alerts detected."
-
         summary = (
             f"Monthly report for {context.month:02d}/{context.year}. "
             f"Income was {context.total_income}, expenses were {context.total_expense}, "
@@ -35,6 +40,34 @@ class StubMonthlyReportProvider(MonthlyReportProvider):
         risk_warnings = (
             "This report is educational and generated from registered data only. It is not "
             "professional financial advice and should be reviewed before making decisions."
+        )
+
+        return AiReportDraft(
+            provider=self.provider_name,
+            prompt_version=self.prompt_version,
+            summary=summary,
+            recommendations=recommendations,
+            risk_warnings=risk_warnings,
+        )
+
+    def _generate_es(self, context: AiReportContext) -> AiReportDraft:
+        savings_label = "positiva" if context.savings_rate >= 0 else "negativa"
+        insights_text = "\n".join(f"- {insight}" for insight in context.insights) or "- No se detectaron alertas."
+
+        summary = (
+            f"Reporte mensual para {context.month:02d}/{context.year}. "
+            f"Los ingresos fueron {context.total_income}, los gastos fueron {context.total_expense} "
+            f"y el balance neto fue {context.net_balance}. La tasa de ahorro fue "
+            f"{context.savings_rate:.1f}%, considerada {savings_label} para este periodo."
+        )
+        recommendations = (
+            "Revisa las categorias con mayor gasto, separa los consumos esenciales de los "
+            "opcionales y define una accion concreta de ahorro para el proximo mes.\n"
+            f"Senales detectadas:\n{insights_text}"
+        )
+        risk_warnings = (
+            "Este reporte es educativo y se genera solo con los datos registrados. No es "
+            "asesoramiento financiero profesional y debe revisarse antes de tomar decisiones."
         )
 
         return AiReportDraft(
@@ -61,6 +94,7 @@ class OpenAIMonthlyReportProvider(MonthlyReportProvider):
         self.timeout_seconds = timeout_seconds
 
     def generate(self, context: AiReportContext) -> AiReportDraft:
+        language_name = "Spanish" if context.language == "es" else "English"
         payload = {
             "model": self.model,
             "input": [
@@ -68,7 +102,7 @@ class OpenAIMonthlyReportProvider(MonthlyReportProvider):
                     "role": "system",
                     "content": (
                         "You are Smart Wallet AI, an educational personal finance assistant. "
-                        "Generate a concise monthly report in Spanish. Use only the supplied "
+                        f"Generate a concise monthly report in {language_name}. Use only the supplied "
                         "numbers and insights. Do not invent transactions or balances. Do not "
                         "provide professional financial, investment, tax, or legal advice."
                     ),

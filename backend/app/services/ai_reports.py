@@ -37,6 +37,7 @@ class AiReportService:
         year: int,
         month: int,
         force_regenerate: bool,
+        language: str = "es",
     ) -> AiReport:
         existing_report = self.reports.get_by_period(user_id=user_id, year=year, month=month)
         if existing_report and not force_regenerate:
@@ -44,7 +45,7 @@ class AiReportService:
 
         dashboard = self.dashboard_service.get_monthly_summary(user_id=user_id, year=year, month=month)
         insights = self.insight_service.get_spending_insights(user_id=user_id, year=year, month=month)
-        context = self._build_context(year=year, month=month, dashboard=dashboard, insights=insights)
+        context = self._build_context(year=year, month=month, language=language, dashboard=dashboard, insights=insights)
         try:
             draft = self.provider.generate(context)
         except Exception as error:
@@ -65,12 +66,14 @@ class AiReportService:
         *,
         year: int,
         month: int,
+        language: str,
         dashboard: MonthlySummary,
         insights: SpendingInsightsResponse,
     ) -> AiReportContext:
         return AiReportContext(
             year=year,
             month=month,
+            language=language,
             total_income=str(dashboard.total_income),
             total_expense=str(dashboard.total_expense),
             net_balance=str(dashboard.net_balance),
