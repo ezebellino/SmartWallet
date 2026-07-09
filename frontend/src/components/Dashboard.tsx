@@ -26,6 +26,7 @@ import {
   getInvestmentOperations,
   getInvestmentPriceHistory,
   getMarketDataIntegrations,
+  getMonthlyComparison,
   getMonthlySummary,
   getPortfolioSummary,
   getSavingGoals,
@@ -65,6 +66,7 @@ import type {
   MarketDataIntegrationsResponse,
   MarketDataIntegrationUpdate,
   MarketDataRefreshResponse,
+  MonthlyComparison,
   MonthlySummary,
   PortfolioSummary,
   SavingGoal,
@@ -87,6 +89,7 @@ import { ExecutiveFocus, focusIcons } from "@/components/dashboard/ExecutiveFocu
 import { GoalsManager } from "@/components/dashboard/GoalsManager";
 import { InvestmentsManager } from "@/components/dashboard/InvestmentsManager";
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
+import { MonthlyComparisonPanel } from "@/components/dashboard/MonthlyComparisonPanel";
 import { PlanningPanel } from "@/components/dashboard/PlanningPanel";
 import { QuickActionsBar, quickActionIcons } from "@/components/dashboard/QuickActionsBar";
 import { QuickTransactionPanel } from "@/components/dashboard/QuickTransactionPanel";
@@ -106,6 +109,7 @@ type Props = {
 
 export function Dashboard({ token, userName, sessionRemainingMs, onLogout, language, onLanguageChange }: Props) {
   const [summary, setSummary] = useState<MonthlySummary | null>(null);
+  const [monthlyComparison, setMonthlyComparison] = useState<MonthlyComparison | null>(null);
   const [report, setReport] = useState<AiReport | null>(null);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetUsage, setBudgetUsage] = useState<BudgetUsage[]>([]);
@@ -475,6 +479,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
       const month = now.getMonth() + 1;
       const [
         summaryResponse,
+        monthlyComparisonResponse,
         reportsResponse,
         budgetsResponse,
         budgetUsageResponse,
@@ -490,6 +495,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         transactionsResponse
       ] = await Promise.all([
         getMonthlySummary(token, year, month),
+        getMonthlyComparison(token, year, month),
         getAiReports(token),
         getBudgets(token, year, month),
         getBudgetUsage(token, year, month),
@@ -505,6 +511,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         getTransactions(token)
       ]);
       setSummary(summaryResponse);
+      setMonthlyComparison(monthlyComparisonResponse);
       setReport(reportsResponse[0] ?? null);
       setBudgets(budgetsResponse);
       setBudgetUsage(budgetUsageResponse);
@@ -557,13 +564,15 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
-    const [summaryResponse, budgetsResponse, budgetUsageResponse, spendingInsightsResponse] = await Promise.all([
+    const [summaryResponse, monthlyComparisonResponse, budgetsResponse, budgetUsageResponse, spendingInsightsResponse] = await Promise.all([
       getMonthlySummary(tokenValue, year, month),
+      getMonthlyComparison(tokenValue, year, month),
       getBudgets(tokenValue, year, month),
       getBudgetUsage(tokenValue, year, month),
       getSpendingInsights(tokenValue, year, month)
     ]);
     setSummary(summaryResponse);
+    setMonthlyComparison(monthlyComparisonResponse);
     setBudgets(budgetsResponse);
     setBudgetUsage(budgetUsageResponse);
     setSpendingInsights(spendingInsightsResponse);
@@ -1137,6 +1146,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         {activeSection === "dashboard" ? (
           <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
             <div className="space-y-4">
+              <MonthlyComparisonPanel comparison={monthlyComparison} t={t} />
               <CashflowChart data={cashflowData} t={t} />
               <ExpenseCategories data={expenseCategoryData} t={t} />
             </div>

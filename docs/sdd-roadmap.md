@@ -62,7 +62,7 @@ Objetivo: que cargar y revisar datos sea inmediato.
 
 Objetivo: pasar de mostrar numeros a explicar cambios.
 
-- [ ] Comparacion contra mes anterior.
+- [x] ~~Comparacion contra mes anterior.~~
 - [ ] Top 3 categorias de gasto.
 - [ ] Categoria que mas subio.
 - [ ] Saldo proyectado de fin de mes.
@@ -146,11 +146,10 @@ Objetivo: dejar el producto listo para operar sin fragilidad.
 
 1. Panel global de carga rapida de movimientos.
 2. Crear categoria desde movimiento.
-3. Dashboard con comparacion contra mes anterior.
-4. Historico de reportes IA.
-5. Notificaciones internas basicas.
-6. Mejor explicacion de precios omitidos en inversiones.
-7. Preparar vista mobile-first para carga diaria.
+3. Historico de reportes IA.
+4. Notificaciones internas basicas.
+5. Mejor explicacion de precios omitidos en inversiones.
+6. Preparar vista mobile-first para carga diaria.
 
 ## Decisiones Tecnicas Actuales
 

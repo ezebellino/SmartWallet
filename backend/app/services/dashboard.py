@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from app.models.transaction import TransactionType
 from app.repositories.transactions import TransactionRepository
-from app.schemas.dashboard import CategoryBreakdownItem, MonthlySummary
+from app.schemas.dashboard import CategoryBreakdownItem, MonthlyComparison, MonthlyComparisonMetric, MonthlySummary
 
 
 class DashboardService:
@@ -64,3 +64,35 @@ class DashboardService:
             expense_by_category=expense_by_category,
         )
 
+    def get_monthly_comparison(self, *, user_id: int, year: int, month: int) -> MonthlyComparison:
+        previous_year, previous_month = self._previous_month(year=year, month=month)
+        current = self.get_monthly_summary(user_id=user_id, year=year, month=month)
+        previous = self.get_monthly_summary(user_id=user_id, year=previous_year, month=previous_month)
+
+        return MonthlyComparison(
+            year=year,
+            month=month,
+            previous_year=previous_year,
+            previous_month=previous_month,
+            total_income=self._build_metric(current.total_income, previous.total_income),
+            total_expense=self._build_metric(current.total_expense, previous.total_expense),
+            net_balance=self._build_metric(current.net_balance, previous.net_balance),
+            savings_rate=self._build_metric(current.savings_rate, previous.savings_rate),
+        )
+
+    @staticmethod
+    def _previous_month(*, year: int, month: int) -> tuple[int, int]:
+        if month == 1:
+            return year - 1, 12
+        return year, month - 1
+
+    @staticmethod
+    def _build_metric(current: Decimal | float, previous: Decimal | float) -> MonthlyComparisonMetric:
+        delta = current - previous
+        delta_percentage = float((delta / previous) * 100) if previous else None
+        return MonthlyComparisonMetric(
+            current=current,
+            previous=previous,
+            delta=delta,
+            delta_percentage=delta_percentage,
+        )

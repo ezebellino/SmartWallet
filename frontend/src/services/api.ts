@@ -20,6 +20,7 @@ import type {
   MarketDataIntegrationsResponse,
   MarketDataIntegrationUpdate,
   MarketDataRefreshResponse,
+  MonthlyComparison,
   MonthlySummary,
   PortfolioSummary,
   SavingGoal,
@@ -76,6 +77,12 @@ export function register(email: string, password: string, fullName: string) {
 
 export function getMonthlySummary(token: string, year: number, month: number) {
   return request<MonthlySummary>(`/dashboard/monthly-summary?year=${year}&month=${month}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function getMonthlyComparison(token: string, year: number, month: number) {
+  return request<MonthlyComparison>(`/dashboard/monthly-comparison?year=${year}&month=${month}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
 }

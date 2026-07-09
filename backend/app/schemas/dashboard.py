@@ -19,3 +19,20 @@ class MonthlySummary(BaseModel):
     savings_rate: float
     expense_by_category: list[CategoryBreakdownItem]
 
+
+class MonthlyComparisonMetric(BaseModel):
+    current: Decimal | float
+    previous: Decimal | float
+    delta: Decimal | float
+    delta_percentage: float | None
+
+
+class MonthlyComparison(BaseModel):
+    year: int
+    month: int
+    previous_year: int
+    previous_month: int
+    total_income: MonthlyComparisonMetric
+    total_expense: MonthlyComparisonMetric
+    net_balance: MonthlyComparisonMetric
+    savings_rate: MonthlyComparisonMetric

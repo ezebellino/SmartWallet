@@ -25,6 +25,24 @@ export type MonthlySummary = {
   }>;
 };
 
+export type MonthlyComparisonMetric = {
+  current: string | number;
+  previous: string | number;
+  delta: string | number;
+  delta_percentage: number | null;
+};
+
+export type MonthlyComparison = {
+  year: number;
+  month: number;
+  previous_year: number;
+  previous_month: number;
+  total_income: MonthlyComparisonMetric;
+  total_expense: MonthlyComparisonMetric;
+  net_balance: MonthlyComparisonMetric;
+  savings_rate: MonthlyComparisonMetric;
+};
+
 export type CategoryType = "income" | "expense";
 
 export type Category = {
