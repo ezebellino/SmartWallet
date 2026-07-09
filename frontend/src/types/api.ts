@@ -58,6 +58,22 @@ export type CategoryExpenseIncrease = {
   } | null;
 };
 
+export type MonthlyProjection = {
+  year: number;
+  month: number;
+  as_of_date: string;
+  elapsed_days: number;
+  days_in_month: number;
+  current_income: string;
+  current_expense: string;
+  current_net_balance: string;
+  projected_income: string;
+  projected_expense: string;
+  projected_net_balance: string;
+  daily_net_average: string;
+  confidence: "low" | "medium" | "high" | string;
+};
+
 export type CategoryType = "income" | "expense";
 
 export type Category = {

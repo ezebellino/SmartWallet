@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 
 from pydantic import BaseModel
@@ -53,3 +54,19 @@ class CategoryExpenseIncrease(BaseModel):
     previous_year: int
     previous_month: int
     category: CategoryExpenseChange | None
+
+
+class MonthlyProjection(BaseModel):
+    year: int
+    month: int
+    as_of_date: date
+    elapsed_days: int
+    days_in_month: int
+    current_income: Decimal
+    current_expense: Decimal
+    current_net_balance: Decimal
+    projected_income: Decimal
+    projected_expense: Decimal
+    projected_net_balance: Decimal
+    daily_net_average: Decimal
+    confidence: str

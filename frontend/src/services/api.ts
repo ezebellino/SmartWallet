@@ -22,6 +22,7 @@ import type {
   MarketDataIntegrationUpdate,
   MarketDataRefreshResponse,
   MonthlyComparison,
+  MonthlyProjection,
   MonthlySummary,
   PortfolioSummary,
   SavingGoal,
@@ -90,6 +91,12 @@ export function getMonthlyComparison(token: string, year: number, month: number)
 
 export function getCategoryExpenseIncrease(token: string, year: number, month: number) {
   return request<CategoryExpenseIncrease>(`/dashboard/category-expense-increase?year=${year}&month=${month}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function getMonthlyProjection(token: string, year: number, month: number) {
+  return request<MonthlyProjection>(`/dashboard/monthly-projection?year=${year}&month=${month}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
 }

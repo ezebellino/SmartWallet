@@ -28,6 +28,7 @@ import {
   getInvestmentPriceHistory,
   getMarketDataIntegrations,
   getMonthlyComparison,
+  getMonthlyProjection,
   getMonthlySummary,
   getPortfolioSummary,
   getSavingGoals,
@@ -69,6 +70,7 @@ import type {
   MarketDataIntegrationUpdate,
   MarketDataRefreshResponse,
   MonthlyComparison,
+  MonthlyProjection,
   MonthlySummary,
   PortfolioSummary,
   SavingGoal,
@@ -93,6 +95,7 @@ import { GoalsManager } from "@/components/dashboard/GoalsManager";
 import { InvestmentsManager } from "@/components/dashboard/InvestmentsManager";
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
 import { MonthlyComparisonPanel } from "@/components/dashboard/MonthlyComparisonPanel";
+import { MonthlyProjectionPanel } from "@/components/dashboard/MonthlyProjectionPanel";
 import { PlanningPanel } from "@/components/dashboard/PlanningPanel";
 import { QuickActionsBar, quickActionIcons } from "@/components/dashboard/QuickActionsBar";
 import { QuickTransactionPanel } from "@/components/dashboard/QuickTransactionPanel";
@@ -114,6 +117,7 @@ type Props = {
 export function Dashboard({ token, userName, sessionRemainingMs, onLogout, language, onLanguageChange }: Props) {
   const [summary, setSummary] = useState<MonthlySummary | null>(null);
   const [monthlyComparison, setMonthlyComparison] = useState<MonthlyComparison | null>(null);
+  const [monthlyProjection, setMonthlyProjection] = useState<MonthlyProjection | null>(null);
   const [categoryExpenseIncrease, setCategoryExpenseIncrease] = useState<CategoryExpenseIncrease | null>(null);
   const [report, setReport] = useState<AiReport | null>(null);
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -485,6 +489,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
       const [
         summaryResponse,
         monthlyComparisonResponse,
+        monthlyProjectionResponse,
         categoryExpenseIncreaseResponse,
         reportsResponse,
         budgetsResponse,
@@ -502,6 +507,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
       ] = await Promise.all([
         getMonthlySummary(token, year, month),
         getMonthlyComparison(token, year, month),
+        getMonthlyProjection(token, year, month),
         getCategoryExpenseIncrease(token, year, month),
         getAiReports(token),
         getBudgets(token, year, month),
@@ -519,6 +525,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
       ]);
       setSummary(summaryResponse);
       setMonthlyComparison(monthlyComparisonResponse);
+      setMonthlyProjection(monthlyProjectionResponse);
       setCategoryExpenseIncrease(categoryExpenseIncreaseResponse);
       setReport(reportsResponse[0] ?? null);
       setBudgets(budgetsResponse);
@@ -575,6 +582,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     const [
       summaryResponse,
       monthlyComparisonResponse,
+      monthlyProjectionResponse,
       categoryExpenseIncreaseResponse,
       budgetsResponse,
       budgetUsageResponse,
@@ -582,6 +590,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     ] = await Promise.all([
       getMonthlySummary(tokenValue, year, month),
       getMonthlyComparison(tokenValue, year, month),
+      getMonthlyProjection(tokenValue, year, month),
       getCategoryExpenseIncrease(tokenValue, year, month),
       getBudgets(tokenValue, year, month),
       getBudgetUsage(tokenValue, year, month),
@@ -589,6 +598,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     ]);
     setSummary(summaryResponse);
     setMonthlyComparison(monthlyComparisonResponse);
+    setMonthlyProjection(monthlyProjectionResponse);
     setCategoryExpenseIncrease(categoryExpenseIncreaseResponse);
     setBudgets(budgetsResponse);
     setBudgetUsage(budgetUsageResponse);
@@ -1164,6 +1174,11 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
           <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
             <div className="space-y-4">
               <MonthlyComparisonPanel comparison={monthlyComparison} t={t} />
+              <MonthlyProjectionPanel
+                onReviewMovements={() => setActiveSection("movements")}
+                projection={monthlyProjection}
+                t={t}
+              />
               <CashflowChart data={cashflowData} t={t} />
               <ExpenseCategories data={expenseCategoryData} t={t} />
             </div>

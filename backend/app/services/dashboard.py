@@ -10,6 +10,7 @@ from app.schemas.dashboard import (
     CategoryExpenseIncrease,
     MonthlyComparison,
     MonthlyComparisonMetric,
+    MonthlyProjection,
     MonthlySummary,
 )
 
@@ -120,11 +121,82 @@ class DashboardService:
             category=biggest_change,
         )
 
+    def get_monthly_projection(
+        self,
+        *,
+        user_id: int,
+        year: int,
+        month: int,
+        as_of: date | None = None,
+    ) -> MonthlyProjection:
+        days_in_month = calendar.monthrange(year, month)[1]
+        reference_date = as_of or date.today()
+        start_date = date(year, month, 1)
+        end_date = self._projection_end_date(year=year, month=month, days_in_month=days_in_month, as_of=reference_date)
+        elapsed_days = max((end_date - start_date).days + 1, 1)
+
+        movements = self.transactions.list_by_user(
+            user_id=user_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        current_income = sum(
+            (movement.amount for movement in movements if movement.type == TransactionType.income),
+            Decimal("0"),
+        )
+        current_expense = sum(
+            (movement.amount for movement in movements if movement.type == TransactionType.expense),
+            Decimal("0"),
+        )
+        current_net_balance = current_income - current_expense
+        scale = Decimal(days_in_month) / Decimal(elapsed_days)
+        projected_income = current_income * scale
+        projected_expense = current_expense * scale
+        projected_net_balance = projected_income - projected_expense
+        daily_net_average = current_net_balance / Decimal(elapsed_days)
+
+        return MonthlyProjection(
+            year=year,
+            month=month,
+            as_of_date=end_date,
+            elapsed_days=elapsed_days,
+            days_in_month=days_in_month,
+            current_income=current_income,
+            current_expense=current_expense,
+            current_net_balance=current_net_balance,
+            projected_income=self._to_money(projected_income),
+            projected_expense=self._to_money(projected_expense),
+            projected_net_balance=self._to_money(projected_net_balance),
+            daily_net_average=self._to_money(daily_net_average),
+            confidence=self._projection_confidence(elapsed_days=elapsed_days, days_in_month=days_in_month),
+        )
+
     @staticmethod
     def _previous_month(*, year: int, month: int) -> tuple[int, int]:
         if month == 1:
             return year - 1, 12
         return year, month - 1
+
+    @staticmethod
+    def _projection_end_date(*, year: int, month: int, days_in_month: int, as_of: date) -> date:
+        if as_of.year == year and as_of.month == month:
+            return as_of
+        if (as_of.year, as_of.month) < (year, month):
+            return date(year, month, 1)
+        return date(year, month, days_in_month)
+
+    @staticmethod
+    def _projection_confidence(*, elapsed_days: int, days_in_month: int) -> str:
+        progress = elapsed_days / days_in_month
+        if progress >= 0.75:
+            return "high"
+        if progress >= 0.35:
+            return "medium"
+        return "low"
+
+    @staticmethod
+    def _to_money(value: Decimal) -> Decimal:
+        return value.quantize(Decimal("0.01"))
 
     @staticmethod
     def _build_metric(current: Decimal | float, previous: Decimal | float) -> MonthlyComparisonMetric:

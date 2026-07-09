@@ -146,6 +146,25 @@ def test_categories_transactions_and_dashboard_flow(
     assert comparison["savings_rate"]["current"] == 75.0
     assert comparison["savings_rate"]["previous"] == 62.5
 
+    projection_response = client.get(
+        "/dashboard/monthly-projection?year=2026&month=7&as_of=2026-07-10",
+        headers=auth_headers,
+    )
+
+    assert projection_response.status_code == 200
+    projection = projection_response.json()
+    assert projection["as_of_date"] == "2026-07-10"
+    assert projection["elapsed_days"] == 10
+    assert projection["days_in_month"] == 31
+    assert projection["current_income"] == "1000.00"
+    assert projection["current_expense"] == "250.00"
+    assert projection["current_net_balance"] == "750.00"
+    assert projection["projected_income"] == "3100.00"
+    assert projection["projected_expense"] == "775.00"
+    assert projection["projected_net_balance"] == "2325.00"
+    assert projection["daily_net_average"] == "75.00"
+    assert projection["confidence"] == "low"
+
 
 def test_protected_routes_require_auth(client: TestClient) -> None:
     response = client.get("/categories")
