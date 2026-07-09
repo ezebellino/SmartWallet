@@ -4,6 +4,7 @@ import type {
   Budget,
   BudgetUsage,
   Category,
+  CategoryExpenseIncrease,
   CategoryType,
   CompoundInterestRequest,
   CompoundInterestResponse,
@@ -83,6 +84,12 @@ export function getMonthlySummary(token: string, year: number, month: number) {
 
 export function getMonthlyComparison(token: string, year: number, month: number) {
   return request<MonthlyComparison>(`/dashboard/monthly-comparison?year=${year}&month=${month}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function getCategoryExpenseIncrease(token: string, year: number, month: number) {
+  return request<CategoryExpenseIncrease>(`/dashboard/category-expense-increase?year=${year}&month=${month}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
 }

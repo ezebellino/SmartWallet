@@ -36,3 +36,20 @@ class MonthlyComparison(BaseModel):
     total_expense: MonthlyComparisonMetric
     net_balance: MonthlyComparisonMetric
     savings_rate: MonthlyComparisonMetric
+
+
+class CategoryExpenseChange(BaseModel):
+    category_id: int
+    category_name: str
+    current_total: Decimal
+    previous_total: Decimal
+    delta: Decimal
+    delta_percentage: float | None
+
+
+class CategoryExpenseIncrease(BaseModel):
+    year: int
+    month: int
+    previous_year: int
+    previous_month: int
+    category: CategoryExpenseChange | None

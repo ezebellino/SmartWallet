@@ -64,7 +64,7 @@ Objetivo: pasar de mostrar numeros a explicar cambios.
 
 - [x] ~~Comparacion contra mes anterior.~~
 - [x] ~~Top 3 categorias de gasto.~~
-- [ ] Categoria que mas subio.
+- [x] ~~Categoria que mas subio.~~
 - [ ] Saldo proyectado de fin de mes.
 - [ ] Indicador de salud financiera.
 - [ ] Alertas visibles por prioridad.

@@ -151,3 +151,71 @@ def test_protected_routes_require_auth(client: TestClient) -> None:
     response = client.get("/categories")
 
     assert response.status_code == 401
+
+
+def test_dashboard_returns_biggest_category_expense_increase(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    food_response = client.post(
+        "/categories",
+        headers=auth_headers,
+        json={
+            "name": "Food",
+            "type": "expense",
+            "color": "#f97316",
+            "icon": "utensils",
+        },
+    )
+    transport_response = client.post(
+        "/categories",
+        headers=auth_headers,
+        json={
+            "name": "Transport",
+            "type": "expense",
+            "color": "#38bdf8",
+            "icon": "car",
+        },
+    )
+
+    assert food_response.status_code == 201
+    assert transport_response.status_code == 201
+    food_id = food_response.json()["id"]
+    transport_id = transport_response.json()["id"]
+
+    transactions = [
+        (food_id, "120.00", "2026-06-03"),
+        (food_id, "180.00", "2026-07-03"),
+        (transport_id, "50.00", "2026-06-04"),
+        (transport_id, "190.00", "2026-07-04"),
+    ]
+
+    for category_id, amount, transaction_date in transactions:
+        response = client.post(
+            "/transactions",
+            headers=auth_headers,
+            json={
+                "category_id": category_id,
+                "type": "expense",
+                "amount": amount,
+                "currency": "ARS",
+                "description": "Expense increase fixture",
+                "transaction_date": transaction_date,
+            },
+        )
+        assert response.status_code == 201
+
+    response = client.get(
+        "/dashboard/category-expense-increase?year=2026&month=7",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["previous_year"] == 2026
+    assert payload["previous_month"] == 6
+    assert payload["category"]["category_name"] == "Transport"
+    assert payload["category"]["current_total"] == "190.00"
+    assert payload["category"]["previous_total"] == "50.00"
+    assert payload["category"]["delta"] == "140.00"
+    assert payload["category"]["delta_percentage"] == 280.0

@@ -43,6 +43,21 @@ export type MonthlyComparison = {
   savings_rate: MonthlyComparisonMetric;
 };
 
+export type CategoryExpenseIncrease = {
+  year: number;
+  month: number;
+  previous_year: number;
+  previous_month: number;
+  category: {
+    category_id: number;
+    category_name: string;
+    current_total: string;
+    previous_total: string;
+    delta: string;
+    delta_percentage: number | null;
+  } | null;
+};
+
 export type CategoryType = "income" | "expense";
 
 export type Category = {

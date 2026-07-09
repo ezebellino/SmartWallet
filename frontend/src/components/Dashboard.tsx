@@ -19,6 +19,7 @@ import {
   getAiReports,
   getBudgets,
   getBudgetUsage,
+  getCategoryExpenseIncrease,
   getCategories,
   getDollarSavings,
   getInvestmentAlerts,
@@ -51,6 +52,7 @@ import type {
   Budget,
   BudgetUsage,
   Category,
+  CategoryExpenseIncrease,
   CategoryType,
   CompoundInterestRequest,
   CompoundInterestResponse,
@@ -77,6 +79,7 @@ import type {
 } from "@/types/api";
 import { AiAssistantBubble } from "@/components/dashboard/AiAssistantBubble";
 import { AiReportPanel } from "@/components/dashboard/AiReportPanel";
+import { BiggestExpenseIncreasePanel } from "@/components/dashboard/BiggestExpenseIncreasePanel";
 import { BudgetManager } from "@/components/dashboard/BudgetManager";
 import { CashflowChart } from "@/components/dashboard/CashflowChart";
 import { CategoryManager } from "@/components/dashboard/CategoryManager";
@@ -111,6 +114,7 @@ type Props = {
 export function Dashboard({ token, userName, sessionRemainingMs, onLogout, language, onLanguageChange }: Props) {
   const [summary, setSummary] = useState<MonthlySummary | null>(null);
   const [monthlyComparison, setMonthlyComparison] = useState<MonthlyComparison | null>(null);
+  const [categoryExpenseIncrease, setCategoryExpenseIncrease] = useState<CategoryExpenseIncrease | null>(null);
   const [report, setReport] = useState<AiReport | null>(null);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetUsage, setBudgetUsage] = useState<BudgetUsage[]>([]);
@@ -481,6 +485,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
       const [
         summaryResponse,
         monthlyComparisonResponse,
+        categoryExpenseIncreaseResponse,
         reportsResponse,
         budgetsResponse,
         budgetUsageResponse,
@@ -497,6 +502,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
       ] = await Promise.all([
         getMonthlySummary(token, year, month),
         getMonthlyComparison(token, year, month),
+        getCategoryExpenseIncrease(token, year, month),
         getAiReports(token),
         getBudgets(token, year, month),
         getBudgetUsage(token, year, month),
@@ -513,6 +519,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
       ]);
       setSummary(summaryResponse);
       setMonthlyComparison(monthlyComparisonResponse);
+      setCategoryExpenseIncrease(categoryExpenseIncreaseResponse);
       setReport(reportsResponse[0] ?? null);
       setBudgets(budgetsResponse);
       setBudgetUsage(budgetUsageResponse);
@@ -565,15 +572,24 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
-    const [summaryResponse, monthlyComparisonResponse, budgetsResponse, budgetUsageResponse, spendingInsightsResponse] = await Promise.all([
+    const [
+      summaryResponse,
+      monthlyComparisonResponse,
+      categoryExpenseIncreaseResponse,
+      budgetsResponse,
+      budgetUsageResponse,
+      spendingInsightsResponse
+    ] = await Promise.all([
       getMonthlySummary(tokenValue, year, month),
       getMonthlyComparison(tokenValue, year, month),
+      getCategoryExpenseIncrease(tokenValue, year, month),
       getBudgets(tokenValue, year, month),
       getBudgetUsage(tokenValue, year, month),
       getSpendingInsights(tokenValue, year, month)
     ]);
     setSummary(summaryResponse);
     setMonthlyComparison(monthlyComparisonResponse);
+    setCategoryExpenseIncrease(categoryExpenseIncreaseResponse);
     setBudgets(budgetsResponse);
     setBudgetUsage(budgetUsageResponse);
     setSpendingInsights(spendingInsightsResponse);
@@ -1155,6 +1171,11 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
             <aside className="space-y-4">
               <TopExpenseCategoriesPanel
                 categories={summary?.expense_by_category ?? []}
+                onReviewMovements={() => setActiveSection("movements")}
+                t={t}
+              />
+              <BiggestExpenseIncreasePanel
+                increase={categoryExpenseIncrease}
                 onReviewMovements={() => setActiveSection("movements")}
                 t={t}
               />
