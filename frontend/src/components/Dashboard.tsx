@@ -1250,6 +1250,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
           onCreate={handleCreateTransaction}
           onCreateCategory={handleCreateCategory}
           t={t}
+          transactions={transactions}
         />
         </div>
       </main>

@@ -55,7 +55,7 @@ Objetivo: que cargar y revisar datos sea inmediato.
 - [ ] Accion rapida para registrar inversion.
 - [x] ~~Crear categoria desde el flujo de movimiento si no existe.~~
 - [x] ~~Duplicar movimiento frecuente.~~
-- [ ] Plantillas de movimientos comunes.
+- [x] ~~Plantillas de movimientos comunes basadas en movimientos recientes.~~
 - [ ] Atajos mobile-first para carga desde celular.
 
 ### Etapa 2: Dashboard Mas Inteligente

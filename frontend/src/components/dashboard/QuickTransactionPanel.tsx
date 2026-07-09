@@ -1,8 +1,8 @@
-import { Banknote, CreditCard, Plus, ReceiptText, WalletCards, X } from "lucide-react";
+import { Banknote, Clock3, Plus, ReceiptText, WalletCards, X } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { TranslationKey } from "@/i18n";
 import { InlineCategoryCreator } from "@/components/dashboard/InlineCategoryCreator";
-import type { Category, CategoryType, TransactionType } from "@/types/api";
+import type { Category, CategoryType, Transaction, TransactionType } from "@/types/api";
 
 type TransactionPayload = {
   category_id: number;
@@ -21,6 +21,7 @@ type Props = {
   onCreateCategory: (payload: { name: string; type: CategoryType; color: string; icon: string }) => Promise<Category | void>;
   onCreate: (payload: TransactionPayload) => Promise<void>;
   t: (key: TranslationKey) => string;
+  transactions: Transaction[];
 };
 
 const today = new Date().toISOString().slice(0, 10);
@@ -31,7 +32,7 @@ const presets = [
   { currency: "ARS", icon: Banknote, key: "quickPresetUsd", type: "expense" }
 ] as const;
 
-export function QuickTransactionPanel({ categories, isDisabled, isOpen, onClose, onCreate, onCreateCategory, t }: Props) {
+export function QuickTransactionPanel({ categories, isDisabled, isOpen, onClose, onCreate, onCreateCategory, t, transactions }: Props) {
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [currency, setCurrency] = useState("ARS");
@@ -45,6 +46,35 @@ export function QuickTransactionPanel({ categories, isDisabled, isOpen, onClose,
     () => categories.filter((category) => category.type === type),
     [categories, type]
   );
+  const categoryById = useMemo(
+    () => new Map(categories.map((category) => [category.id, category])),
+    [categories]
+  );
+  const recentTemplates = useMemo(() => {
+    const seen = new Set<string>();
+
+    return transactions
+      .filter((transaction) => categoryById.has(transaction.category_id))
+      .map((transaction) => ({
+        ...transaction,
+        templateKey: [
+          transaction.type,
+          transaction.category_id,
+          transaction.amount,
+          transaction.currency,
+          transaction.description ?? ""
+        ].join("|")
+      }))
+      .filter((transaction) => {
+        if (seen.has(transaction.templateKey)) {
+          return false;
+        }
+
+        seen.add(transaction.templateKey);
+        return true;
+      })
+      .slice(0, 4);
+  }, [categoryById, transactions]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -72,6 +102,16 @@ export function QuickTransactionPanel({ categories, isDisabled, isOpen, onClose,
     setDescription("");
     setTransactionDate(today);
     setType("expense");
+    setUsdQuantity("");
+  }
+
+  function applyTemplate(transaction: Transaction) {
+    setAmount(transaction.amount);
+    setCategoryId(String(transaction.category_id));
+    setCurrency(transaction.currency);
+    setDescription(transaction.description ?? "");
+    setTransactionDate(today);
+    setType(transaction.type);
     setUsdQuantity("");
   }
 
@@ -156,6 +196,37 @@ export function QuickTransactionPanel({ categories, isDisabled, isOpen, onClose,
             );
           })}
         </div>
+
+        {recentTemplates.length > 0 ? (
+          <div className="mt-4 rounded-md border border-borderSoft/80 bg-background/45 p-3">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase text-muted">
+              <Clock3 size={14} className="text-cyan" />
+              {t("quickTemplatesTitle")}
+            </div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {recentTemplates.map((template) => {
+                const category = categoryById.get(template.category_id);
+
+                return (
+                  <button
+                    className="min-h-[58px] rounded-md border border-borderSoft bg-panel/70 px-3 py-2 text-left transition hover:border-cyan/35 hover:bg-panelSoft"
+                    disabled={isDisabled || isSaving}
+                    key={template.id}
+                    onClick={() => applyTemplate(template)}
+                    type="button"
+                  >
+                    <span className="block truncate text-sm font-semibold text-text">
+                      {template.description || category?.name || t("uncategorized")}
+                    </span>
+                    <span className={template.type === "income" ? "mt-1 block text-xs text-emerald" : "mt-1 block text-xs text-rose"}>
+                      {category?.name || t("uncategorized")} - {template.currency} {template.amount}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         <form className="mt-4 grid gap-3" onSubmit={handleSubmit}>
           <div className="grid gap-3 sm:grid-cols-[1fr_120px_150px]">
