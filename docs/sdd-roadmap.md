@@ -54,7 +54,7 @@ Objetivo: que cargar y revisar datos sea inmediato.
 - [x] ~~Acciones rapidas para ingreso, gasto y compra USD.~~
 - [ ] Accion rapida para registrar inversion.
 - [x] ~~Crear categoria desde el flujo de movimiento si no existe.~~
-- [ ] Duplicar movimiento frecuente.
+- [x] ~~Duplicar movimiento frecuente.~~
 - [ ] Plantillas de movimientos comunes.
 - [ ] Atajos mobile-first para carga desde celular.
 

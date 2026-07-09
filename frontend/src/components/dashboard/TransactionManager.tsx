@@ -1,4 +1,4 @@
-import { CalendarDays, Check, CreditCard, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { CalendarDays, Check, Copy, CreditCard, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Panel } from "@/components/ui";
 import type { TranslationKey } from "@/i18n";
@@ -221,6 +221,24 @@ export function TransactionManager({ categories, isDisabled, onCreate, onCreateC
         transaction_date: editingDate
       });
       setEditingId(null);
+    } catch {
+      // The dashboard status area displays the backend error.
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDuplicate(transaction: Transaction) {
+    setIsSaving(true);
+    try {
+      await onCreate({
+        amount: transaction.amount,
+        category_id: transaction.category_id,
+        currency: transaction.currency,
+        description: transaction.description ?? undefined,
+        transaction_date: today,
+        type: transaction.type
+      });
     } catch {
       // The dashboard status area displays the backend error.
     } finally {
@@ -566,6 +584,15 @@ export function TransactionManager({ categories, isDisabled, onCreate, onCreateC
                               type="button"
                             >
                               <Pencil size={14} />
+                            </button>
+                            <button
+                              className="grid h-8 w-8 place-items-center rounded-md border border-borderSoft text-muted transition hover:border-cyan hover:text-cyan"
+                              disabled={isDisabled || isSaving}
+                              onClick={() => void handleDuplicate(transaction)}
+                              title={t("duplicateMovement")}
+                              type="button"
+                            >
+                              <Copy size={14} />
                             </button>
                             <button
                               className="grid h-8 w-8 place-items-center rounded-md border border-borderSoft text-muted transition hover:border-rose hover:text-rose"
