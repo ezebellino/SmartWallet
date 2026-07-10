@@ -79,7 +79,7 @@ export function MonthlyComparisonPanel({
   }
 
   return (
-    <Panel className="p-4">
+    <Panel className="p-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase text-cyan">{t("monthlyComparisonEyebrow")}</p>
@@ -90,26 +90,26 @@ export function MonthlyComparisonPanel({
         </p>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {metricConfigs.map((config) => {
           const metric = comparison[config.key];
           const tone = getTone(metric, config.lowerIsBetter);
 
           return (
             <div
-              className="rounded-lg border border-borderSoft/80 bg-white/[0.025] p-3"
+              className="rounded-lg border border-borderSoft/80 bg-white/[0.025] p-2.5"
               key={config.key}
             >
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-semibold uppercase text-muted">{t(config.labelKey)}</p>
-                <span className={`inline-flex h-8 w-8 items-center justify-center rounded-md border ${tone.className}`}>
+                <span className={`inline-flex h-7 w-7 items-center justify-center rounded-md border ${tone.className}`}>
                   {tone.icon}
                 </span>
               </div>
-              <p className="mt-3 text-xl font-semibold text-text">
+              <p className="mt-2 text-lg font-semibold text-text">
                 {formatMetricValue(metric.current, config.isCurrency)}
               </p>
-              <p className={`mt-2 text-sm font-medium ${tone.textClassName}`}>
+              <p className={`mt-1 text-xs font-medium ${tone.textClassName}`}>
                 {buildDeltaLabel(metric, config.isCurrency, t)}
               </p>
               <p className="mt-1 text-xs text-muted">

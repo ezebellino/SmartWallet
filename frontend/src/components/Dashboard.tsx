@@ -1175,30 +1175,34 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         {activeSection === "dashboard" ? (
           <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
             <div className="space-y-4">
-              <PrioritizedAlertsPanel
-                budgetUsage={budgetUsage}
-                categoryExpenseIncrease={categoryExpenseIncrease}
-                investmentAlerts={investmentAlerts}
-                monthlyProjection={monthlyProjection}
-                onSectionChange={setActiveSection}
-                reportReady={Boolean(report)}
-                t={t}
-              />
-              <MonthlyComparisonPanel comparison={monthlyComparison} t={t} />
-              <MonthlyProjectionPanel
-                onReviewMovements={() => setActiveSection("movements")}
-                projection={monthlyProjection}
-                t={t}
-              />
-              <FinancialHealthPanel
-                budgetCount={budgets.length}
-                budgetUsage={budgetUsage}
-                categoryExpenseIncrease={categoryExpenseIncrease}
-                monthlyProjection={monthlyProjection}
-                onReviewPlan={() => setActiveSection("budgets")}
-                savingsRate={metrics.savingsRate}
-                t={t}
-              />
+              <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.9fr)]">
+                <PrioritizedAlertsPanel
+                  budgetUsage={budgetUsage}
+                  categoryExpenseIncrease={categoryExpenseIncrease}
+                  investmentAlerts={investmentAlerts}
+                  monthlyProjection={monthlyProjection}
+                  onSectionChange={setActiveSection}
+                  reportReady={Boolean(report)}
+                  t={t}
+                />
+                <FinancialHealthPanel
+                  budgetCount={budgets.length}
+                  budgetUsage={budgetUsage}
+                  categoryExpenseIncrease={categoryExpenseIncrease}
+                  monthlyProjection={monthlyProjection}
+                  onReviewPlan={() => setActiveSection("budgets")}
+                  savingsRate={metrics.savingsRate}
+                  t={t}
+                />
+              </div>
+              <div className="grid gap-4 2xl:grid-cols-2">
+                <MonthlyComparisonPanel comparison={monthlyComparison} t={t} />
+                <MonthlyProjectionPanel
+                  onReviewMovements={() => setActiveSection("movements")}
+                  projection={monthlyProjection}
+                  t={t}
+                />
+              </div>
               <CashflowChart data={cashflowData} t={t} />
               <ExpenseCategories data={expenseCategoryData} t={t} />
             </div>
@@ -1212,14 +1216,6 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
               <BiggestExpenseIncreasePanel
                 increase={categoryExpenseIncrease}
                 onReviewMovements={() => setActiveSection("movements")}
-                t={t}
-              />
-              <CategoryManager
-                categories={categories}
-                isDisabled={!token}
-                onCreate={handleCreateCategory}
-                onDelete={handleDeleteCategory}
-                onUpdate={handleUpdateCategory}
                 t={t}
               />
             </aside>

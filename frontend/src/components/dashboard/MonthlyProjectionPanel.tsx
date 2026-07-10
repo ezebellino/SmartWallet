@@ -34,7 +34,7 @@ export function MonthlyProjectionPanel({
     projectedBalance >= 0 ? <TrendingUp size={17} className="text-emerald" /> : <TrendingDown size={17} className="text-rose" />;
 
   return (
-    <Panel className="p-4">
+    <Panel className="p-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase text-cyan">{t("monthlyProjectionEyebrow")}</p>
@@ -46,32 +46,32 @@ export function MonthlyProjectionPanel({
         </span>
       </div>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
-        <div className="rounded-lg border border-borderSoft/80 bg-white/[0.025] p-4">
+      <div className="mt-3 grid gap-2 lg:grid-cols-[minmax(0,1fr)_190px]">
+        <div className="rounded-lg border border-borderSoft/80 bg-white/[0.025] p-3">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm text-muted">{t("projectedEndBalance")}</p>
-              <p className={`mt-2 text-3xl font-semibold leading-none ${balanceTone}`}>
+              <p className={`mt-2 text-2xl font-semibold leading-none ${balanceTone}`}>
                 {formatMoney(projectedBalance)}
               </p>
             </div>
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-white/5">{trendIcon}</span>
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-white/5">{trendIcon}</span>
           </div>
-          <p className="mt-3 text-sm text-muted">
+          <p className="mt-2 text-xs leading-5 text-muted">
             {t("monthlyProjectionBasedOn")} {projection.elapsed_days}/{projection.days_in_month} {t("monthDays").toLowerCase()}.
           </p>
         </div>
 
         <div className="grid gap-2">
-          <div className="rounded-lg border border-borderSoft/80 bg-white/[0.025] p-3">
+          <div className="rounded-lg border border-borderSoft/80 bg-white/[0.025] p-2.5">
             <p className="text-xs text-muted">{t("projectedIncome")}</p>
             <p className="mt-1 text-sm font-semibold text-text">{formatMoney(Number(projection.projected_income))}</p>
           </div>
-          <div className="rounded-lg border border-borderSoft/80 bg-white/[0.025] p-3">
+          <div className="rounded-lg border border-borderSoft/80 bg-white/[0.025] p-2.5">
             <p className="text-xs text-muted">{t("projectedExpenses")}</p>
             <p className="mt-1 text-sm font-semibold text-text">{formatMoney(Number(projection.projected_expense))}</p>
           </div>
-          <div className="rounded-lg border border-borderSoft/80 bg-white/[0.025] p-3">
+          <div className="rounded-lg border border-borderSoft/80 bg-white/[0.025] p-2.5">
             <p className="text-xs text-muted">{t("dailyNetAverage")}</p>
             <p className="mt-1 text-sm font-semibold text-text">{formatMoney(dailyAverage)}</p>
           </div>
@@ -79,7 +79,7 @@ export function MonthlyProjectionPanel({
       </div>
 
       <button
-        className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-cyan transition hover:gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan/25"
+        className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-cyan transition hover:gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan/25"
         onClick={onReviewMovements}
         type="button"
       >

@@ -259,7 +259,7 @@ export function FinancialHealthPanel({
   const statusClasses = toneClasses(statusCopy.tone);
 
   return (
-    <Panel className="p-4">
+    <Panel className="p-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase text-cyan">{t("financialHealthEyebrow")}</p>
@@ -271,22 +271,22 @@ export function FinancialHealthPanel({
         </span>
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)]">
-        <div className="rounded-lg border border-borderSoft/80 bg-white/[0.025] p-4">
+      <div className="mt-3 grid gap-3 lg:grid-cols-[150px_minmax(0,1fr)]">
+        <div className="rounded-lg border border-borderSoft/80 bg-white/[0.025] p-3">
           <div className="flex items-center gap-2 text-muted">
             <Activity size={16} />
             <span className="text-xs font-semibold uppercase">{t("financialHealthScore")}</span>
           </div>
-          <p className="mt-3 text-4xl font-semibold leading-none text-text">{score}</p>
-          <p className="mt-2 text-sm text-muted">{t(statusCopy.detailKey)}</p>
-          <div className="mt-4">
+          <p className="mt-2 text-3xl font-semibold leading-none text-text">{score}</p>
+          <p className="mt-2 text-xs leading-5 text-muted">{t(statusCopy.detailKey)}</p>
+          <div className="mt-3">
             <ProgressBar value={score} tone={statusCopy.tone} />
           </div>
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2">
           {signals.map((signal) => (
-            <div className="rounded-lg border border-borderSoft/80 bg-white/[0.025] p-3" key={signal.labelKey}>
+            <div className="rounded-lg border border-borderSoft/80 bg-white/[0.025] p-2.5" key={signal.labelKey}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase text-muted">{t(signal.labelKey)}</p>
@@ -296,14 +296,14 @@ export function FinancialHealthPanel({
                   {signalIcon(signal.tone)}
                 </span>
               </div>
-              <p className="mt-2 text-sm text-muted">{t(signal.detailKey)}</p>
+              <p className="mt-1 text-xs leading-5 text-muted">{t(signal.detailKey)}</p>
             </div>
           ))}
         </div>
       </div>
 
       <button
-        className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-cyan transition hover:gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan/25"
+        className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-cyan transition hover:gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan/25"
         onClick={onReviewPlan}
         type="button"
       >
