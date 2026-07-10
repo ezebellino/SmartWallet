@@ -67,7 +67,7 @@ Objetivo: pasar de mostrar numeros a explicar cambios.
 - [x] ~~Categoria que mas subio.~~
 - [x] ~~Saldo proyectado de fin de mes.~~
 - [x] ~~Indicador de salud financiera.~~
-- [ ] Alertas visibles por prioridad.
+- [x] ~~Alertas visibles por prioridad.~~
 - [ ] Vista compacta sin exceso de scroll.
 
 ### Etapa 3: IA de Reporte Mensual

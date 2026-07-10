@@ -98,6 +98,7 @@ import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
 import { MonthlyComparisonPanel } from "@/components/dashboard/MonthlyComparisonPanel";
 import { MonthlyProjectionPanel } from "@/components/dashboard/MonthlyProjectionPanel";
 import { PlanningPanel } from "@/components/dashboard/PlanningPanel";
+import { PrioritizedAlertsPanel } from "@/components/dashboard/PrioritizedAlertsPanel";
 import { QuickActionsBar, quickActionIcons } from "@/components/dashboard/QuickActionsBar";
 import { QuickTransactionPanel } from "@/components/dashboard/QuickTransactionPanel";
 import { Sidebar } from "@/components/dashboard/Sidebar";
@@ -1174,6 +1175,15 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         {activeSection === "dashboard" ? (
           <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
             <div className="space-y-4">
+              <PrioritizedAlertsPanel
+                budgetUsage={budgetUsage}
+                categoryExpenseIncrease={categoryExpenseIncrease}
+                investmentAlerts={investmentAlerts}
+                monthlyProjection={monthlyProjection}
+                onSectionChange={setActiveSection}
+                reportReady={Boolean(report)}
+                t={t}
+              />
               <MonthlyComparisonPanel comparison={monthlyComparison} t={t} />
               <MonthlyProjectionPanel
                 onReviewMovements={() => setActiveSection("movements")}
