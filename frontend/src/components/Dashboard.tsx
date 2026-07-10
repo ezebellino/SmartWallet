@@ -91,6 +91,7 @@ import { DashboardSectionHero } from "@/components/dashboard/DashboardSectionHer
 import { DollarSavingsManager, buildDollarSavingsSnapshot } from "@/components/dashboard/DollarSavingsManager";
 import { ExpenseCategories } from "@/components/dashboard/ExpenseCategories";
 import { ExecutiveFocus, focusIcons } from "@/components/dashboard/ExecutiveFocus";
+import { FinancialHealthPanel } from "@/components/dashboard/FinancialHealthPanel";
 import { GoalsManager } from "@/components/dashboard/GoalsManager";
 import { InvestmentsManager } from "@/components/dashboard/InvestmentsManager";
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
@@ -1177,6 +1178,15 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
               <MonthlyProjectionPanel
                 onReviewMovements={() => setActiveSection("movements")}
                 projection={monthlyProjection}
+                t={t}
+              />
+              <FinancialHealthPanel
+                budgetCount={budgets.length}
+                budgetUsage={budgetUsage}
+                categoryExpenseIncrease={categoryExpenseIncrease}
+                monthlyProjection={monthlyProjection}
+                onReviewPlan={() => setActiveSection("budgets")}
+                savingsRate={metrics.savingsRate}
                 t={t}
               />
               <CashflowChart data={cashflowData} t={t} />
