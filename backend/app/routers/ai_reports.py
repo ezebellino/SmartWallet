@@ -9,12 +9,16 @@ from app.models.user import User
 from app.repositories.ai_reports import AiReportRepository
 from app.repositories.budgets import BudgetRepository
 from app.repositories.categories import CategoryRepository
+from app.repositories.dollar_savings import DollarSavingRepository
+from app.repositories.investments import InvestmentRepository
+from app.repositories.saving_goals import SavingGoalRepository
 from app.repositories.transactions import TransactionRepository
 from app.schemas.ai_report import AiReportGenerateRequest, AiReportRead
 from app.services.ai_reports import AiReportService
 from app.services.budgets import BudgetService
 from app.services.dashboard import DashboardService
 from app.services.insights import InsightService
+from app.services.investments import InvestmentService
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -43,6 +47,10 @@ def get_ai_report_service(db: Session = Depends(get_db)) -> AiReportService:
         AiReportRepository(db),
         DashboardService(transaction_repository),
         insight_service,
+        budget_service,
+        SavingGoalRepository(db),
+        DollarSavingRepository(db),
+        InvestmentService(InvestmentRepository(db)),
         provider=provider,
         fallback_provider=StubMonthlyReportProvider(),
     )

@@ -34,6 +34,10 @@ class AiReportContext(BaseModel):
     net_balance: str
     savings_rate: float
     insights: list[str]
+    budgets: list[str] = []
+    goals: list[str] = []
+    dollar_savings: list[str] = []
+    investments: list[str] = []
 
 
 class AiReportDraft(BaseModel):

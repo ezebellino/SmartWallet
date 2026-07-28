@@ -65,6 +65,32 @@ def test_generate_monthly_ai_report_stub(
             "transaction_date": "2026-07-02",
         },
     )
+    client.post(
+        "/goals",
+        headers=auth_headers,
+        json={
+            "name": "Emergency fund",
+            "target_amount": "2000.00",
+            "current_amount": "500.00",
+            "status": "active",
+        },
+    )
+    client.post(
+        "/dollar-savings",
+        headers=auth_headers,
+        json={"amount": "100.00", "source": "manual", "notes": "Cash reserve"},
+    )
+    client.post(
+        "/investments/assets",
+        headers=auth_headers,
+        json={
+            "name": "Bitcoin",
+            "symbol": "BTC",
+            "asset_type": "crypto",
+            "currency": "USD",
+            "risk_level": "high",
+        },
+    )
 
     response = client.post(
         "/ai/monthly-report",
@@ -80,6 +106,11 @@ def test_generate_monthly_ai_report_stub(
     assert "Los ingresos fueron 1000.00" in report["summary"]
     assert "Senales detectadas" in report["recommendations"]
     assert "Food exceeded its monthly budget" in report["recommendations"]
+    assert "Contexto de planificacion" in report["recommendations"]
+    assert "Emergency fund" in report["recommendations"]
+    assert "Ahorro USD" in report["recommendations"]
+    assert "Saved USD entries: 1" in report["recommendations"]
+    assert "Investment alerts: 1" in report["recommendations"]
     assert "asesoramiento financiero profesional" in report["risk_warnings"]
 
     second_response = client.post(
@@ -134,6 +165,11 @@ def test_generate_monthly_ai_report_openai_provider(
         assert kwargs["json"]["model"] == "test-model"
         system_prompt = kwargs["json"]["input"][0]["content"]
         assert "Spanish" in system_prompt
+        context = json.loads(kwargs["json"]["input"][1]["content"])
+        assert "budgets" in context
+        assert "goals" in context
+        assert "dollar_savings" in context
+        assert "investments" in context
         return FakeOpenAIResponse(
             {
                 "output_text": json.dumps(

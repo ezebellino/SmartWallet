@@ -26,6 +26,19 @@ class StubMonthlyReportProvider(MonthlyReportProvider):
     def _generate_en(self, context: AiReportContext) -> AiReportDraft:
         savings_label = "positive" if context.savings_rate >= 0 else "negative"
         insights_text = "\n".join(f"- {insight}" for insight in context.insights) or "- No alerts detected."
+        planning_text = self._format_context_sections(
+            budgets=context.budgets,
+            goals=context.goals,
+            dollar_savings=context.dollar_savings,
+            investments=context.investments,
+            empty_label="No additional planning data registered.",
+            section_labels={
+                "budgets": "Budgets",
+                "goals": "Goals",
+                "dollar_savings": "Dollar savings",
+                "investments": "Investments",
+            },
+        )
         summary = (
             f"Monthly report for {context.month:02d}/{context.year}. "
             f"Income was {context.total_income}, expenses were {context.total_expense}, "
@@ -35,7 +48,8 @@ class StubMonthlyReportProvider(MonthlyReportProvider):
         recommendations = (
             "Review the highest expense categories, keep essential spending separated from "
             "optional spending, and define a concrete saving action for next month.\n"
-            f"Detected signals:\n{insights_text}"
+            f"Detected signals:\n{insights_text}\n"
+            f"Planning context:\n{planning_text}"
         )
         risk_warnings = (
             "This report is educational and generated from registered data only. It is not "
@@ -53,6 +67,19 @@ class StubMonthlyReportProvider(MonthlyReportProvider):
     def _generate_es(self, context: AiReportContext) -> AiReportDraft:
         savings_label = "positiva" if context.savings_rate >= 0 else "negativa"
         insights_text = "\n".join(f"- {insight}" for insight in context.insights) or "- No se detectaron alertas."
+        planning_text = self._format_context_sections(
+            budgets=context.budgets,
+            goals=context.goals,
+            dollar_savings=context.dollar_savings,
+            investments=context.investments,
+            empty_label="No hay datos adicionales de planificacion registrados.",
+            section_labels={
+                "budgets": "Presupuestos",
+                "goals": "Objetivos",
+                "dollar_savings": "Ahorro USD",
+                "investments": "Inversiones",
+            },
+        )
 
         summary = (
             f"Reporte mensual para {context.month:02d}/{context.year}. "
@@ -63,7 +90,8 @@ class StubMonthlyReportProvider(MonthlyReportProvider):
         recommendations = (
             "Revisa las categorias con mayor gasto, separa los consumos esenciales de los "
             "opcionales y define una accion concreta de ahorro para el proximo mes.\n"
-            f"Senales detectadas:\n{insights_text}"
+            f"Senales detectadas:\n{insights_text}\n"
+            f"Contexto de planificacion:\n{planning_text}"
         )
         risk_warnings = (
             "Este reporte es educativo y se genera solo con los datos registrados. No es "
@@ -77,6 +105,21 @@ class StubMonthlyReportProvider(MonthlyReportProvider):
             recommendations=recommendations,
             risk_warnings=risk_warnings,
         )
+
+    def _format_context_sections(
+        self,
+        *,
+        empty_label: str,
+        section_labels: dict[str, str],
+        **sections: list[str],
+    ) -> str:
+        lines: list[str] = []
+        for key, items in sections.items():
+            if not items:
+                continue
+            lines.append(f"{section_labels[key]}:")
+            lines.extend(f"- {item}" for item in items)
+        return "\n".join(lines) or f"- {empty_label}"
 
 
 class OpenAIMonthlyReportProvider(MonthlyReportProvider):
