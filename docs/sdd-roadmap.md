@@ -168,6 +168,9 @@ Objetivo: dejar el producto listo para operar sin fragilidad.
 
 ## Reglas de Avance
 
+- Antes de avanzar sobre SmartWallet, consultar la nota del proyecto en Obsidian: `02-Projects/AI Wallet/Tasks.md`.
+- Al cerrar una mejora o detectar una tarea nueva, registrar el avance y pendientes en Obsidian.
+- Mantener sincronizado este roadmap local con la nota operativa del vault.
 - Cada etapa debe cerrar con validacion tecnica: tests, typecheck o build segun corresponda.
 - Toda feature nueva debe quedar conectada a datos reales o marcada explicitamente como preparada/stub.
 - No centralizar componentes grandes en un solo archivo.
