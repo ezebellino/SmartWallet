@@ -1,4 +1,4 @@
-import { Bot, FileText, Lightbulb, ShieldAlert } from "lucide-react";
+import { Bot, CalendarDays, FileText, Lightbulb, ShieldAlert } from "lucide-react";
 import { Panel } from "@/components/ui";
 import type { AiReport } from "@/types/api";
 import type { TranslationKey } from "@/i18n";
@@ -17,17 +17,39 @@ export function AiReportPanel({
   isDisabled,
   isGenerating,
   onGenerate,
+  onPeriodChange,
   report,
+  reports,
+  selectedMonth,
+  selectedYear,
   t
 }: {
   isDisabled: boolean;
   isGenerating: boolean;
   onGenerate: () => Promise<void>;
+  onPeriodChange: (year: number, month: number) => void;
   report: AiReport | null;
+  reports: AiReport[];
+  selectedMonth: number;
+  selectedYear: number;
   t: (key: TranslationKey) => string;
 }) {
+  const today = new Date();
+  const recentPeriods = Array.from({ length: 12 }, (_, index) => {
+    const date = new Date(today.getFullYear(), today.getMonth() - index, 1);
+    return { year: date.getFullYear(), month: date.getMonth() + 1 };
+  });
   const recommendations = splitReportText(report?.recommendations);
   const risks = splitReportText(report?.risk_warnings);
+  const periodOptions = [
+    { year: selectedYear, month: selectedMonth },
+    ...recentPeriods,
+    ...reports.map((item) => ({ year: item.period_year, month: item.period_month }))
+  ].filter(
+    (item, index, list) =>
+      list.findIndex((option) => option.year === item.year && option.month === item.month) === index
+  );
+  const selectedPeriodValue = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`;
   const recommendationItems = report
     ? recommendations.length > 0
       ? recommendations
@@ -51,6 +73,36 @@ export function AiReportPanel({
           <Bot size={16} />
           {isGenerating ? t("working") : t("focusAiReportTitle")}
         </button>
+      </div>
+
+      <div className="mt-5 grid gap-3 rounded-md border border-borderSoft bg-panelSoft p-4 md:grid-cols-[minmax(0,1fr)_180px]">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-text">
+            <CalendarDays size={16} className="text-cyan" />
+            <span>{t("aiReportHistory")}</span>
+          </div>
+          <p className="mt-1 text-xs leading-5 text-muted">
+            {reports.length > 0 ? t("aiReportHistoryBody") : t("aiReportNoHistory")}
+          </p>
+        </div>
+        <label className="grid gap-1 text-xs font-semibold text-muted">
+          {t("aiReportPeriodSelector")}
+          <select
+            className="h-10 rounded-md border border-borderSoft bg-panel px-3 text-sm font-semibold text-text outline-none transition focus:border-cyan/60"
+            disabled={isDisabled || isGenerating}
+            value={selectedPeriodValue}
+            onChange={(event) => {
+              const [year, month] = event.target.value.split("-").map(Number);
+              onPeriodChange(year, month);
+            }}
+          >
+            {periodOptions.map((item) => (
+              <option key={`${item.year}-${item.month}`} value={`${item.year}-${String(item.month).padStart(2, "0")}`}>
+                {String(item.month).padStart(2, "0")}/{item.year}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {report ? (

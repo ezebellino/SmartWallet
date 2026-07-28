@@ -121,7 +121,12 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
   const [monthlyComparison, setMonthlyComparison] = useState<MonthlyComparison | null>(null);
   const [monthlyProjection, setMonthlyProjection] = useState<MonthlyProjection | null>(null);
   const [categoryExpenseIncrease, setCategoryExpenseIncrease] = useState<CategoryExpenseIncrease | null>(null);
+  const [aiReports, setAiReports] = useState<AiReport[]>([]);
   const [report, setReport] = useState<AiReport | null>(null);
+  const [selectedReportPeriod, setSelectedReportPeriod] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  });
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetUsage, setBudgetUsage] = useState<BudgetUsage[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -529,7 +534,13 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
       setMonthlyComparison(monthlyComparisonResponse);
       setMonthlyProjection(monthlyProjectionResponse);
       setCategoryExpenseIncrease(categoryExpenseIncreaseResponse);
-      setReport(reportsResponse[0] ?? null);
+      setAiReports(reportsResponse);
+      const selectedReport =
+        reportsResponse.find(
+          (item) =>
+            item.period_year === selectedReportPeriod.year && item.period_month === selectedReportPeriod.month
+        ) ?? null;
+      setReport(selectedReport);
       setBudgets(budgetsResponse);
       setBudgetUsage(budgetUsageResponse);
       setCategories(categoriesResponse);
@@ -549,7 +560,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     } finally {
       setIsSyncing(false);
     }
-  }, [token, language]);
+  }, [token, language, selectedReportPeriod.month, selectedReportPeriod.year]);
 
   async function refreshDollarSavings(tokenValue: string) {
     const dollarSavingsResponse = await getDollarSavings(tokenValue);
@@ -565,9 +576,20 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     setIsGeneratingReport(true);
 
     try {
-      const now = new Date();
-      const reportResponse = await generateMonthlyReport(token, now.getFullYear(), now.getMonth() + 1, language);
+      const reportResponse = await generateMonthlyReport(
+        token,
+        selectedReportPeriod.year,
+        selectedReportPeriod.month,
+        language
+      );
       setReport(reportResponse);
+      setAiReports((current) =>
+        [reportResponse, ...current.filter((item) => item.id !== reportResponse.id)].sort((left, right) =>
+          right.period_year === left.period_year
+            ? right.period_month - left.period_month
+            : right.period_year - left.period_year
+        )
+      );
       setStatus(t("reportReady"));
     } catch (error) {
       setStatus(error instanceof Error ? error.message : t("authFailed"));
@@ -575,6 +597,11 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     } finally {
       setIsGeneratingReport(false);
     }
+  }
+
+  function handleSelectReportPeriod(year: number, month: number) {
+    setSelectedReportPeriod({ year, month });
+    setReport(aiReports.find((item) => item.period_year === year && item.period_month === month) ?? null);
   }
 
   async function refreshCurrentMonth(tokenValue: string) {
@@ -1329,10 +1356,14 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         {activeSection === "aiReports" ? (
           <div className="mt-4 grid gap-4 xl:grid-cols-[380px_minmax(0,1fr)]">
             <AiReportPanel
+              reports={aiReports}
               isDisabled={!token}
               isGenerating={isGeneratingReport}
               onGenerate={handleGenerateMonthlyReport}
+              onPeriodChange={handleSelectReportPeriod}
               report={report}
+              selectedMonth={selectedReportPeriod.month}
+              selectedYear={selectedReportPeriod.year}
               t={t}
             />
             <PlanningPanel

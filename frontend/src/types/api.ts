@@ -336,7 +336,10 @@ export type AiReport = {
   period_year: number;
   period_month: number;
   provider: string;
+  prompt_version: string;
   summary: string;
   recommendations: string;
   risk_warnings: string;
+  created_at: string;
+  updated_at: string;
 };

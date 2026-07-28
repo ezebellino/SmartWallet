@@ -77,7 +77,7 @@ Objetivo: que la IA use todos los datos reales importantes.
 - [x] ~~Integracion real con OpenAI para reporte mensual.~~
 - [x] ~~Fallback stub cuando OpenAI falla o no hay cuota.~~
 - [x] ~~Mejorar prompt con movimientos, presupuestos, objetivos, dolares e inversiones.~~
-- [ ] Guardar historico de reportes por mes.
+- [x] ~~Guardar historico de reportes por mes con selector de periodo.~~
 - [ ] Mostrar diferencias entre reporte actual y anterior.
 - [ ] Agregar acciones sugeridas con prioridad.
 - [ ] Bloquear lenguaje de asesoramiento financiero definitivo.
@@ -87,6 +87,8 @@ Nota de avance 2026-07-28:
 - El contexto del reporte mensual IA ahora incluye resumen mensual, insights de gasto, uso de presupuestos, objetivos de ahorro, registros de ahorro USD e informacion de cartera/inversiones.
 - El proveedor OpenAI recibe el contexto enriquecido en JSON y el stub lo muestra como contexto de planificacion para mantener fallback util.
 - Validado con tests backend focales de reportes IA.
+- El frontend de Reportes IA ahora muestra historico, selector de periodo y permite generar/regenerar el mes seleccionado.
+- Validado con Chrome DevTools sobre `http://localhost:3000`, typecheck y build frontend.
 
 ### Etapa 4: Notificaciones Internas
 
@@ -150,12 +152,11 @@ Objetivo: dejar el producto listo para operar sin fragilidad.
 
 ## Backlog Priorizado Inmediato
 
-1. Guardar historico de reportes IA por mes con seleccion de periodo.
-2. Mostrar diferencias entre reporte IA actual y anterior.
-3. Agregar acciones sugeridas con prioridad desde el reporte IA.
-4. Notificaciones internas basicas.
-5. Mejor explicacion de precios omitidos en inversiones.
-6. Preparar vista mobile-first para carga diaria.
+1. Mostrar diferencias entre reporte IA actual y anterior.
+2. Agregar acciones sugeridas con prioridad desde el reporte IA.
+3. Notificaciones internas basicas.
+4. Mejor explicacion de precios omitidos en inversiones.
+5. Preparar vista mobile-first para carga diaria.
 
 ## Decisiones Tecnicas Actuales
 
