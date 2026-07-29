@@ -41,6 +41,7 @@ PROVIDER_DEFAULTS = {
     "dolarapi": {"enabled": True, "auth_required": False},
     "manual": {"enabled": True, "auth_required": False},
     "alphavantage": {"enabled": False, "auth_required": True},
+    "iol": {"enabled": False, "auth_required": True},
 }
 
 ALPHA_VANTAGE_ASSET_TYPES = {
@@ -183,6 +184,18 @@ class MarketDataService:
             if asset.symbol.upper().strip() == "USD" and asset.currency.upper().strip() == "ARS"
         ]
         alpha_vantage_assets = [asset for asset in assets if asset.asset_type in ALPHA_VANTAGE_ASSET_TYPES]
+        iol_assets = [
+            asset
+            for asset in assets
+            if asset.asset_type
+            in {
+                InvestmentAssetType.bond,
+                InvestmentAssetType.cedear,
+                InvestmentAssetType.etf,
+                InvestmentAssetType.index,
+                InvestmentAssetType.stock,
+            }
+        ]
 
         integrations = [
             self._build_integration(
@@ -214,6 +227,16 @@ class MarketDataService:
                 configured_assets_count=len(alpha_vantage_assets),
                 last_refresh_at=self._latest_refresh_at(asset for asset in assets if asset.price_source == "alphavantage"),
                 setting=settings_by_key.get("alphavantage"),
+            ),
+            self._build_integration(
+                key="iol",
+                name="InvertirOnline",
+                coverage="Argentine broker API for market data and future portfolio sync",
+                supported_asset_types=["stock", "bond", "cedear", "etf", "index"],
+                supported_symbols=[],
+                configured_assets_count=len(iol_assets),
+                last_refresh_at=self._latest_refresh_at(asset for asset in assets if asset.price_source == "iol"),
+                setting=settings_by_key.get("iol"),
             ),
             self._build_integration(
                 key="manual",

@@ -328,6 +328,9 @@ def test_market_data_integrations_report_available_providers(
     assert providers["alphavantage"]["status"] == "disabled"
     assert providers["alphavantage"]["auth_required"] is True
     assert providers["alphavantage"]["configured_assets_count"] == 0
+    assert providers["iol"]["status"] == "disabled"
+    assert providers["iol"]["auth_required"] is True
+    assert providers["iol"]["configured_assets_count"] == 0
 
 
 def test_market_data_integration_settings_can_store_api_key_metadata(
@@ -348,6 +351,41 @@ def test_market_data_integration_settings_can_store_api_key_metadata(
     assert body["has_api_key"] is True
     assert body["api_key_last4"] == "1234"
     assert "demo-secret" not in str(body)
+
+
+def test_iol_market_data_integration_can_be_configured(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    client.post(
+        "/investments/assets",
+        headers=auth_headers,
+        json={
+            "name": "YPF",
+            "symbol": "YPFD",
+            "asset_type": "stock",
+            "currency": "ARS",
+            "risk_level": "medium",
+            "current_price": "1000.0000",
+        },
+    )
+
+    response = client.patch(
+        "/market-data/integrations/iol",
+        headers=auth_headers,
+        json={"enabled": True, "api_key": "iol-secure-placeholder"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["key"] == "iol"
+    assert body["name"] == "InvertirOnline"
+    assert body["enabled"] is True
+    assert body["status"] == "active"
+    assert body["has_api_key"] is True
+    assert body["api_key_last4"] == "lder"
+    assert body["configured_assets_count"] == 1
+    assert "iol-secure-placeholder" not in str(body)
 
 
 def test_disabled_market_provider_is_not_used_for_refresh(

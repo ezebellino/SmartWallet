@@ -48,7 +48,7 @@ function integrationStatusLabel(status: string, t: (key: TranslationKey) => stri
 }
 
 function integrationCoverageLabel(key: string, fallback: string, t: (key: TranslationKey) => string) {
-  if (key === "coingecko" || key === "dolarapi" || key === "manual" || key === "alphavantage") {
+  if (key === "coingecko" || key === "dolarapi" || key === "manual" || key === "alphavantage" || key === "iol") {
     return t(`integrationCoverage${key}` as TranslationKey);
   }
 
