@@ -109,6 +109,7 @@ Objetivo: reducir tareas manuales repetidas.
 
 - [ ] Job mensual para generar reporte IA.
 - [x] ~~Scheduler interno configurable para actualizacion automatica de precios.~~
+- [x] ~~Scheduler local activado y validado con estado persistido.~~
 - [ ] Extraer scheduler a worker/cron separado para Railway cuando la app este desplegada.
 - [ ] Recalculo automatico de cartera.
 - [ ] Deteccion automatica de anomalias de gasto.

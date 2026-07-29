@@ -4,6 +4,7 @@ from decimal import Decimal
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.models.market_data_sync import MarketDataSyncRun
+from app.core.config import settings
 from app.services.market_data import ProviderQuote
 from app.services.market_data_scheduler import MARKET_DATA_REFRESH_JOB_KEY, MarketDataAutoRefreshRunner
 
@@ -104,3 +105,29 @@ def test_market_data_auto_refresh_records_user_errors(
 
     assert sync_run.status == "success"
     assert "failed=1" in (sync_run.last_message or "")
+
+
+def test_market_data_auto_refresh_status_endpoint(
+    client,
+    auth_headers: dict[str, str],
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(settings, "market_data_auto_refresh_enabled", True)
+    monkeypatch.setattr(settings, "market_data_refresh_interval_minutes", 90)
+    monkeypatch.setattr(settings, "market_data_refresh_startup_delay_seconds", 5.0)
+
+    response = client.get("/market-data/auto-refresh/status", headers=auth_headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["enabled"] is True
+    assert body["interval_minutes"] == 90
+    assert body["startup_delay_seconds"] == 5.0
+    assert body["status"] == "idle"
+    assert body["last_started_at"] is None
+
+
+def test_market_data_auto_refresh_status_requires_auth(client) -> None:
+    response = client.get("/market-data/auto-refresh/status")
+
+    assert response.status_code == 401

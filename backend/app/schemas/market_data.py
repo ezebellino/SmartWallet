@@ -23,6 +23,17 @@ class MarketDataRefreshResponse(BaseModel):
     refresh_plan: list["MarketRefreshPlanItem"] = []
 
 
+class MarketDataAutoRefreshStatus(BaseModel):
+    enabled: bool
+    interval_minutes: int
+    startup_delay_seconds: float
+    status: str
+    last_started_at: datetime | None
+    last_finished_at: datetime | None
+    last_success_at: datetime | None
+    last_message: str | None
+
+
 class MarketRefreshPlanItem(BaseModel):
     provider: str
     limit: int | None

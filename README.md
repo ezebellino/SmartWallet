@@ -155,4 +155,10 @@ MARKET_DATA_REFRESH_STARTUP_DELAY_SECONDS=5
 
 The scheduler stores its last run in the database, so if the backend or container was stopped, it checks on startup whether a refresh is due. It only reads prices and does not create real broker operations.
 
+Authenticated status endpoint:
+
+```text
+GET /market-data/auto-refresh/status
+```
+
 For Railway, the clean target is to run backend, Postgres, and a future worker/cron service in the same project sharing the same database variables. A remote worker should not depend on a local backend that may be offline.

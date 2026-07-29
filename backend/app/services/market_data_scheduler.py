@@ -1,14 +1,17 @@
 import asyncio
 import contextlib
 import logging
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import distinct, select
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
 from app.models.investment import InvestmentAsset
 from app.models.market_data_sync import MarketDataSyncRun
 from app.repositories.investments import InvestmentRepository
+from app.schemas.market_data import MarketDataAutoRefreshStatus
 from app.services.market_data import MarketDataService
 
 logger = logging.getLogger(__name__)
@@ -20,7 +23,7 @@ MARKET_DATA_REFRESH_JOB_KEY = "market-data-auto-refresh"
 class MarketDataAutoRefreshRunner:
     def __init__(
         self,
-        session_factory: sessionmaker[Session],
+        session_factory: Callable[[], AbstractContextManager[Session]],
         interval_minutes: int,
     ) -> None:
         self.session_factory = session_factory
@@ -67,6 +70,25 @@ class MarketDataAutoRefreshRunner:
                 db.commit()
                 db.refresh(sync_run)
                 return sync_run
+
+    def get_status(
+        self,
+        *,
+        enabled: bool,
+        startup_delay_seconds: float,
+    ) -> MarketDataAutoRefreshStatus:
+        with self.session_factory() as db:
+            sync_run = self._get_or_create_sync_run(db)
+            return MarketDataAutoRefreshStatus(
+                enabled=enabled,
+                interval_minutes=int(self.interval.total_seconds() // 60),
+                startup_delay_seconds=startup_delay_seconds,
+                status=sync_run.status,
+                last_started_at=sync_run.last_started_at,
+                last_finished_at=sync_run.last_finished_at,
+                last_success_at=sync_run.last_success_at,
+                last_message=sync_run.last_message,
+            )
 
     def _get_or_create_sync_run(self, db: Session) -> MarketDataSyncRun:
         statement = select(MarketDataSyncRun).where(MarketDataSyncRun.job_key == MARKET_DATA_REFRESH_JOB_KEY)
