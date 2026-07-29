@@ -373,7 +373,7 @@ def test_iol_market_data_integration_can_be_configured(
     response = client.patch(
         "/market-data/integrations/iol",
         headers=auth_headers,
-        json={"enabled": True, "api_key": "iol-secure-placeholder"},
+        json={"enabled": True, "username": "iol_user", "password": "iol-secure-placeholder"},
     )
 
     assert response.status_code == 200
@@ -383,9 +383,108 @@ def test_iol_market_data_integration_can_be_configured(
     assert body["enabled"] is True
     assert body["status"] == "active"
     assert body["has_api_key"] is True
-    assert body["api_key_last4"] == "lder"
+    assert body["api_key_last4"] == "user"
     assert body["configured_assets_count"] == 1
     assert "iol-secure-placeholder" not in str(body)
+
+
+def test_market_data_refresh_updates_stock_with_iol(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+) -> None:
+    asset_response = client.post(
+        "/investments/assets",
+        headers=auth_headers,
+        json={
+            "name": "YPF",
+            "symbol": "YPFD",
+            "asset_type": "stock",
+            "currency": "ARS",
+            "risk_level": "medium",
+            "current_price": "1000.0000",
+        },
+    )
+    asset = asset_response.json()
+    client.patch(
+        "/market-data/integrations/iol",
+        headers=auth_headers,
+        json={"enabled": True, "username": "iol_user", "password": "iol-password"},
+    )
+
+    def fake_fetch_iol_price(
+        self,
+        symbol: str,
+        currency: str,
+        username: str,
+        password: str,
+        market: str = "BCBA",
+    ) -> ProviderQuote:
+        assert symbol == "YPFD"
+        assert currency == "ARS"
+        assert username == "iol_user"
+        assert password == "iol-password"
+        assert market == "BCBA"
+        from datetime import datetime, timezone
+
+        return ProviderQuote(
+            provider="iol",
+            price=Decimal("1250.5000"),
+            currency="ARS",
+            fetched_at=datetime(2026, 7, 29, tzinfo=timezone.utc),
+        )
+
+    monkeypatch.setattr(
+        "app.services.market_data.ExternalMarketDataProvider.fetch_iol_price",
+        fake_fetch_iol_price,
+    )
+
+    refresh_response = client.post("/market-data/refresh-prices", headers=auth_headers)
+
+    assert refresh_response.status_code == 200
+    body = refresh_response.json()
+    assert body["updated_count"] == 1
+    assert body["failed_count"] == 0
+    assert body["quotes"][0]["asset_id"] == asset["id"]
+    assert body["quotes"][0]["provider"] == "iol"
+    assert body["quotes"][0]["price"] == "1250.5000"
+
+    assets_response = client.get("/investments/assets", headers=auth_headers)
+    updated_asset = assets_response.json()[0]
+    assert updated_asset["current_price"] == "1250.5000"
+    assert updated_asset["price_source"] == "iol"
+
+
+def test_market_data_refresh_reports_missing_iol_credentials(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    client.post(
+        "/investments/assets",
+        headers=auth_headers,
+        json={
+            "name": "YPF",
+            "symbol": "YPFD",
+            "asset_type": "stock",
+            "currency": "ARS",
+            "risk_level": "medium",
+            "current_price": "1000.0000",
+        },
+    )
+    client.patch(
+        "/market-data/integrations/iol",
+        headers=auth_headers,
+        json={"enabled": True, "clear_api_key": True},
+    )
+
+    refresh_response = client.post("/market-data/refresh-prices", headers=auth_headers)
+
+    assert refresh_response.status_code == 200
+    body = refresh_response.json()
+    assert body["updated_count"] == 0
+    assert body["failed_count"] == 1
+    assert body["quotes"][0]["status"] == "failed"
+    assert body["quotes"][0]["message"] == "IOL username and password are required"
 
 
 def test_disabled_market_provider_is_not_used_for_refresh(

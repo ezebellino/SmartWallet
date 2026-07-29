@@ -58,6 +58,7 @@ function integrationCoverageLabel(key: string, fallback: string, t: (key: Transl
 export function MarketIntegrationsPanel({ integrations, isDisabled, onUpdate, t }: Props) {
   const items = integrations?.integrations ?? [];
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [iolCredentials, setIolCredentials] = useState({ password: "", username: "" });
   const [savingKey, setSavingKey] = useState<string | null>(null);
 
   async function handleUpdate(providerKey: string, payload: MarketDataIntegrationUpdate) {
@@ -66,6 +67,9 @@ export function MarketIntegrationsPanel({ integrations, isDisabled, onUpdate, t 
       await onUpdate(providerKey, payload);
       if (payload.api_key || payload.clear_api_key) {
         setApiKeys((current) => ({ ...current, [providerKey]: "" }));
+      }
+      if (providerKey === "iol" && (payload.password || payload.clear_api_key)) {
+        setIolCredentials({ password: "", username: "" });
       }
     } finally {
       setSavingKey(null);
@@ -156,7 +160,58 @@ export function MarketIntegrationsPanel({ integrations, isDisabled, onUpdate, t 
                 </button>
               </div>
 
-              {integration.auth_required ? (
+              {integration.auth_required && integration.key === "iol" ? (
+                <div className="mt-3 grid gap-2">
+                  <input
+                    className="rounded-md border border-borderSoft bg-background px-3 py-2 text-xs text-text outline-none transition placeholder:text-muted focus:border-cyan"
+                    disabled={isDisabled || savingKey === integration.key}
+                    onChange={(event) =>
+                      setIolCredentials((current) => ({ ...current, username: event.target.value }))
+                    }
+                    placeholder={t("iolUsername")}
+                    type="text"
+                    value={iolCredentials.username}
+                  />
+                  <input
+                    className="rounded-md border border-borderSoft bg-background px-3 py-2 text-xs text-text outline-none transition placeholder:text-muted focus:border-cyan"
+                    disabled={isDisabled || savingKey === integration.key}
+                    onChange={(event) =>
+                      setIolCredentials((current) => ({ ...current, password: event.target.value }))
+                    }
+                    placeholder={integration.has_api_key ? t("replaceIolCredentials") : t("iolPassword")}
+                    type="password"
+                    value={iolCredentials.password}
+                  />
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      className="rounded-md border border-borderSoft px-3 py-2 text-xs font-semibold text-muted transition hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={
+                        isDisabled ||
+                        savingKey === integration.key ||
+                        !iolCredentials.username.trim() ||
+                        !iolCredentials.password.trim()
+                      }
+                      onClick={() =>
+                        void handleUpdate(integration.key, {
+                          password: iolCredentials.password.trim(),
+                          username: iolCredentials.username.trim()
+                        })
+                      }
+                      type="button"
+                    >
+                      {savingKey === integration.key ? t("saving") : t("saveCredentials")}
+                    </button>
+                    <button
+                      className="rounded-md border border-borderSoft px-3 py-2 text-xs font-semibold text-muted transition hover:text-rose disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={isDisabled || savingKey === integration.key || !integration.has_api_key}
+                      onClick={() => void handleUpdate(integration.key, { clear_api_key: true })}
+                      type="button"
+                    >
+                      {t("clearApiKey")}
+                    </button>
+                  </div>
+                </div>
+              ) : integration.auth_required ? (
                 <div className="mt-3 grid gap-2">
                   <input
                     className="rounded-md border border-borderSoft bg-background px-3 py-2 text-xs text-text outline-none transition placeholder:text-muted focus:border-cyan"

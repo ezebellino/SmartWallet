@@ -122,10 +122,12 @@ Objetivo: enriquecer SmartWallet con datos externos utiles.
 - [x] ~~DolarAPI para referencia USD/ARS.~~
 - [x] ~~Alpha Vantage preparado con limitacion de plan gratuito.~~
 - [x] ~~InvertirOnline agregado como integracion configurable preparada.~~
+- [x] ~~InvertirOnline conectado como provider backend de solo lectura para cotizaciones.~~
 - [ ] Cache de precios con politica clara por proveedor.
 - [ ] Validar documentacion autenticada de IOL API.
 - [ ] Conectar MCP de IOL cuando este disponible en Codex.
-- [ ] Implementar flujo seguro de token bearer/refresh token para IOL.
+- [ ] Validar IOL con credenciales reales y APIs habilitadas.
+- [ ] Implementar refresh token persistente para IOL si el uso real lo requiere.
 - [ ] Mejor UI para explicar activos omitidos.
 - [ ] Historial de cotizaciones por activo.
 - [ ] Inflacion o referencias macroeconomicas.
@@ -156,12 +158,13 @@ Objetivo: dejar el producto listo para operar sin fragilidad.
 
 ## Backlog Priorizado Inmediato
 
-1. Validar documentacion autenticada y MCP de InvertirOnline.
-2. Mostrar diferencias entre reporte IA actual y anterior.
-3. Agregar acciones sugeridas con prioridad desde el reporte IA.
-4. Notificaciones internas basicas.
-5. Mejor explicacion de precios omitidos en inversiones.
-6. Preparar vista mobile-first para carga diaria.
+1. Validar IOL con credenciales reales y APIs habilitadas.
+2. Validar documentacion autenticada y MCP de InvertirOnline.
+3. Mostrar diferencias entre reporte IA actual y anterior.
+4. Agregar acciones sugeridas con prioridad desde el reporte IA.
+5. Notificaciones internas basicas.
+6. Mejor explicacion de precios omitidos en inversiones.
+7. Preparar vista mobile-first para carga diaria.
 
 ## Decisiones Tecnicas Actuales
 

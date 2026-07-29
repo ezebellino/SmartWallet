@@ -265,6 +265,8 @@ export type MarketDataIntegrationsResponse = {
 export type MarketDataIntegrationUpdate = {
   enabled?: boolean;
   api_key?: string | null;
+  username?: string | null;
+  password?: string | null;
   clear_api_key?: boolean;
 };
 

@@ -54,4 +54,6 @@ class MarketDataIntegrationsResponse(BaseModel):
 class MarketDataIntegrationUpdate(BaseModel):
     enabled: bool | None = None
     api_key: str | None = None
+    username: str | None = None
+    password: str | None = None
     clear_api_key: bool = False

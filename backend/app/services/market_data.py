@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import json
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -51,6 +52,14 @@ ALPHA_VANTAGE_ASSET_TYPES = {
     InvestmentAssetType.stock,
 }
 ALPHA_VANTAGE_FREE_REQUESTS_PER_REFRESH = 1
+
+IOL_ASSET_TYPES = {
+    InvestmentAssetType.bond,
+    InvestmentAssetType.cedear,
+    InvestmentAssetType.etf,
+    InvestmentAssetType.index,
+    InvestmentAssetType.stock,
+}
 
 
 @dataclass(frozen=True)
@@ -141,6 +150,49 @@ class ExternalMarketDataProvider:
             fetched_at=datetime.now(timezone.utc),
         )
 
+    def fetch_iol_price(self, symbol: str, currency: str, username: str, password: str, market: str = "BCBA") -> ProviderQuote:
+        normalized_symbol = symbol.upper().strip()
+        token_response = httpx.post(
+            "https://api.invertironline.com/token",
+            data={
+                "username": username,
+                "password": password,
+                "grant_type": "password",
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            timeout=self.timeout_seconds,
+        )
+        token_response.raise_for_status()
+        token_data: dict[str, Any] = token_response.json()
+        access_token = token_data.get("access_token")
+        if not access_token:
+            raise ValueError("IOL did not return an access token")
+
+        quote_response = httpx.get(
+            f"https://api.invertironline.com/api/v2/mercado/titulos/{market}/{normalized_symbol}/cotizacion",
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=self.timeout_seconds,
+        )
+        quote_response.raise_for_status()
+        quote_data: dict[str, Any] = quote_response.json()
+        price = self._extract_iol_price(quote_data)
+        if price is None:
+            raise ValueError(f"IOL did not return a price for {market}/{normalized_symbol}")
+
+        return ProviderQuote(
+            provider="iol",
+            price=Decimal(str(price)),
+            currency=currency.upper(),
+            fetched_at=datetime.now(timezone.utc),
+        )
+
+    def _extract_iol_price(self, quote_data: dict[str, Any]) -> Any | None:
+        for key in ("ultimoPrecio", "ultimo", "precioUltimo", "precio", "cierre"):
+            price = quote_data.get(key)
+            if price is not None:
+                return price
+        return None
+
 
 class MarketDataService:
     def __init__(
@@ -184,18 +236,7 @@ class MarketDataService:
             if asset.symbol.upper().strip() == "USD" and asset.currency.upper().strip() == "ARS"
         ]
         alpha_vantage_assets = [asset for asset in assets if asset.asset_type in ALPHA_VANTAGE_ASSET_TYPES]
-        iol_assets = [
-            asset
-            for asset in assets
-            if asset.asset_type
-            in {
-                InvestmentAssetType.bond,
-                InvestmentAssetType.cedear,
-                InvestmentAssetType.etf,
-                InvestmentAssetType.index,
-                InvestmentAssetType.stock,
-            }
-        ]
+        iol_assets = [asset for asset in assets if asset.asset_type in IOL_ASSET_TYPES]
 
         integrations = [
             self._build_integration(
@@ -277,6 +318,13 @@ class MarketDataService:
         if data.clear_api_key:
             setting.api_key_encrypted = None
             setting.api_key_last4 = None
+        elif normalized_key == "iol" and data.username and data.password:
+            username = data.username.strip()
+            password = data.password.strip()
+            setting.api_key_encrypted = self._encrypt_api_key(
+                json.dumps({"username": username, "password": password})
+            )
+            setting.api_key_last4 = username[-4:]
         elif data.api_key is not None and data.api_key.strip():
             api_key = data.api_key.strip()
             setting.api_key_encrypted = self._encrypt_api_key(api_key)
@@ -346,6 +394,17 @@ class MarketDataService:
             if not self._is_provider_enabled(asset.user_id, "dolarapi"):
                 return None
             return self.provider.fetch_usd_ars_rate()
+
+        if asset.asset_type in IOL_ASSET_TYPES and self._is_provider_enabled(asset.user_id, "iol"):
+            credentials = self._get_iol_credentials(asset.user_id)
+            if not credentials:
+                raise ValueError("IOL username and password are required")
+            return self.provider.fetch_iol_price(
+                symbol=symbol,
+                currency=currency,
+                username=credentials["username"],
+                password=credentials["password"],
+            )
 
         if asset.asset_type in ALPHA_VANTAGE_ASSET_TYPES:
             if not self._is_provider_enabled(asset.user_id, "alphavantage"):
@@ -455,6 +514,21 @@ class MarketDataService:
         if not setting or not setting.api_key_encrypted:
             return None
         return self._decrypt_api_key(setting.api_key_encrypted)
+
+    def _get_iol_credentials(self, user_id: int) -> dict[str, str] | None:
+        raw_credentials = self._get_provider_api_key(user_id, "iol")
+        if not raw_credentials:
+            return None
+        try:
+            credentials = json.loads(raw_credentials)
+        except json.JSONDecodeError as exc:
+            raise ValueError("IOL credentials must be saved again") from exc
+
+        username = str(credentials.get("username", "")).strip()
+        password = str(credentials.get("password", "")).strip()
+        if not username or not password:
+            return None
+        return {"username": username, "password": password}
 
     def _order_assets_for_refresh(self, assets: list[InvestmentAsset]) -> list[InvestmentAsset]:
         alpha_vantage_assets = [asset for asset in assets if asset.asset_type in ALPHA_VANTAGE_ASSET_TYPES]
