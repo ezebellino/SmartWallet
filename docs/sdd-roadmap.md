@@ -108,7 +108,8 @@ Objetivo: que el usuario no tenga que buscar problemas.
 Objetivo: reducir tareas manuales repetidas.
 
 - [ ] Job mensual para generar reporte IA.
-- [ ] Job de actualizacion de precios.
+- [x] ~~Scheduler interno configurable para actualizacion automatica de precios.~~
+- [ ] Extraer scheduler a worker/cron separado para Railway cuando la app este desplegada.
 - [ ] Recalculo automatico de cartera.
 - [ ] Deteccion automatica de anomalias de gasto.
 - [ ] Recordatorios para cargar movimientos.
@@ -124,6 +125,7 @@ Objetivo: enriquecer SmartWallet con datos externos utiles.
 - [x] ~~InvertirOnline agregado como integracion configurable preparada.~~
 - [x] ~~InvertirOnline conectado como provider backend de solo lectura para cotizaciones.~~
 - [ ] Cache de precios con politica clara por proveedor.
+- [x] ~~Estado persistido de ejecucion automatica de precios para sobrevivir reinicios.~~
 - [ ] Validar documentacion autenticada de IOL API.
 - [ ] Conectar MCP de IOL cuando este disponible en Codex.
 - [ ] Validar IOL con credenciales reales y APIs habilitadas.
@@ -159,12 +161,13 @@ Objetivo: dejar el producto listo para operar sin fragilidad.
 ## Backlog Priorizado Inmediato
 
 1. Validar IOL con credenciales reales y APIs habilitadas.
-2. Validar documentacion autenticada y MCP de InvertirOnline.
-3. Mostrar diferencias entre reporte IA actual y anterior.
-4. Agregar acciones sugeridas con prioridad desde el reporte IA.
-5. Notificaciones internas basicas.
-6. Mejor explicacion de precios omitidos en inversiones.
-7. Preparar vista mobile-first para carga diaria.
+2. Preparar deployment Railway con backend, Postgres y worker/cron de precios.
+3. Validar documentacion autenticada y MCP de InvertirOnline.
+4. Mostrar diferencias entre reporte IA actual y anterior.
+5. Agregar acciones sugeridas con prioridad desde el reporte IA.
+6. Notificaciones internas basicas.
+7. Mejor explicacion de precios omitidos en inversiones.
+8. Preparar vista mobile-first para carga diaria.
 
 ## Decisiones Tecnicas Actuales
 

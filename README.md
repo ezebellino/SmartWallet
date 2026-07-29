@@ -142,3 +142,17 @@ cd backend
 ```
 
 Local PostgreSQL for this project is exposed on `localhost:5433` to avoid colliding with other local databases that commonly use `5432`. Inside Docker, services still talk to Postgres on `postgres:5432`.
+
+## Automatic Market Price Refresh
+
+SmartWallet can run a safe background scheduler for market prices. It is disabled by default and can be enabled through environment variables:
+
+```text
+MARKET_DATA_AUTO_REFRESH_ENABLED=true
+MARKET_DATA_REFRESH_INTERVAL_MINUTES=90
+MARKET_DATA_REFRESH_STARTUP_DELAY_SECONDS=5
+```
+
+The scheduler stores its last run in the database, so if the backend or container was stopped, it checks on startup whether a refresh is due. It only reads prices and does not create real broker operations.
+
+For Railway, the clean target is to run backend, Postgres, and a future worker/cron service in the same project sharing the same database variables. A remote worker should not depend on a local backend that may be offline.

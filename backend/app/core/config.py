@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
     openai_timeout_seconds: float = 20.0
+    market_data_auto_refresh_enabled: bool = False
+    market_data_refresh_interval_minutes: int = 90
+    market_data_refresh_startup_delay_seconds: float = 5.0
 
     @property
     def cors_origin_list(self) -> list[str]:

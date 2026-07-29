@@ -4,6 +4,7 @@ from app.models.category import Category
 from app.models.dollar_saving import DollarSaving
 from app.models.investment import InvestmentAsset, InvestmentOperation, InvestmentPriceSnapshot
 from app.models.market_integration import MarketIntegrationSetting
+from app.models.market_data_sync import MarketDataSyncRun
 from app.models.saving_goal import SavingGoal
 from app.models.transaction import Transaction
 from app.models.user import User
@@ -17,6 +18,7 @@ __all__ = [
     "InvestmentOperation",
     "InvestmentPriceSnapshot",
     "MarketIntegrationSetting",
+    "MarketDataSyncRun",
     "SavingGoal",
     "Transaction",
     "User",

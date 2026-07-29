@@ -1,7 +1,11 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.database.session import SessionLocal
 from app.routers.ai_reports import router as ai_reports_router
 from app.routers.auth import router as auth_router
 from app.routers.budgets import router as budgets_router
@@ -15,6 +19,29 @@ from app.routers.market_data import router as market_data_router
 from app.routers.saving_goals import router as saving_goals_router
 from app.routers.simulations import router as simulations_router
 from app.routers.transactions import router as transactions_router
+from app.services.market_data_scheduler import MarketDataAutoRefreshRunner, MarketDataAutoRefreshScheduler
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    scheduler: MarketDataAutoRefreshScheduler | None = None
+    if settings.market_data_auto_refresh_enabled:
+        runner = MarketDataAutoRefreshRunner(
+            SessionLocal,
+            interval_minutes=settings.market_data_refresh_interval_minutes,
+        )
+        scheduler = MarketDataAutoRefreshScheduler(
+            runner,
+            interval_minutes=settings.market_data_refresh_interval_minutes,
+            startup_delay_seconds=settings.market_data_refresh_startup_delay_seconds,
+        )
+        scheduler.start()
+
+    try:
+        yield
+    finally:
+        if scheduler:
+            await scheduler.stop()
 
 
 def create_app() -> FastAPI:
@@ -22,6 +49,7 @@ def create_app() -> FastAPI:
         title=settings.app_name,
         version=settings.app_version,
         debug=settings.debug,
+        lifespan=lifespan,
     )
     app.add_middleware(
         CORSMiddleware,
