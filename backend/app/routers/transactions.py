@@ -7,6 +7,7 @@ from app.auth.dependencies import get_current_user
 from app.database.session import get_db
 from app.models.transaction import TransactionType
 from app.models.user import User
+from app.repositories.accounts import FinancialAccountRepository
 from app.repositories.categories import CategoryRepository
 from app.repositories.transactions import TransactionRepository
 from app.schemas.transaction import TransactionCreate, TransactionRead, TransactionUpdate
@@ -16,7 +17,7 @@ router = APIRouter(prefix="/transactions", tags=["transactions"])
 
 
 def get_transaction_service(db: Session = Depends(get_db)) -> TransactionService:
-    return TransactionService(TransactionRepository(db), CategoryRepository(db))
+    return TransactionService(TransactionRepository(db), CategoryRepository(db), FinancialAccountRepository(db))
 
 
 @router.get("", response_model=list[TransactionRead])
@@ -61,4 +62,3 @@ def delete_transaction(
     transaction_service: TransactionService = Depends(get_transaction_service),
 ) -> None:
     transaction_service.delete_transaction(transaction_id, current_user.id)
-

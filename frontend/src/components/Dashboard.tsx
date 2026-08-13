@@ -4,9 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createInvestmentAsset,
   createInvestmentOperation,
+  createAccountTransfer,
   createCategory,
   createBudget,
   createDollarSaving,
+  createFinancialAccount,
   createSavingGoal,
   createTransaction,
   deleteBudget,
@@ -16,27 +18,42 @@ import {
   deleteSavingGoal,
   deleteTransaction,
   generateMonthlyReport,
+  generateNotifications,
   getAiReports,
+  getAccountTransfers,
+  getBinanceAccount,
+  getBinanceBalanceSnapshots,
+  getBinanceIntegration,
+  getBinancePortfolioSummary,
   getBudgets,
   getBudgetUsage,
   getCategoryExpenseIncrease,
   getCategories,
   getDollarSavings,
+  getFinancialAccounts,
   getInvestmentAlerts,
   getInvestmentAssets,
   getInvestmentOperations,
   getInvestmentPriceHistory,
+  getJobRuns,
   getMarketDataIntegrations,
+  getMercadoPagoIntegration,
   getMonthlyComparison,
   getMonthlyProjection,
   getMonthlySummary,
+  getNotifications,
   getPortfolioSummary,
   getSavingGoals,
   getSpendingInsights,
   getTransactions,
   addSavingGoalContribution,
+  markAllNotificationsRead,
+  markNotificationRead,
   refreshMarketPrices,
+  runPortfolioRefreshJob,
   simulateCompoundInterest,
+  syncBinanceBalances,
+  updateBinanceIntegration,
   updateBudget,
   updateCategory,
   updateDollarSaving,
@@ -49,7 +66,15 @@ import {
 import type { Language, TranslationKey } from "@/i18n";
 import { translations } from "@/i18n";
 import type {
+  AccountTransfer,
+  AccountType,
+  AppNotification,
   AiReport,
+  BinanceAccount,
+  BinanceBalanceSnapshot,
+  BinanceIntegration,
+  BinancePortfolioSummary,
+  BinanceSyncResponse,
   Budget,
   BudgetUsage,
   Category,
@@ -59,6 +84,7 @@ import type {
   CompoundInterestResponse,
   DollarSaving,
   DollarSavingSource,
+  FinancialAccount,
   InvestmentAlertsResponse,
   InvestmentAsset,
   InvestmentAssetType,
@@ -66,9 +92,11 @@ import type {
   InvestmentOperationType,
   InvestmentPriceSnapshot,
   InvestmentRiskLevel,
+  JobRun,
   MarketDataIntegrationsResponse,
   MarketDataIntegrationUpdate,
   MarketDataRefreshResponse,
+  MercadoPagoIntegration,
   MonthlyComparison,
   MonthlyProjection,
   MonthlySummary,
@@ -80,6 +108,7 @@ import type {
   TransactionType
 } from "@/types/api";
 import { AiAssistantBubble } from "@/components/dashboard/AiAssistantBubble";
+import { AccountsManager } from "@/components/dashboard/AccountsManager";
 import { AiReportPanel } from "@/components/dashboard/AiReportPanel";
 import { BiggestExpenseIncreasePanel } from "@/components/dashboard/BiggestExpenseIncreasePanel";
 import { BudgetManager } from "@/components/dashboard/BudgetManager";
@@ -94,9 +123,11 @@ import { ExecutiveFocus, focusIcons } from "@/components/dashboard/ExecutiveFocu
 import { FinancialHealthPanel } from "@/components/dashboard/FinancialHealthPanel";
 import { GoalsManager } from "@/components/dashboard/GoalsManager";
 import { InvestmentsManager } from "@/components/dashboard/InvestmentsManager";
+import { MercadoPagoWalletPanel } from "@/components/dashboard/MercadoPagoWalletPanel";
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
 import { MonthlyComparisonPanel } from "@/components/dashboard/MonthlyComparisonPanel";
 import { MonthlyProjectionPanel } from "@/components/dashboard/MonthlyProjectionPanel";
+import { NotificationsInbox } from "@/components/dashboard/NotificationsInbox";
 import { PlanningPanel } from "@/components/dashboard/PlanningPanel";
 import { PrioritizedAlertsPanel } from "@/components/dashboard/PrioritizedAlertsPanel";
 import { QuickActionsBar, quickActionIcons } from "@/components/dashboard/QuickActionsBar";
@@ -122,6 +153,12 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
   const [monthlyProjection, setMonthlyProjection] = useState<MonthlyProjection | null>(null);
   const [categoryExpenseIncrease, setCategoryExpenseIncrease] = useState<CategoryExpenseIncrease | null>(null);
   const [aiReports, setAiReports] = useState<AiReport[]>([]);
+  const [binanceAccount, setBinanceAccount] = useState<BinanceAccount | null>(null);
+  const [binanceIntegration, setBinanceIntegration] = useState<BinanceIntegration | null>(null);
+  const [binancePortfolioSummary, setBinancePortfolioSummary] = useState<BinancePortfolioSummary | null>(null);
+  const [binanceSnapshots, setBinanceSnapshots] = useState<BinanceBalanceSnapshot[]>([]);
+  const [accounts, setAccounts] = useState<FinancialAccount[]>([]);
+  const [accountTransfers, setAccountTransfers] = useState<AccountTransfer[]>([]);
   const [report, setReport] = useState<AiReport | null>(null);
   const [selectedReportPeriod, setSelectedReportPeriod] = useState(() => {
     const now = new Date();
@@ -135,14 +172,19 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
   const [investmentAssets, setInvestmentAssets] = useState<InvestmentAsset[]>([]);
   const [investmentAlerts, setInvestmentAlerts] = useState<InvestmentAlertsResponse | null>(null);
   const [investmentOperations, setInvestmentOperations] = useState<InvestmentOperation[]>([]);
+  const [jobRuns, setJobRuns] = useState<JobRun[]>([]);
   const [marketDataIntegrations, setMarketDataIntegrations] = useState<MarketDataIntegrationsResponse | null>(null);
   const [marketDataRefresh, setMarketDataRefresh] = useState<MarketDataRefreshResponse | null>(null);
+  const [mercadoPagoIntegration, setMercadoPagoIntegration] = useState<MercadoPagoIntegration | null>(null);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
   const [spendingInsights, setSpendingInsights] = useState<SpendingInsightsResponse | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [activeSection, setActiveSection] = useState<DashboardSection>("dashboard");
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [isGeneratingNotifications, setIsGeneratingNotifications] = useState(false);
+  const [isRunningPortfolioWorker, setIsRunningPortfolioWorker] = useState(false);
   const [isQuickTransactionOpen, setIsQuickTransactionOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const t = (key: TranslationKey) => translations[language][key];
@@ -495,6 +537,11 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
       const month = now.getMonth() + 1;
       const [
         summaryResponse,
+        accountTransfersResponse,
+        accountsResponse,
+        binanceIntegrationResponse,
+        binancePortfolioSummaryResponse,
+        binanceSnapshotsResponse,
         monthlyComparisonResponse,
         monthlyProjectionResponse,
         categoryExpenseIncreaseResponse,
@@ -507,12 +554,20 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         investmentAlertsResponse,
         investmentAssetsResponse,
         investmentOperationsResponse,
+        jobRunsResponse,
         marketDataIntegrationsResponse,
+        mercadoPagoIntegrationResponse,
+        notificationsResponse,
         portfolioResponse,
         spendingInsightsResponse,
         transactionsResponse
       ] = await Promise.all([
         getMonthlySummary(token, year, month),
+        getAccountTransfers(token),
+        getFinancialAccounts(token),
+        getBinanceIntegration(token),
+        getBinancePortfolioSummary(token),
+        getBinanceBalanceSnapshots(token),
         getMonthlyComparison(token, year, month),
         getMonthlyProjection(token, year, month),
         getCategoryExpenseIncrease(token, year, month),
@@ -525,12 +580,20 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         getInvestmentAlerts(token),
         getInvestmentAssets(token),
         getInvestmentOperations(token),
+        getJobRuns(token, "portfolio_refresh"),
         getMarketDataIntegrations(token),
+        getMercadoPagoIntegration(token),
+        getNotifications(token),
         getPortfolioSummary(token),
         getSpendingInsights(token, year, month),
         getTransactions(token)
       ]);
       setSummary(summaryResponse);
+      setAccountTransfers(accountTransfersResponse);
+      setAccounts(accountsResponse);
+      setBinanceIntegration(binanceIntegrationResponse);
+      setBinancePortfolioSummary(binancePortfolioSummaryResponse);
+      setBinanceSnapshots(binanceSnapshotsResponse);
       setMonthlyComparison(monthlyComparisonResponse);
       setMonthlyProjection(monthlyProjectionResponse);
       setCategoryExpenseIncrease(categoryExpenseIncreaseResponse);
@@ -549,13 +612,20 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
       setInvestmentAlerts(investmentAlertsResponse);
       setInvestmentAssets(investmentAssetsResponse);
       setInvestmentOperations(investmentOperationsResponse);
+      setJobRuns(jobRunsResponse);
       setMarketDataIntegrations(marketDataIntegrationsResponse);
+      setMercadoPagoIntegration(mercadoPagoIntegrationResponse);
+      setNotifications(notificationsResponse);
       setPortfolio(portfolioResponse);
       setSpendingInsights(spendingInsightsResponse);
       setTransactions(transactionsResponse);
       setStatus(t("backendSynced"));
     } catch (error) {
       const message = error instanceof Error ? error.message : t("networkError");
+      if (message.includes("Could not validate credentials") || message.includes("Not authenticated")) {
+        onLogout();
+        return;
+      }
       setStatus(message.includes("Could not connect") ? t("networkError") : message);
     } finally {
       setIsSyncing(false);
@@ -591,6 +661,8 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         )
       );
       setStatus(t("reportReady"));
+      const notificationsResponse = await getNotifications(token);
+      setNotifications(notificationsResponse);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : t("authFailed"));
       throw error;
@@ -602,6 +674,68 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
   function handleSelectReportPeriod(year: number, month: number) {
     setSelectedReportPeriod({ year, month });
     setReport(aiReports.find((item) => item.period_year === year && item.period_month === month) ?? null);
+  }
+
+  async function handleGenerateNotifications() {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    setIsGeneratingNotifications(true);
+
+    try {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      const response = await generateNotifications(token, year, month);
+      const notificationsResponse = await getNotifications(token);
+      setNotifications(notificationsResponse);
+      setStatus(
+        response.generated_count > 0
+          ? `${response.generated_count} ${t("notificationsGenerated")}`
+          : t("notificationsNoNew")
+      );
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    } finally {
+      setIsGeneratingNotifications(false);
+    }
+  }
+
+  async function handleMarkNotificationRead(notificationId: number) {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    try {
+      const notification = await markNotificationRead(token, notificationId);
+      setNotifications((current) =>
+        current.map((item) => (item.id === notification.id ? notification : item))
+      );
+      setStatus(t("notificationRead"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
+  async function handleMarkAllNotificationsRead() {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    try {
+      await markAllNotificationsRead(token);
+      setNotifications((current) => current.map((item) => ({ ...item, is_read: true })));
+      setStatus(t("notificationsReadAll"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
   }
 
   async function refreshCurrentMonth(tokenValue: string) {
@@ -635,7 +769,13 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
   }
 
   async function refreshInvestments(tokenValue: string) {
-    const [alertsResponse, assetsResponse, integrationsResponse, operationsResponse, portfolioResponse] = await Promise.all([
+    const [
+      alertsResponse,
+      assetsResponse,
+      integrationsResponse,
+      operationsResponse,
+      portfolioResponse
+    ] = await Promise.all([
       getInvestmentAlerts(tokenValue),
       getInvestmentAssets(tokenValue),
       getMarketDataIntegrations(tokenValue),
@@ -647,6 +787,28 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     setMarketDataIntegrations(integrationsResponse);
     setInvestmentOperations(operationsResponse);
     setPortfolio(portfolioResponse);
+
+    const optionalResults = await Promise.allSettled([
+      getBinanceIntegration(tokenValue),
+      getBinancePortfolioSummary(tokenValue),
+      getBinanceBalanceSnapshots(tokenValue),
+      getJobRuns(tokenValue, "portfolio_refresh")
+    ]);
+    const [binanceIntegrationResponse, binancePortfolioSummaryResponse, binanceSnapshotsResponse, jobRunsResponse] =
+      optionalResults;
+
+    if (binanceIntegrationResponse.status === "fulfilled") {
+      setBinanceIntegration(binanceIntegrationResponse.value);
+    }
+    if (binancePortfolioSummaryResponse.status === "fulfilled") {
+      setBinancePortfolioSummary(binancePortfolioSummaryResponse.value);
+    }
+    if (binanceSnapshotsResponse.status === "fulfilled") {
+      setBinanceSnapshots(binanceSnapshotsResponse.value);
+    }
+    if (jobRunsResponse.status === "fulfilled") {
+      setJobRuns(jobRunsResponse.value);
+    }
   }
 
   useEffect(() => {
@@ -866,6 +1028,56 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     }
   }
 
+  async function handleCreateAccount(payload: {
+    name: string;
+    type: AccountType;
+    currency: string;
+    institution?: string | null;
+    color: string;
+    icon: string;
+    initial_balance: string;
+    notes?: string | null;
+  }) {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    try {
+      const account = await createFinancialAccount(token, payload);
+      setAccounts((current) => [...current, account].sort((left, right) => left.name.localeCompare(right.name)));
+      setStatus("Cuenta creada");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
+  async function handleCreateAccountTransfer(payload: {
+    from_account_id: number;
+    to_account_id: number;
+    amount: string;
+    currency: string;
+    description?: string | null;
+    transfer_date: string;
+  }) {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    try {
+      const transfer = await createAccountTransfer(token, payload);
+      setAccountTransfers((current) =>
+        [transfer, ...current].sort((left, right) => right.transfer_date.localeCompare(left.transfer_date))
+      );
+      setStatus("Transferencia interna registrada");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
   async function handleUpdateDollarSaving(
     dollarSavingId: number,
     payload: {
@@ -1061,6 +1273,132 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     }
   }
 
+  async function handleUpdateBinanceIntegration(payload: {
+    enabled?: boolean;
+    api_key?: string;
+    api_secret?: string;
+    clear_credentials?: boolean;
+  }) {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    try {
+      const integration = await updateBinanceIntegration(token, payload);
+      setBinanceIntegration(integration);
+      if (payload.clear_credentials) {
+        setBinanceAccount(null);
+      }
+      setStatus(t("binanceIntegrationUpdated"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
+  async function handleLoadBinanceAccount() {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    try {
+      const account = await getBinanceAccount(token);
+      setBinanceAccount(account);
+      setStatus(t("binanceConnectionOk"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
+  async function handleSyncBinanceBalances(): Promise<BinanceSyncResponse | null> {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return null;
+    }
+
+    try {
+      const response = await syncBinanceBalances(token);
+      const [integrationResponse, notificationsResponse, portfolioSummaryResponse, snapshotsResponse] = await Promise.all([
+        getBinanceIntegration(token),
+        getNotifications(token),
+        getBinancePortfolioSummary(token),
+        getBinanceBalanceSnapshots(token)
+      ]);
+      setBinanceIntegration(integrationResponse);
+      setNotifications(notificationsResponse);
+      setBinancePortfolioSummary(portfolioSummaryResponse);
+      setBinanceSnapshots(snapshotsResponse);
+      const notificationDetail =
+        response.notifications_generated_count > 0
+          ? ` - ${response.notifications_generated_count} ${t("binanceAlertsGenerated")}`
+          : "";
+      setStatus(`${response.synced_count} ${t("binanceBalancesSynced")}${notificationDetail}`);
+      return response;
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+      throw error;
+    }
+  }
+
+  async function handleRunPortfolioWorker() {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    setIsRunningPortfolioWorker(true);
+    try {
+      const run = await runPortfolioRefreshJob(token);
+      setIsRunningPortfolioWorker(false);
+      setStatus(`${t("workerRunCompleted")}: ${run.status}`);
+
+      const refreshResults = await Promise.allSettled([
+        getBinanceIntegration(token),
+        getBinancePortfolioSummary(token),
+        getBinanceBalanceSnapshots(token),
+        getJobRuns(token, "portfolio_refresh"),
+        getNotifications(token)
+      ]);
+
+      const [
+        binanceIntegrationResponse,
+        binancePortfolioSummaryResponse,
+        binanceSnapshotsResponse,
+        jobRunsResponse,
+        notificationsResponse
+      ] = refreshResults;
+
+      if (binanceIntegrationResponse.status === "fulfilled") {
+        setBinanceIntegration(binanceIntegrationResponse.value);
+      }
+      if (binancePortfolioSummaryResponse.status === "fulfilled") {
+        setBinancePortfolioSummary(binancePortfolioSummaryResponse.value);
+      }
+      if (binanceSnapshotsResponse.status === "fulfilled") {
+        setBinanceSnapshots(binanceSnapshotsResponse.value);
+      }
+      if (jobRunsResponse.status === "fulfilled") {
+        setJobRuns(jobRunsResponse.value);
+      } else {
+        setJobRuns((current) => [run, ...current.filter((item) => item.id !== run.id)]);
+      }
+      if (notificationsResponse.status === "fulfilled") {
+        setNotifications(notificationsResponse.value);
+      }
+
+      if (refreshResults.some((result) => result.status === "rejected")) {
+        setStatus(`${t("workerRunCompleted")}: ${run.status}. ${t("workerRefreshPartial")}`);
+      }
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+    } finally {
+      setIsRunningPortfolioWorker(false);
+    }
+  }
+
   const handleLoadInvestmentPriceHistory = useCallback(async (assetId: number, limit = 30): Promise<InvestmentPriceSnapshot[]> => {
     if (!token) {
       setStatus(t("signInToManageData"));
@@ -1089,6 +1427,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
   }
 
   async function handleCreateTransaction(payload: {
+    account_id?: number | null;
     category_id: number;
     type: TransactionType;
     amount: string;
@@ -1119,6 +1458,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     transactionId: number,
     payload: {
       category_id?: number;
+      account_id?: number | null;
       amount?: string;
       currency?: string;
       description?: string | null;
@@ -1245,6 +1585,15 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
                 onReviewMovements={() => setActiveSection("movements")}
                 t={t}
               />
+              <NotificationsInbox
+                isGenerating={isGeneratingNotifications}
+                notifications={notifications}
+                onGenerate={handleGenerateNotifications}
+                onMarkAllRead={handleMarkAllNotificationsRead}
+                onMarkRead={handleMarkNotificationRead}
+                onSectionChange={setActiveSection}
+                t={t}
+              />
             </aside>
           </div>
         ) : null}
@@ -1262,6 +1611,20 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
               t={t}
             />
             <aside className="space-y-4">
+              <AccountsManager
+                accounts={accounts}
+                isDisabled={!token}
+                transfers={accountTransfers}
+                onCreateAccount={handleCreateAccount}
+                onCreateTransfer={handleCreateAccountTransfer}
+              />
+              <MercadoPagoWalletPanel
+                initialIntegration={mercadoPagoIntegration}
+                language={language}
+                token={token}
+                onImported={refreshFromApi}
+                onStatusChange={setStatus}
+              />
               <CategoryManager
                 categories={categories}
                 isDisabled={!token}
@@ -1334,15 +1697,25 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
           <div className="mt-4">
             <InvestmentsManager
               assets={investmentAssets}
+              binanceAccount={binanceAccount}
+              binanceIntegration={binanceIntegration}
+              binancePortfolioSummary={binancePortfolioSummary}
+              binanceSnapshots={binanceSnapshots}
               isDisabled={!token}
+              isRunningPortfolioWorker={isRunningPortfolioWorker}
               investmentAlerts={investmentAlerts}
+              jobRuns={jobRuns}
               marketDataIntegrations={marketDataIntegrations}
               marketDataRefresh={marketDataRefresh}
               onCreateAsset={handleCreateInvestmentAsset}
               onCreateOperation={handleCreateInvestmentOperation}
               onDeleteAsset={handleDeleteInvestmentAsset}
               onLoadPriceHistory={handleLoadInvestmentPriceHistory}
+              onLoadBinanceAccount={handleLoadBinanceAccount}
               onRefreshMarketPrices={handleRefreshMarketPrices}
+              onRunPortfolioWorker={handleRunPortfolioWorker}
+              onSyncBinanceBalances={handleSyncBinanceBalances}
+              onUpdateBinanceIntegration={handleUpdateBinanceIntegration}
               onUpdateOperation={handleUpdateInvestmentOperation}
               onUpdateMarketIntegration={handleUpdateMarketIntegration}
               onUpdateAsset={handleUpdateInvestmentAsset}

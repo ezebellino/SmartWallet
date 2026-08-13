@@ -1,0 +1,356 @@
+import base64
+import csv
+import hashlib
+import io
+from datetime import date, datetime, time, timezone
+from decimal import Decimal, InvalidOperation
+from typing import Any
+
+import httpx
+from cryptography.fernet import Fernet
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.core.config import settings
+from app.models.category import Category, CategoryType
+from app.models.market_integration import MarketIntegrationSetting
+from app.models.transaction import TransactionType
+from app.repositories.categories import CategoryRepository
+from app.repositories.transactions import TransactionRepository
+from app.schemas.category import CategoryCreate
+from app.schemas.mercado_pago import (
+    MercadoPagoImportedMovement,
+    MercadoPagoImportResponse,
+    MercadoPagoIntegrationRead,
+    MercadoPagoIntegrationUpdate,
+    MercadoPagoReportRead,
+    MercadoPagoReportRequestResponse,
+)
+from app.schemas.transaction import TransactionCreate
+
+PROVIDER_KEY = "mercadopago"
+EXTERNAL_SOURCE = "mercado_pago"
+
+
+class MercadoPagoProvider:
+    def __init__(self, timeout_seconds: float = 12.0) -> None:
+        self.timeout_seconds = timeout_seconds
+        self.base_url = "https://api.mercadopago.com"
+
+    def request_account_money_report(self, access_token: str, begin_date: date, end_date: date) -> None:
+        response = httpx.post(
+            f"{self.base_url}/v1/account/settlement_report",
+            headers=self._headers(access_token),
+            json={
+                "begin_date": self._start_of_day(begin_date),
+                "end_date": self._end_of_day(end_date),
+            },
+            timeout=self.timeout_seconds,
+        )
+        response.raise_for_status()
+
+    def list_account_money_reports(self, access_token: str) -> list[dict[str, Any]]:
+        response = httpx.get(
+            f"{self.base_url}/v1/account/settlement_report/list",
+            headers=self._headers(access_token),
+            timeout=self.timeout_seconds,
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data if isinstance(data, list) else []
+
+    def download_account_money_report(self, access_token: str, file_name: str) -> str:
+        response = httpx.get(
+            f"{self.base_url}/v1/account/settlement_report/{file_name}",
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=self.timeout_seconds,
+        )
+        response.raise_for_status()
+        return response.text
+
+    def _headers(self, access_token: str) -> dict[str, str]:
+        return {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "Authorization": f"Bearer {access_token}",
+        }
+
+    def _start_of_day(self, value: date) -> str:
+        return datetime.combine(value, time.min, tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
+
+    def _end_of_day(self, value: date) -> str:
+        return datetime.combine(value, time.max, tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+class MercadoPagoService:
+    def __init__(
+        self,
+        db: Session,
+        provider: MercadoPagoProvider | None = None,
+    ) -> None:
+        self.db = db
+        self.provider = provider or MercadoPagoProvider()
+        self.transactions = TransactionRepository(db)
+        self.categories = CategoryRepository(db)
+
+    def get_integration(self, user_id: int) -> MercadoPagoIntegrationRead:
+        setting = self._get_setting(user_id)
+        enabled = setting.enabled if setting else False
+        has_access_token = bool(setting and setting.api_key_encrypted)
+        status = "disabled"
+        if enabled and has_access_token:
+            status = "active"
+        elif enabled:
+            status = "needs_token"
+
+        return MercadoPagoIntegrationRead(
+            enabled=enabled,
+            status=status,
+            has_access_token=has_access_token,
+            access_token_last4=setting.api_key_last4 if setting else None,
+        )
+
+    def update_integration(self, user_id: int, data: MercadoPagoIntegrationUpdate) -> MercadoPagoIntegrationRead:
+        setting = self._get_or_create_setting(user_id)
+        if data.enabled is not None:
+            setting.enabled = data.enabled
+
+        if data.clear_access_token:
+            setting.api_key_encrypted = None
+            setting.api_key_last4 = None
+        elif data.access_token and data.access_token.strip():
+            access_token = data.access_token.strip()
+            setting.api_key_encrypted = self._encrypt(access_token)
+            setting.api_key_last4 = access_token[-4:]
+
+        self.db.commit()
+        return self.get_integration(user_id)
+
+    def request_report(self, user_id: int, begin_date: date, end_date: date) -> MercadoPagoReportRequestResponse:
+        access_token = self._get_access_token(user_id)
+        if not access_token:
+            raise ValueError("Mercado Pago access token is required")
+        if end_date < begin_date:
+            raise ValueError("end_date must be greater than or equal to begin_date")
+
+        self.provider.request_account_money_report(access_token, begin_date, end_date)
+        return MercadoPagoReportRequestResponse(
+            status="requested",
+            message="Mercado Pago is preparing the report. Import it when it appears in the report list.",
+        )
+
+    def list_reports(self, user_id: int) -> list[MercadoPagoReportRead]:
+        access_token = self._get_access_token(user_id)
+        if not access_token:
+            raise ValueError("Mercado Pago access token is required")
+        reports = [self._build_report_read(item) for item in self.provider.list_account_money_reports(access_token)]
+        return sorted(reports, key=lambda item: item.date_created or datetime.min, reverse=True)
+
+    def import_report(self, user_id: int, file_name: str | None = None) -> MercadoPagoImportResponse:
+        access_token = self._get_access_token(user_id)
+        if not access_token:
+            raise ValueError("Mercado Pago access token is required")
+
+        report_file_name = file_name or self._latest_report_file_name(access_token)
+        if not report_file_name:
+            raise ValueError("No Mercado Pago report is available to import")
+
+        csv_text = self.provider.download_account_money_report(access_token, report_file_name)
+        rows = self._parse_csv(csv_text)
+        movements: list[MercadoPagoImportedMovement] = []
+
+        for row in rows:
+            try:
+                movement = self._import_row(user_id, row)
+            except Exception as exc:
+                movement = MercadoPagoImportedMovement(
+                    external_id=self._external_id(row),
+                    transaction_id=None,
+                    type="unknown",
+                    amount="0.00",
+                    currency=self._row_value(row, "TRANSACTION_CURRENCY", "SETTLEMENT_CURRENCY") or "ARS",
+                    date=date.today(),
+                    status="failed",
+                    description=str(exc),
+                )
+            movements.append(movement)
+
+        return MercadoPagoImportResponse(
+            imported_count=sum(1 for item in movements if item.status == "imported"),
+            skipped_count=sum(1 for item in movements if item.status == "skipped"),
+            failed_count=sum(1 for item in movements if item.status == "failed"),
+            file_name=report_file_name,
+            movements=movements,
+        )
+
+    def _import_row(self, user_id: int, row: dict[str, str]) -> MercadoPagoImportedMovement:
+        external_id = self._external_id(row)
+        existing = self.transactions.get_by_external_reference(
+            user_id=user_id,
+            external_source=EXTERNAL_SOURCE,
+            external_id=external_id,
+        )
+
+        amount = self._movement_amount(row)
+        transaction_type = TransactionType.income if amount >= 0 else TransactionType.expense
+        category = self._category_for(user_id, transaction_type)
+        transaction_date = self._transaction_date(row)
+        currency = self._row_value(row, "TRANSACTION_CURRENCY", "SETTLEMENT_CURRENCY") or "ARS"
+        description = self._description(row)
+
+        if existing:
+            return MercadoPagoImportedMovement(
+                external_id=external_id,
+                transaction_id=existing.id,
+                type=transaction_type.value,
+                amount=f"{abs(amount):.2f}",
+                currency=currency,
+                date=transaction_date,
+                status="skipped",
+                description=description,
+            )
+
+        transaction = self.transactions.create(
+            user_id,
+            TransactionCreate(
+                category_id=category.id,
+                type=transaction_type,
+                amount=abs(amount),
+                currency=currency,
+                description=description,
+                transaction_date=transaction_date,
+                external_source=EXTERNAL_SOURCE,
+                external_id=external_id,
+            ),
+        )
+        return MercadoPagoImportedMovement(
+            external_id=external_id,
+            transaction_id=transaction.id,
+            type=transaction_type.value,
+            amount=f"{transaction.amount:.2f}",
+            currency=transaction.currency,
+            date=transaction.transaction_date,
+            status="imported",
+            description=description,
+        )
+
+    def _latest_report_file_name(self, access_token: str) -> str | None:
+        reports = self.provider.list_account_money_reports(access_token)
+        parsed = [self._build_report_read(item) for item in reports if item.get("file_name")]
+        parsed.sort(key=lambda item: item.date_created or datetime.min, reverse=True)
+        return parsed[0].file_name if parsed else None
+
+    def _category_for(self, user_id: int, transaction_type: TransactionType) -> Category:
+        category_type = CategoryType.income if transaction_type == TransactionType.income else CategoryType.expense
+        name = "Mercado Pago ingresos" if category_type == CategoryType.income else "Mercado Pago gastos"
+        existing = self.categories.get_by_name_and_type(
+            user_id=user_id,
+            name=name,
+            category_type=category_type,
+        )
+        if existing:
+            return existing
+        return self.categories.create(
+            user_id,
+            CategoryCreate(
+                name=name,
+                type=category_type,
+                color="#00b1ea" if category_type == CategoryType.income else "#f59e0b",
+                icon="wallet",
+            ),
+        )
+
+    def _parse_csv(self, csv_text: str) -> list[dict[str, str]]:
+        sample = csv_text[:2048]
+        dialect = csv.Sniffer().sniff(sample, delimiters=";,")
+        reader = csv.DictReader(io.StringIO(csv_text), dialect=dialect)
+        return [{str(key): (value or "").strip() for key, value in row.items() if key} for row in reader]
+
+    def _movement_amount(self, row: dict[str, str]) -> Decimal:
+        raw = self._row_value(row, "SETTLEMENT_NET_AMOUNT", "REAL_AMOUNT", "TRANSACTION_AMOUNT")
+        if raw is None:
+            raise ValueError("Mercado Pago row does not include an amount")
+        try:
+            return Decimal(raw.replace(",", "."))
+        except InvalidOperation as exc:
+            raise ValueError(f"Invalid Mercado Pago amount: {raw}") from exc
+
+    def _transaction_date(self, row: dict[str, str]) -> date:
+        raw = self._row_value(row, "TRANSACTION_DATE", "SETTLEMENT_DATE", "DATE")
+        if not raw:
+            raise ValueError("Mercado Pago row does not include a transaction date")
+        normalized = raw.replace("Z", "+00:00")
+        return datetime.fromisoformat(normalized).date()
+
+    def _external_id(self, row: dict[str, str]) -> str:
+        candidate = self._row_value(row, "SOURCE_ID", "EXTERNAL_REFERENCE", "ORDER_ID")
+        if candidate:
+            return candidate
+        payload = "|".join(f"{key}={value}" for key, value in sorted(row.items()))
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+    def _description(self, row: dict[str, str]) -> str:
+        transaction_type = self._row_value(row, "TRANSACTION_TYPE") or "Movimiento"
+        source_id = self._row_value(row, "SOURCE_ID")
+        external_reference = self._row_value(row, "EXTERNAL_REFERENCE")
+        parts = [f"Mercado Pago - {transaction_type}"]
+        if source_id:
+            parts.append(f"source {source_id}")
+        if external_reference and external_reference != source_id:
+            parts.append(f"ref {external_reference}")
+        return " | ".join(parts)
+
+    def _row_value(self, row: dict[str, str], *keys: str) -> str | None:
+        normalized = {key.upper().strip(): value for key, value in row.items()}
+        for key in keys:
+            value = normalized.get(key)
+            if value:
+                return value
+        return None
+
+    def _build_report_read(self, item: dict[str, Any]) -> MercadoPagoReportRead:
+        return MercadoPagoReportRead(
+            id=item.get("id"),
+            begin_date=self._parse_datetime(item.get("begin_date")),
+            end_date=self._parse_datetime(item.get("end_date")),
+            file_name=str(item.get("file_name", "")),
+            created_from=item.get("created_from"),
+            date_created=self._parse_datetime(item.get("date_created")),
+        )
+
+    def _parse_datetime(self, value: Any) -> datetime | None:
+        if not isinstance(value, str) or not value:
+            return None
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+    def _get_setting(self, user_id: int) -> MarketIntegrationSetting | None:
+        statement = select(MarketIntegrationSetting).where(
+            MarketIntegrationSetting.user_id == user_id,
+            MarketIntegrationSetting.provider_key == PROVIDER_KEY,
+        )
+        return self.db.scalar(statement)
+
+    def _get_or_create_setting(self, user_id: int) -> MarketIntegrationSetting:
+        setting = self._get_setting(user_id)
+        if setting:
+            return setting
+        setting = MarketIntegrationSetting(user_id=user_id, provider_key=PROVIDER_KEY, enabled=False)
+        self.db.add(setting)
+        self.db.flush()
+        return setting
+
+    def _get_access_token(self, user_id: int) -> str | None:
+        setting = self._get_setting(user_id)
+        if not setting or not setting.enabled or not setting.api_key_encrypted:
+            return None
+        return self._decrypt(setting.api_key_encrypted)
+
+    def _encrypt(self, value: str) -> str:
+        digest = hashlib.sha256(settings.jwt_secret_key.encode("utf-8")).digest()
+        key = base64.urlsafe_b64encode(digest)
+        return Fernet(key).encrypt(value.encode("utf-8")).decode("utf-8")
+
+    def _decrypt(self, encrypted_value: str) -> str:
+        digest = hashlib.sha256(settings.jwt_secret_key.encode("utf-8")).digest()
+        key = base64.urlsafe_b64encode(digest)
+        return Fernet(key).decrypt(encrypted_value.encode("utf-8")).decode("utf-8")

@@ -1,6 +1,13 @@
 import type {
+  AccountTransfer,
+  AppNotification,
   AiReport,
   AuthResponse,
+  BinanceAccount,
+  BinanceBalanceSnapshot,
+  BinanceIntegration,
+  BinancePortfolioSummary,
+  BinanceSyncResponse,
   Budget,
   BudgetUsage,
   Category,
@@ -10,6 +17,7 @@ import type {
   CompoundInterestResponse,
   DollarSaving,
   DollarSavingSource,
+  FinancialAccount,
   InvestmentAlertsResponse,
   InvestmentAsset,
   InvestmentAssetType,
@@ -17,13 +25,18 @@ import type {
   InvestmentOperationType,
   InvestmentPriceSnapshot,
   InvestmentRiskLevel,
+  JobRun,
   MarketDataIntegration,
   MarketDataIntegrationsResponse,
   MarketDataIntegrationUpdate,
   MarketDataRefreshResponse,
+  MercadoPagoImportResponse,
+  MercadoPagoIntegration,
+  MercadoPagoReport,
   MonthlyComparison,
   MonthlyProjection,
   MonthlySummary,
+  NotificationGenerateResponse,
   PortfolioSummary,
   SavingGoal,
   SavingGoalStatus,
@@ -97,6 +110,92 @@ export function getCategoryExpenseIncrease(token: string, year: number, month: n
 
 export function getMonthlyProjection(token: string, year: number, month: number) {
   return request<MonthlyProjection>(`/dashboard/monthly-projection?year=${year}&month=${month}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function getNotifications(token: string, unreadOnly = false, limit = 30) {
+  return request<AppNotification[]>(`/notifications?unread_only=${unreadOnly}&limit=${limit}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function generateNotifications(token: string, year: number, month: number) {
+  return request<NotificationGenerateResponse>(`/notifications/generate?year=${year}&month=${month}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function markNotificationRead(token: string, notificationId: number) {
+  return request<AppNotification>(`/notifications/${notificationId}/read`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function markAllNotificationsRead(token: string) {
+  return request<{ updated_count: number }>("/notifications/read-all", {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function getJobRuns(token: string, jobKey?: string, limit = 10) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (jobKey) {
+    params.set("job_key", jobKey);
+  }
+  return request<JobRun[]>(`/jobs/runs?${params.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function runPortfolioRefreshJob(token: string) {
+  return request<JobRun>("/jobs/portfolio-refresh/run", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function getBinanceIntegration(token: string) {
+  return request<BinanceIntegration>("/binance/integration", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function updateBinanceIntegration(
+  token: string,
+  payload: { enabled?: boolean; api_key?: string; api_secret?: string; clear_credentials?: boolean }
+) {
+  return request<BinanceIntegration>("/binance/integration", {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function getBinanceAccount(token: string) {
+  return request<BinanceAccount>("/binance/account", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function syncBinanceBalances(token: string) {
+  return request<BinanceSyncResponse>("/binance/sync-balances", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function getBinancePortfolioSummary(token: string) {
+  return request<BinancePortfolioSummary>("/binance/portfolio-summary", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function getBinanceBalanceSnapshots(token: string, limit = 30) {
+  return request<BinanceBalanceSnapshot[]>(`/binance/balance-snapshots?limit=${limit}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
 }
@@ -194,6 +293,7 @@ export function getTransactions(token: string) {
 export function createTransaction(
   token: string,
   payload: {
+    account_id?: number | null;
     category_id: number;
     type: TransactionType;
     amount: string;
@@ -213,6 +313,7 @@ export function updateTransaction(
   token: string,
   transactionId: number,
   payload: {
+    account_id?: number | null;
     category_id?: number;
     amount?: string;
     currency?: string;
@@ -333,6 +434,56 @@ export function deleteDollarSaving(token: string, dollarSavingId: number) {
   return request<void>(`/dollar-savings/${dollarSavingId}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function getFinancialAccounts(token: string) {
+  return request<FinancialAccount[]>("/accounts", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function createFinancialAccount(
+  token: string,
+  payload: {
+    name: string;
+    type: FinancialAccount["type"];
+    currency: string;
+    institution?: string | null;
+    color: string;
+    icon: string;
+    initial_balance: string;
+    notes?: string | null;
+  }
+) {
+  return request<FinancialAccount>("/accounts", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function getAccountTransfers(token: string) {
+  return request<AccountTransfer[]>("/accounts/transfers", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function createAccountTransfer(
+  token: string,
+  payload: {
+    from_account_id: number;
+    to_account_id: number;
+    amount: string;
+    currency: string;
+    description?: string | null;
+    transfer_date: string;
+  }
+) {
+  return request<AccountTransfer>("/accounts/transfers", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
   });
 }
 
@@ -465,6 +616,45 @@ export function updateMarketDataIntegration(token: string, providerKey: string, 
     method: "PATCH",
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify(payload)
+  });
+}
+
+export function getMercadoPagoIntegration(token: string) {
+  return request<MercadoPagoIntegration>("/mercado-pago/integration", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function updateMercadoPagoIntegration(
+  token: string,
+  payload: { enabled?: boolean; access_token?: string | null; clear_access_token?: boolean }
+) {
+  return request<MercadoPagoIntegration>("/mercado-pago/integration", {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function requestMercadoPagoReport(token: string, beginDate: string, endDate: string) {
+  return request<{ status: string; message: string }>("/mercado-pago/reports", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ begin_date: beginDate, end_date: endDate })
+  });
+}
+
+export function getMercadoPagoReports(token: string) {
+  return request<MercadoPagoReport[]>("/mercado-pago/reports", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function importMercadoPagoReport(token: string, fileName?: string | null) {
+  return request<MercadoPagoImportResponse>("/mercado-pago/import", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ file_name: fileName ?? null })
   });
 }
 

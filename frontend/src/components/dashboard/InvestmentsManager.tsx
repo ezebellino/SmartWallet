@@ -1,13 +1,20 @@
 import { Check, LineChart, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { BinanceWalletPanel } from "@/components/dashboard/BinanceWalletPanel";
 import { InvestmentAlertsPanel } from "@/components/dashboard/InvestmentAlertsPanel";
 import { InvestmentPerformancePanel } from "@/components/dashboard/InvestmentPerformancePanel";
 import { MarketIntegrationsPanel } from "@/components/dashboard/MarketIntegrationsPanel";
+import { WorkerControlPanel } from "@/components/dashboard/WorkerControlPanel";
 import { Panel } from "@/components/ui";
 import type { TranslationKey } from "@/i18n";
 import { confirmAction } from "@/lib/alerts";
 import { formatDate } from "@/lib/format";
 import type {
+  BinanceAccount,
+  BinanceBalanceSnapshot,
+  BinanceIntegration,
+  BinancePortfolioSummary,
+  BinanceSyncResponse,
   InvestmentAsset,
   InvestmentAlertsResponse,
   InvestmentAssetType,
@@ -18,6 +25,7 @@ import type {
   InvestmentOperationType,
   InvestmentPriceSnapshot,
   InvestmentRiskLevel,
+  JobRun,
   PortfolioSummary
 } from "@/types/api";
 
@@ -39,17 +47,39 @@ type OperationPayload = {
   operation_date: string;
 };
 
+type PortfolioCurrencySummary = {
+  currency: string;
+  total_estimated_value: string;
+  total_invested: string;
+  total_unrealized_gain_loss: string;
+};
+
 type Props = {
   assets: InvestmentAsset[];
+  binanceAccount: BinanceAccount | null;
+  binanceIntegration: BinanceIntegration | null;
+  binancePortfolioSummary: BinancePortfolioSummary | null;
+  binanceSnapshots: BinanceBalanceSnapshot[];
   investmentAlerts: InvestmentAlertsResponse | null;
   isDisabled: boolean;
+  isRunningPortfolioWorker: boolean;
+  jobRuns: JobRun[];
   marketDataIntegrations: MarketDataIntegrationsResponse | null;
   marketDataRefresh: MarketDataRefreshResponse | null;
   onCreateAsset: (payload: AssetPayload) => Promise<void>;
   onCreateOperation: (payload: OperationPayload) => Promise<void>;
   onDeleteAsset: (assetId: number) => Promise<void>;
+  onLoadBinanceAccount: () => Promise<void>;
   onLoadPriceHistory: (assetId: number, limit?: number) => Promise<InvestmentPriceSnapshot[]>;
   onRefreshMarketPrices: () => Promise<void>;
+  onRunPortfolioWorker: () => Promise<void>;
+  onSyncBinanceBalances: () => Promise<BinanceSyncResponse | null>;
+  onUpdateBinanceIntegration: (payload: {
+    enabled?: boolean;
+    api_key?: string;
+    api_secret?: string;
+    clear_credentials?: boolean;
+  }) => Promise<void>;
   onUpdateMarketIntegration: (providerKey: string, payload: MarketDataIntegrationUpdate) => Promise<void>;
   onUpdateAsset: (assetId: number, payload: Partial<AssetPayload>) => Promise<void>;
   onUpdateOperation: (operationId: number, payload: Partial<OperationPayload>) => Promise<void>;
@@ -109,15 +139,25 @@ function formatPriceSource(value: string | null | undefined, t: (key: Translatio
 
 export function InvestmentsManager({
   assets,
+  binanceAccount,
+  binanceIntegration,
+  binancePortfolioSummary,
+  binanceSnapshots,
   investmentAlerts,
   isDisabled,
+  isRunningPortfolioWorker,
+  jobRuns,
   marketDataIntegrations,
   marketDataRefresh,
   onCreateAsset,
   onCreateOperation,
   onDeleteAsset,
+  onLoadBinanceAccount,
   onLoadPriceHistory,
   onRefreshMarketPrices,
+  onRunPortfolioWorker,
+  onSyncBinanceBalances,
+  onUpdateBinanceIntegration,
   onUpdateMarketIntegration,
   onUpdateAsset,
   onUpdateOperation,
@@ -155,6 +195,32 @@ export function InvestmentsManager({
 
   const assetById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
   const recentOperations = operations.slice(0, 6);
+  const portfolioCurrencySummary = useMemo<PortfolioCurrencySummary[]>(() => {
+    if (portfolio?.totals_by_currency?.length) {
+      return portfolio.totals_by_currency;
+    }
+
+    const summaryByCurrency = new Map<string, PortfolioCurrencySummary>();
+
+    for (const position of portfolio?.positions ?? []) {
+      const currencyKey = position.currency || "USD";
+      const current = summaryByCurrency.get(currencyKey) ?? {
+        currency: currencyKey,
+        total_estimated_value: "0",
+        total_invested: "0",
+        total_unrealized_gain_loss: "0"
+      };
+
+      current.total_invested = String(Number(current.total_invested) + Number(position.invested_amount));
+      current.total_estimated_value = String(Number(current.total_estimated_value) + Number(position.estimated_value ?? 0));
+      current.total_unrealized_gain_loss = String(
+        Number(current.total_unrealized_gain_loss) + Number(position.unrealized_gain_loss ?? 0)
+      );
+      summaryByCurrency.set(currencyKey, current);
+    }
+
+    return [...summaryByCurrency.values()].sort((left, right) => left.currency.localeCompare(right.currency));
+  }, [portfolio]);
 
   async function handleCreateAsset(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -391,6 +457,26 @@ export function InvestmentsManager({
         </div>
       ) : null}
 
+      <BinanceWalletPanel
+        account={binanceAccount}
+        integration={binanceIntegration}
+        isDisabled={isDisabled}
+        onLoadAccount={onLoadBinanceAccount}
+        onSyncBalances={onSyncBinanceBalances}
+        onUpdateIntegration={onUpdateBinanceIntegration}
+        portfolioSummary={binancePortfolioSummary}
+        snapshots={binanceSnapshots}
+        t={t}
+      />
+
+      <WorkerControlPanel
+        isDisabled={isDisabled}
+        isRunning={isRunningPortfolioWorker}
+        jobRuns={jobRuns}
+        onRun={onRunPortfolioWorker}
+        t={t}
+      />
+
       <MarketIntegrationsPanel
         integrations={marketDataIntegrations}
         isDisabled={isDisabled}
@@ -582,28 +668,43 @@ export function InvestmentsManager({
       <div className="mt-5 grid gap-4 xl:grid-cols-2">
         <div className="rounded-md border border-borderSoft bg-background p-3">
           <div className="text-sm font-medium text-text">{t("portfolioSummary")}</div>
-          <div className="mt-3 grid gap-2 text-sm">
-            <div className="flex justify-between gap-3 text-muted">
-              <span>{t("totalInvested")}</span>
-              <span className="font-medium text-text">{formatInvestmentMoney(portfolio?.total_invested)}</span>
+          {portfolioCurrencySummary.length > 0 ? (
+            <div className="mt-3 space-y-3">
+              {portfolioCurrencySummary.map((summary) => (
+                <div className="rounded-md border border-borderSoft bg-panel px-3 py-2" key={summary.currency}>
+                  <div className="mb-2 text-xs font-semibold text-cyan">{summary.currency}</div>
+                  <div className="grid gap-2 text-sm">
+                    <div className="flex justify-between gap-3 text-muted">
+                      <span>{t("totalInvested")}</span>
+                      <span className="font-medium text-text">
+                        {formatInvestmentMoney(summary.total_invested, summary.currency)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-3 text-muted">
+                      <span>{t("estimatedValue")}</span>
+                      <span className="font-medium text-text">
+                        {formatInvestmentMoney(summary.total_estimated_value, summary.currency)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-3 text-muted">
+                      <span>{t("unrealizedResult")}</span>
+                      <span
+                        className={
+                          Number(summary.total_unrealized_gain_loss) >= 0 ? "font-medium text-emerald" : "font-medium text-rose"
+                        }
+                      >
+                        {formatInvestmentMoney(summary.total_unrealized_gain_loss, summary.currency)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="flex justify-between gap-3 text-muted">
-              <span>{t("estimatedValue")}</span>
-              <span className="font-medium text-text">{formatInvestmentMoney(portfolio?.total_estimated_value)}</span>
-            </div>
-            <div className="flex justify-between gap-3 text-muted">
-              <span>{t("unrealizedResult")}</span>
-              <span
-                className={
-                  Number(portfolio?.total_unrealized_gain_loss ?? 0) >= 0
-                    ? "font-medium text-emerald"
-                    : "font-medium text-rose"
-                }
-              >
-                {formatInvestmentMoney(portfolio?.total_unrealized_gain_loss)}
-              </span>
-            </div>
-          </div>
+          ) : (
+            <p className="mt-3 rounded-md border border-dashed border-borderSoft px-3 py-4 text-sm text-muted">
+              {t("noPortfolioPositions")}
+            </p>
+          )}
           <p className="mt-3 text-xs leading-5 text-muted">{portfolio?.risk_warning ?? t("investmentRiskWarning")}</p>
         </div>
 

@@ -40,6 +40,20 @@ class TransactionRepository:
         )
         return self.db.scalar(statement)
 
+    def get_by_external_reference(
+        self,
+        *,
+        user_id: int,
+        external_source: str,
+        external_id: str,
+    ) -> Transaction | None:
+        statement = select(Transaction).where(
+            Transaction.user_id == user_id,
+            Transaction.external_source == external_source,
+            Transaction.external_id == external_id,
+        )
+        return self.db.scalar(statement)
+
     def create(self, user_id: int, data: TransactionCreate) -> Transaction:
         transaction = Transaction(user_id=user_id, **data.model_dump())
         self.db.add(transaction)
@@ -57,4 +71,3 @@ class TransactionRepository:
     def delete(self, transaction: Transaction) -> None:
         self.db.delete(transaction)
         self.db.commit()
-

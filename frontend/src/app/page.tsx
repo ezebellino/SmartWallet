@@ -1,9 +1,18 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { AuthPanel } from "@/components/AuthPanel";
-import { Dashboard } from "@/components/Dashboard";
 import type { Language } from "@/i18n";
+
+const Dashboard = dynamic(() => import("@/components/Dashboard").then((mod) => mod.Dashboard), {
+  loading: () => (
+    <div className="grid min-h-screen place-items-center px-5 py-10 text-sm text-muted">
+      Cargando dashboard...
+    </div>
+  ),
+  ssr: false
+});
 
 const TOKEN_KEY = "smart-wallet-token";
 const NAME_KEY = "smart-wallet-user-name";

@@ -96,6 +96,14 @@ class AiReportService:
         dollar_savings = self.dollar_savings.list_by_user(user_id)
         portfolio = self.investment_service.get_portfolio_summary(user_id)
         investment_alerts = self.investment_service.get_investment_alerts(user_id)
+        portfolio_totals = [
+            (
+                f"{item.currency}: invested={item.total_invested}, "
+                f"estimated={item.total_estimated_value}, "
+                f"unrealized={item.total_unrealized_gain_loss}"
+            )
+            for item in portfolio.totals_by_currency
+        ]
 
         return AiReportContext(
             year=year,
@@ -126,9 +134,7 @@ class AiReportService:
                 f"Saved USD entries: {len(dollar_savings)}",
             ],
             investments=[
-                f"Total invested: {portfolio.total_invested}",
-                f"Estimated value: {portfolio.total_estimated_value}",
-                f"Unrealized result: {portfolio.total_unrealized_gain_loss}",
+                f"Totals by currency: {'; '.join(portfolio_totals) if portfolio_totals else 'no open positions'}",
                 f"Open positions: {len(portfolio.positions)}",
                 f"Investment alerts: {len(investment_alerts.alerts)}",
             ],

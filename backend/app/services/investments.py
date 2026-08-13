@@ -17,6 +17,7 @@ from app.schemas.investment import (
     InvestmentOperationCreate,
     InvestmentOperationUpdate,
     InvestmentPriceSnapshotRead,
+    PortfolioCurrencyTotal,
     PortfolioPosition,
     PortfolioSummary,
 )
@@ -151,17 +152,45 @@ class InvestmentService:
         total_unrealized_gain_loss = self._money(
             sum((p.unrealized_gain_loss or Decimal("0") for p in positions), Decimal("0"))
         )
+        totals_by_currency = self._build_currency_totals(positions)
 
         return PortfolioSummary(
             total_invested=total_invested,
             total_estimated_value=total_estimated_value,
             total_unrealized_gain_loss=total_unrealized_gain_loss,
+            totals_by_currency=totals_by_currency,
             positions=positions,
             risk_warning=(
                 "Investment information is educational and does not constitute professional "
                 "financial advice."
             ),
         )
+
+    def _build_currency_totals(self, positions: list[PortfolioPosition]) -> list[PortfolioCurrencyTotal]:
+        totals: dict[str, dict[str, Decimal]] = {}
+
+        for position in positions:
+            current = totals.setdefault(
+                position.currency,
+                {
+                    "total_estimated_value": Decimal("0"),
+                    "total_invested": Decimal("0"),
+                    "total_unrealized_gain_loss": Decimal("0"),
+                },
+            )
+            current["total_invested"] += position.invested_amount
+            current["total_estimated_value"] += position.estimated_value or Decimal("0")
+            current["total_unrealized_gain_loss"] += position.unrealized_gain_loss or Decimal("0")
+
+        return [
+            PortfolioCurrencyTotal(
+                currency=currency,
+                total_invested=self._money(values["total_invested"]),
+                total_estimated_value=self._money(values["total_estimated_value"]),
+                total_unrealized_gain_loss=self._money(values["total_unrealized_gain_loss"]),
+            )
+            for currency, values in sorted(totals.items())
+        ]
 
     def _build_price_alerts(self, user_id: int, assets: list[InvestmentAsset]) -> list[InvestmentAlert]:
         alerts: list[InvestmentAlert] = []

@@ -3,6 +3,7 @@ from datetime import date
 from fastapi import HTTPException, status
 
 from app.models.transaction import Transaction, TransactionType
+from app.repositories.accounts import FinancialAccountRepository
 from app.repositories.categories import CategoryRepository
 from app.repositories.transactions import TransactionRepository
 from app.schemas.transaction import TransactionCreate, TransactionUpdate
@@ -13,9 +14,11 @@ class TransactionService:
         self,
         transactions: TransactionRepository,
         categories: CategoryRepository,
+        accounts: FinancialAccountRepository | None = None,
     ) -> None:
         self.transactions = transactions
         self.categories = categories
+        self.accounts = accounts
 
     def list_transactions(
         self,
@@ -34,6 +37,7 @@ class TransactionService:
 
     def create_transaction(self, user_id: int, data: TransactionCreate) -> Transaction:
         self._validate_category(user_id, data.category_id, data.type)
+        self._validate_account(user_id, data.account_id)
         return self.transactions.create(user_id, data)
 
     def update_transaction(
@@ -44,7 +48,9 @@ class TransactionService:
     ) -> Transaction:
         transaction = self._get_owned_transaction(transaction_id, user_id)
         category_id = data.category_id if data.category_id is not None else transaction.category_id
+        account_id = data.account_id if data.account_id is not None else transaction.account_id
         self._validate_category(user_id, category_id, transaction.type)
+        self._validate_account(user_id, account_id)
         return self.transactions.update(transaction, data)
 
     def delete_transaction(self, transaction_id: int, user_id: int) -> None:
@@ -72,3 +78,8 @@ class TransactionService:
                 detail="Category type must match transaction type",
             )
 
+    def _validate_account(self, user_id: int, account_id: int | None) -> None:
+        if account_id is None or self.accounts is None:
+            return
+        if not self.accounts.get_by_id(account_id, user_id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Financial account not found")

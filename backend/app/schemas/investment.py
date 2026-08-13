@@ -108,10 +108,18 @@ class PortfolioPosition(BaseModel):
     unrealized_gain_loss: Decimal | None
 
 
+class PortfolioCurrencyTotal(BaseModel):
+    currency: str
+    total_invested: Decimal
+    total_estimated_value: Decimal
+    total_unrealized_gain_loss: Decimal
+
+
 class PortfolioSummary(BaseModel):
     total_invested: Decimal
     total_estimated_value: Decimal
     total_unrealized_gain_loss: Decimal
+    totals_by_currency: list[PortfolioCurrencyTotal] = Field(default_factory=list)
     positions: list[PortfolioPosition]
     risk_warning: str
 

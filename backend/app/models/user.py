@@ -15,6 +15,8 @@ class User(TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     categories = relationship("Category", back_populates="user", cascade="all, delete-orphan")
+    financial_accounts = relationship("FinancialAccount", back_populates="user", cascade="all, delete-orphan")
+    account_transfers = relationship("AccountTransfer", back_populates="user", cascade="all, delete-orphan")
     transactions = relationship("Transaction", back_populates="user", cascade="all, delete-orphan")
     saving_goals = relationship("SavingGoal", back_populates="user", cascade="all, delete-orphan")
     dollar_savings = relationship("DollarSaving", back_populates="user", cascade="all, delete-orphan")
@@ -35,6 +37,12 @@ class User(TimestampMixin, Base):
     )
     budgets = relationship("Budget", back_populates="user", cascade="all, delete-orphan")
     ai_reports = relationship("AiReport", back_populates="user", cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
+    binance_balance_snapshots = relationship(
+        "BinanceBalanceSnapshot",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
     market_integration_settings = relationship(
         "MarketIntegrationSetting",
         back_populates="user",

@@ -6,8 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.database.session import SessionLocal
+from app.routers.accounts import router as accounts_router
 from app.routers.ai_reports import router as ai_reports_router
 from app.routers.auth import router as auth_router
+from app.routers.binance import router as binance_router
 from app.routers.budgets import router as budgets_router
 from app.routers.categories import router as categories_router
 from app.routers.dashboard import router as dashboard_router
@@ -15,7 +17,10 @@ from app.routers.dollar_savings import router as dollar_savings_router
 from app.routers.health import router as health_router
 from app.routers.insights import router as insights_router
 from app.routers.investments import router as investments_router
+from app.routers.jobs import router as jobs_router
 from app.routers.market_data import router as market_data_router
+from app.routers.mercado_pago import router as mercado_pago_router
+from app.routers.notifications import router as notifications_router
 from app.routers.saving_goals import router as saving_goals_router
 from app.routers.simulations import router as simulations_router
 from app.routers.transactions import router as transactions_router
@@ -60,6 +65,8 @@ def create_app() -> FastAPI:
     )
     app.include_router(health_router)
     app.include_router(auth_router)
+    app.include_router(binance_router)
+    app.include_router(accounts_router)
     app.include_router(ai_reports_router)
     app.include_router(categories_router)
     app.include_router(transactions_router)
@@ -67,7 +74,10 @@ def create_app() -> FastAPI:
     app.include_router(saving_goals_router)
     app.include_router(dollar_savings_router)
     app.include_router(investments_router)
+    app.include_router(jobs_router)
     app.include_router(market_data_router)
+    app.include_router(mercado_pago_router)
+    app.include_router(notifications_router)
     app.include_router(insights_router)
     app.include_router(simulations_router)
     app.include_router(dashboard_router)

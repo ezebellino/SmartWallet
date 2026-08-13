@@ -64,7 +64,10 @@ export function AuthPanel({ onAuthenticated, language, onLanguageChange }: Props
               <span className="mt-2 flex items-center gap-2 rounded-md border border-borderSoft bg-background px-3 py-3 text-sm">
                 <User size={16} className="text-muted" />
                 <input
+                  autoComplete="name"
                   className="w-full bg-transparent text-text outline-none"
+                  id="full-name"
+                  name="fullName"
                   value={fullName}
                   onChange={(event) => setFullName(event.target.value)}
                 />
@@ -76,7 +79,10 @@ export function AuthPanel({ onAuthenticated, language, onLanguageChange }: Props
             <span className="mt-2 flex items-center gap-2 rounded-md border border-borderSoft bg-background px-3 py-3 text-sm">
               <Mail size={16} className="text-muted" />
               <input
+                autoComplete="email"
                 className="w-full bg-transparent text-text outline-none"
+                id="email"
+                name="email"
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
@@ -88,7 +94,10 @@ export function AuthPanel({ onAuthenticated, language, onLanguageChange }: Props
             <span className="mt-2 flex items-center gap-2 rounded-md border border-borderSoft bg-background px-3 py-3 text-sm">
               <LockKeyhole size={16} className="text-muted" />
               <input
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
                 className="w-full bg-transparent text-text outline-none"
+                id="password"
+                name="password"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}

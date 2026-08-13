@@ -7,12 +7,15 @@ from app.models.transaction import TransactionType
 
 
 class TransactionBase(BaseModel):
+    account_id: int | None = None
     category_id: int
     type: TransactionType
     amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
     currency: str = Field(default="ARS", min_length=3, max_length=3)
     description: str | None = Field(default=None, max_length=500)
     transaction_date: date
+    external_source: str | None = Field(default=None, max_length=40)
+    external_id: str | None = Field(default=None, max_length=160)
 
     @field_validator("currency")
     @classmethod
@@ -25,6 +28,7 @@ class TransactionCreate(TransactionBase):
 
 
 class TransactionUpdate(BaseModel):
+    account_id: int | None = None
     category_id: int | None = None
     amount: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=2)
     currency: str | None = Field(default=None, min_length=3, max_length=3)
@@ -43,4 +47,3 @@ class TransactionRead(TransactionBase):
     id: int
     created_at: datetime
     updated_at: datetime
-

@@ -48,6 +48,16 @@ function Wait-HttpOk([string]$Url, [int]$Seconds) {
   return $false
 }
 
+function Start-HiddenProcess([string]$FileName, [string[]]$Arguments, [string]$WorkingDirectory, [string]$OutLog, [string]$ErrLog) {
+  $psi = New-Object System.Diagnostics.ProcessStartInfo
+  $psi.FileName = $FileName
+  $psi.WorkingDirectory = $WorkingDirectory
+  $psi.Arguments = [string]::Join(" ", $Arguments)
+  $psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
+  $psi.UseShellExecute = $true
+  [System.Diagnostics.Process]::Start($psi) | Out-Null
+}
+
 if ($Restart) {
   Stop-Port 3000
   Stop-Port 8000
@@ -65,7 +75,7 @@ try {
 }
 
 if (-not (Get-ListeningPid 8000)) {
-  Start-Process -FilePath $backendPython -ArgumentList "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000" -WorkingDirectory $backend -RedirectStandardOutput $backendLog -RedirectStandardError $backendErr -WindowStyle Hidden
+  Start-HiddenProcess $backendPython @("-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000") $backend $backendLog $backendErr
 }
 
 if (-not (Wait-HttpOk "http://127.0.0.1:8000/health" 20)) {
@@ -80,7 +90,7 @@ try {
 }
 
 if (-not (Get-ListeningPid 3000)) {
-  Start-Process -FilePath "npm.cmd" -ArgumentList "run", "start" -WorkingDirectory $frontend -RedirectStandardOutput $frontendLog -RedirectStandardError $frontendErr -WindowStyle Hidden
+  Start-HiddenProcess "cmd.exe" @("/d", "/c", "npm.cmd", "run", "start") $frontend $frontendLog $frontendErr
 }
 
 if (-not (Wait-HttpOk "http://127.0.0.1:3000" 25)) {

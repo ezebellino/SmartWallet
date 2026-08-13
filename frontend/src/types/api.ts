@@ -90,12 +90,43 @@ export type TransactionType = "income" | "expense";
 
 export type Transaction = {
   id: number;
+  account_id: number | null;
   category_id: number;
   type: TransactionType;
   amount: string;
   currency: string;
   description: string | null;
   transaction_date: string;
+  external_source: string | null;
+  external_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AccountType = "bank" | "wallet" | "cash" | "investment" | "other";
+
+export type FinancialAccount = {
+  id: number;
+  name: string;
+  type: AccountType;
+  currency: string;
+  institution: string | null;
+  color: string;
+  icon: string;
+  initial_balance: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AccountTransfer = {
+  id: number;
+  from_account_id: number;
+  to_account_id: number;
+  amount: string;
+  currency: string;
+  description: string | null;
+  transfer_date: string;
   created_at: string;
   updated_at: string;
 };
@@ -207,10 +238,18 @@ export type PortfolioPosition = {
   unrealized_gain_loss: string | null;
 };
 
+export type PortfolioCurrencyTotal = {
+  currency: string;
+  total_invested: string;
+  total_estimated_value: string;
+  total_unrealized_gain_loss: string;
+};
+
 export type PortfolioSummary = {
   total_invested: string;
   total_estimated_value: string;
   total_unrealized_gain_loss: string;
+  totals_by_currency: PortfolioCurrencyTotal[];
   positions: PortfolioPosition[];
   risk_warning: string;
 };
@@ -268,6 +307,41 @@ export type MarketDataIntegrationUpdate = {
   username?: string | null;
   password?: string | null;
   clear_api_key?: boolean;
+};
+
+export type MercadoPagoIntegration = {
+  enabled: boolean;
+  status: "active" | "needs_token" | "disabled" | string;
+  has_access_token: boolean;
+  access_token_last4: string | null;
+};
+
+export type MercadoPagoReport = {
+  id: number | string | null;
+  begin_date: string | null;
+  end_date: string | null;
+  file_name: string;
+  created_from: string | null;
+  date_created: string | null;
+};
+
+export type MercadoPagoImportMovement = {
+  external_id: string;
+  transaction_id: number | null;
+  type: TransactionType | "unknown" | string;
+  amount: string;
+  currency: string;
+  date: string;
+  status: "imported" | "skipped" | "failed" | string;
+  description: string;
+};
+
+export type MercadoPagoImportResponse = {
+  imported_count: number;
+  skipped_count: number;
+  failed_count: number;
+  file_name: string | null;
+  movements: MercadoPagoImportMovement[];
 };
 
 export type InvestmentPriceSnapshot = {
@@ -344,4 +418,113 @@ export type AiReport = {
   risk_warnings: string;
   created_at: string;
   updated_at: string;
+};
+
+export type NotificationPriority = "low" | "medium" | "high";
+
+export type NotificationType =
+  | "budget_near_limit"
+  | "budget_exceeded"
+  | "ai_report_pending"
+  | "goal_without_contribution"
+  | "binance_portfolio_alert";
+
+export type AppNotification = {
+  id: number;
+  type: NotificationType;
+  priority: NotificationPriority;
+  title: string;
+  message: string;
+  action_label: string | null;
+  action_section: string | null;
+  period_year: number | null;
+  period_month: number | null;
+  is_read: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type NotificationGenerateResponse = {
+  generated_count: number;
+  notifications: AppNotification[];
+};
+
+export type JobRun = {
+  id: number;
+  job_key: string;
+  status: string;
+  started_at: string;
+  finished_at: string | null;
+  duration_ms: number | null;
+  users_processed: number;
+  success_count: number;
+  failure_count: number;
+  message: string | null;
+  details: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BinanceIntegration = {
+  enabled: boolean;
+  status: "active" | "needs_key" | "disabled" | string;
+  has_api_key: boolean;
+  api_key_last4: string | null;
+  last_sync_at: string | null;
+};
+
+export type BinanceBalance = {
+  asset: string;
+  free: string;
+  locked: string;
+  total: string;
+};
+
+export type BinanceAccount = {
+  account_type: string | null;
+  can_trade: boolean | null;
+  can_deposit: boolean | null;
+  can_withdraw: boolean | null;
+  permissions: string[];
+  balances: BinanceBalance[];
+  fetched_at: string;
+};
+
+export type BinanceBalanceSnapshot = BinanceBalance & {
+  id: number;
+  fetched_at: string;
+  created_at: string;
+};
+
+export type BinanceSyncResponse = {
+  synced_count: number;
+  balances: BinanceBalanceSnapshot[];
+  notifications_generated_count: number;
+};
+
+export type BinancePortfolioHolding = BinanceBalance & {
+  price_usd: string | null;
+  estimated_value_usd: string | null;
+  allocation_percentage: number | null;
+  price_source: string | null;
+};
+
+export type BinancePortfolioAlert = {
+  type: string;
+  severity: "low" | "medium" | "high" | string;
+  title: string;
+  message: string;
+  asset: string | null;
+  value: string | null;
+  percentage: number | null;
+};
+
+export type BinancePortfolioSummary = {
+  total_estimated_value_usd: string;
+  asset_count: number;
+  priced_asset_count: number;
+  unpriced_asset_count: number;
+  latest_sync_at: string | null;
+  holdings: BinancePortfolioHolding[];
+  alerts: BinancePortfolioAlert[];
 };
