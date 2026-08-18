@@ -36,6 +36,7 @@ import {
   getInvestmentOperations,
   getInvestmentPriceHistory,
   getJobRuns,
+  getMercadoPagoSyncJobStatus,
   getPortfolioRefreshJobStatus,
   getMarketDataIntegrations,
   getMercadoPagoIntegration,
@@ -51,6 +52,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   refreshMarketPrices,
+  runMercadoPagoSyncJob,
   runPortfolioRefreshJob,
   simulateCompoundInterest,
   syncBinanceBalances,
@@ -180,6 +182,8 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
   const [investmentOperations, setInvestmentOperations] = useState<InvestmentOperation[]>([]);
   const [jobRuns, setJobRuns] = useState<JobRun[]>([]);
   const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
+  const [mercadoPagoJobRuns, setMercadoPagoJobRuns] = useState<JobRun[]>([]);
+  const [mercadoPagoJobStatus, setMercadoPagoJobStatus] = useState<JobStatus | null>(null);
   const [marketDataIntegrations, setMarketDataIntegrations] = useState<MarketDataIntegrationsResponse | null>(null);
   const [marketDataRefresh, setMarketDataRefresh] = useState<MarketDataRefreshResponse | null>(null);
   const [mercadoPagoIntegration, setMercadoPagoIntegration] = useState<MercadoPagoIntegration | null>(null);
@@ -192,6 +196,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [isGeneratingNotifications, setIsGeneratingNotifications] = useState(false);
   const [isRunningPortfolioWorker, setIsRunningPortfolioWorker] = useState(false);
+  const [isRunningMercadoPagoWorker, setIsRunningMercadoPagoWorker] = useState(false);
   const [isQuickTransactionOpen, setIsQuickTransactionOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const t = (key: TranslationKey) => translations[language][key];
@@ -576,6 +581,8 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         investmentOperationsResponse,
         jobRunsResponse,
         jobStatusResponse,
+        mercadoPagoJobRunsResponse,
+        mercadoPagoJobStatusResponse,
         marketDataIntegrationsResponse,
         mercadoPagoIntegrationResponse,
         notificationsResponse,
@@ -603,6 +610,8 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         getInvestmentOperations(token),
         getJobRuns(token, "portfolio_refresh"),
         getPortfolioRefreshJobStatus(token),
+        getJobRuns(token, "mercado_pago_sync"),
+        getMercadoPagoSyncJobStatus(token),
         getMarketDataIntegrations(token),
         getMercadoPagoIntegration(token),
         getNotifications(token),
@@ -636,6 +645,8 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
       setInvestmentOperations(investmentOperationsResponse);
       setJobRuns(jobRunsResponse);
       setJobStatus(jobStatusResponse);
+      setMercadoPagoJobRuns(mercadoPagoJobRunsResponse);
+      setMercadoPagoJobStatus(mercadoPagoJobStatusResponse);
       setMarketDataIntegrations(marketDataIntegrationsResponse);
       setMercadoPagoIntegration(mercadoPagoIntegrationResponse);
       setNotifications(notificationsResponse);
@@ -1442,6 +1453,25 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     }
   }
 
+  async function handleRunMercadoPagoWorker() {
+    if (!token) {
+      setStatus(t("signInToManageData"));
+      return;
+    }
+
+    setIsRunningMercadoPagoWorker(true);
+    try {
+      const run = await runMercadoPagoSyncJob(token);
+      setMercadoPagoJobRuns((current) => [run, ...current.filter((item) => item.id !== run.id)]);
+      await refreshFromApi();
+      setStatus(`${t("workerRunCompleted")}: ${run.status}`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("authFailed"));
+    } finally {
+      setIsRunningMercadoPagoWorker(false);
+    }
+  }
+
   const handleLoadInvestmentPriceHistory = useCallback(async (assetId: number, limit = 30): Promise<InvestmentPriceSnapshot[]> => {
     if (!token) {
       setStatus(t("signInToManageData"));
@@ -1666,12 +1696,17 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
               />
               <MercadoPagoWalletPanel
                 initialIntegration={mercadoPagoIntegration}
+                isRunningMercadoPagoWorker={isRunningMercadoPagoWorker}
                 language={language}
+                mercadoPagoJobRuns={mercadoPagoJobRuns}
+                mercadoPagoJobStatus={mercadoPagoJobStatus}
                 selectedMonth={selectedDashboardPeriod.month}
                 selectedYear={selectedDashboardPeriod.year}
                 token={token}
                 onImported={refreshFromApi}
+                onRunMercadoPagoWorker={handleRunMercadoPagoWorker}
                 onStatusChange={setStatus}
+                t={t}
               />
               <CategoryManager
                 categories={categories}

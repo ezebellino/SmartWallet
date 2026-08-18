@@ -6,6 +6,7 @@
     "dev": "next dev --disable-source-maps -H 127.0.0.1",
     "build": "next build",
     "start": "next start -H 127.0.0.1",
+    "start:railway": "next start -H 0.0.0.0 -p $PORT",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },

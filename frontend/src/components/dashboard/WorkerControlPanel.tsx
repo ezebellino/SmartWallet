@@ -8,8 +8,12 @@ type Props = {
   isRunning: boolean;
   jobRuns: JobRun[];
   jobStatus: JobStatus | null;
+  localWorkerCommand?: string;
+  manualModeHint?: string;
   onRun: () => Promise<void>;
+  subtitle?: string;
   t: (key: TranslationKey) => string;
+  title?: string;
 };
 
 const LOCAL_WORKER_COMMAND = "docker compose --profile worker up -d worker";
@@ -69,12 +73,23 @@ function workerStateLabel(state: string, t: (key: TranslationKey) => string) {
   return state;
 }
 
-export function WorkerControlPanel({ isDisabled, isRunning, jobRuns, jobStatus, onRun, t }: Props) {
+export function WorkerControlPanel({
+  isDisabled,
+  isRunning,
+  jobRuns,
+  jobStatus,
+  localWorkerCommand = LOCAL_WORKER_COMMAND,
+  manualModeHint,
+  onRun,
+  subtitle,
+  t,
+  title
+}: Props) {
   const latestRun = jobRuns[0] ?? null;
   const [copiedCommand, setCopiedCommand] = useState(false);
 
   async function handleCopyWorkerCommand() {
-    await navigator.clipboard.writeText(LOCAL_WORKER_COMMAND);
+    await navigator.clipboard.writeText(localWorkerCommand);
     setCopiedCommand(true);
     window.setTimeout(() => setCopiedCommand(false), 1800);
   }
@@ -85,10 +100,10 @@ export function WorkerControlPanel({ isDisabled, isRunning, jobRuns, jobStatus, 
         <div>
           <div className="flex items-center gap-2 text-sm font-medium text-text">
             <ServerCog size={16} className="text-cyan" />
-            {t("workerPanelTitle")}
+            {title ?? t("workerPanelTitle")}
           </div>
-          <p className="mt-1 text-xs leading-5 text-muted">{t("workerPanelSubtitle")}</p>
-          <p className="mt-1 text-xs leading-5 text-muted">{t("workerManualModeHint")}</p>
+          <p className="mt-1 text-xs leading-5 text-muted">{subtitle ?? t("workerPanelSubtitle")}</p>
+          <p className="mt-1 text-xs leading-5 text-muted">{manualModeHint ?? t("workerManualModeHint")}</p>
         </div>
         <button
           className="inline-flex items-center gap-2 rounded-md border border-cyan/35 bg-cyan/10 px-3 py-2 text-xs font-semibold text-cyan transition hover:bg-cyan/15 disabled:cursor-not-allowed disabled:opacity-50"
@@ -137,7 +152,7 @@ export function WorkerControlPanel({ isDisabled, isRunning, jobRuns, jobStatus, 
               <div className="text-xs font-semibold text-amber">{t("workerStoppedHint")}</div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <code className="min-w-0 flex-1 overflow-auto rounded-md border border-borderSoft bg-background px-2 py-1.5 text-xs text-text">
-                  {LOCAL_WORKER_COMMAND}
+                  {localWorkerCommand}
                 </code>
                 <button
                   className="inline-flex items-center gap-2 rounded-md border border-amber/30 px-2.5 py-1.5 text-xs font-semibold text-amber transition hover:bg-amber/10"

@@ -48,7 +48,7 @@ class MercadoPagoProvider:
             },
             timeout=self.timeout_seconds,
         )
-        response.raise_for_status()
+        self._raise_for_status(response, "request Mercado Pago report")
 
     def list_account_money_reports(self, access_token: str) -> list[dict[str, Any]]:
         response = httpx.get(
@@ -56,7 +56,7 @@ class MercadoPagoProvider:
             headers=self._headers(access_token),
             timeout=self.timeout_seconds,
         )
-        response.raise_for_status()
+        self._raise_for_status(response, "list Mercado Pago reports")
         data = response.json()
         return data if isinstance(data, list) else []
 
@@ -66,7 +66,7 @@ class MercadoPagoProvider:
             headers={"Authorization": f"Bearer {access_token}"},
             timeout=self.timeout_seconds,
         )
-        response.raise_for_status()
+        self._raise_for_status(response, "download Mercado Pago report")
         return response.text
 
     def _headers(self, access_token: str) -> dict[str, str]:
@@ -75,6 +75,34 @@ class MercadoPagoProvider:
             "content-type": "application/json",
             "Authorization": f"Bearer {access_token}",
         }
+
+    def _raise_for_status(self, response: httpx.Response, action: str) -> None:
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            message = self._error_message(response)
+            raise ValueError(f"Could not {action}: {message}") from exc
+
+    def _error_message(self, response: httpx.Response) -> str:
+        fallback = f"Mercado Pago returned HTTP {response.status_code}"
+        try:
+            data = response.json()
+        except ValueError:
+            return fallback
+
+        if isinstance(data, dict):
+            for key in ("message", "error", "detail"):
+                value = data.get(key)
+                if isinstance(value, str) and value:
+                    return value[:500]
+            cause = data.get("cause")
+            if isinstance(cause, list) and cause:
+                first = cause[0]
+                if isinstance(first, dict):
+                    description = first.get("description") or first.get("message") or first.get("code")
+                    if isinstance(description, str) and description:
+                        return description[:500]
+        return fallback
 
     def _start_of_day(self, value: date) -> str:
         return datetime.combine(value, time.min, tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")

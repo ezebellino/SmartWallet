@@ -17,6 +17,7 @@ Stage 0 and Stage 1 are being built first:
 ## Product Planning
 
 - [SDD and live roadmap](docs/sdd-roadmap.md)
+- [Railway deployment guide](docs/railway-deployment.md)
 
 ## Planned Stack
 
@@ -144,6 +145,24 @@ If port `3000` is stuck with an old frontend process, use:
 
 ```powershell
 .\start-app.ps1 -Restart
+```
+
+Run the portfolio refresh worker:
+
+```powershell
+docker compose --profile worker up -d worker
+```
+
+Run the Mercado Pago sync worker:
+
+```powershell
+docker compose --profile worker up -d mercado-pago-worker
+```
+
+Run one Mercado Pago sync job manually:
+
+```powershell
+docker compose exec backend python -m app.worker run mercado_pago_sync
 ```
 
 Run migrations against the configured database:

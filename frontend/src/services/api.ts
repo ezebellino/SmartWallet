@@ -159,8 +159,21 @@ export function getPortfolioRefreshJobStatus(token: string) {
   });
 }
 
+export function getMercadoPagoSyncJobStatus(token: string) {
+  return request<JobStatus>("/jobs/mercado-pago-sync/status", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
 export function runPortfolioRefreshJob(token: string) {
   return request<JobRun>("/jobs/portfolio-refresh/run", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function runMercadoPagoSyncJob(token: string) {
+  return request<JobRun>("/jobs/mercado-pago-sync/run", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` }
   });

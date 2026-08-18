@@ -10,18 +10,24 @@ import {
   syncMercadoPagoMovements,
   updateMercadoPagoIntegration
 } from "@/services/api";
-import type { Language } from "@/i18n";
-import type { MercadoPagoImportResponse, MercadoPagoIntegration, MercadoPagoReport } from "@/types/api";
+import type { Language, TranslationKey } from "@/i18n";
+import type { JobRun, JobStatus, MercadoPagoImportResponse, MercadoPagoIntegration, MercadoPagoReport } from "@/types/api";
 import { Panel } from "@/components/ui";
+import { WorkerControlPanel } from "@/components/dashboard/WorkerControlPanel";
 
 type Props = {
   token: string | null;
   language: Language;
   initialIntegration: MercadoPagoIntegration | null;
+  isRunningMercadoPagoWorker: boolean;
+  mercadoPagoJobRuns: JobRun[];
+  mercadoPagoJobStatus: JobStatus | null;
   selectedMonth: number;
   selectedYear: number;
   onImported: () => Promise<void>;
+  onRunMercadoPagoWorker: () => Promise<void>;
   onStatusChange: (message: string) => void;
+  t: (key: TranslationKey) => string;
 };
 
 function formatDate(value: Date) {
@@ -39,10 +45,15 @@ export function MercadoPagoWalletPanel({
   token,
   language,
   initialIntegration,
+  isRunningMercadoPagoWorker,
+  mercadoPagoJobRuns,
+  mercadoPagoJobStatus,
   selectedMonth,
   selectedYear,
   onImported,
-  onStatusChange
+  onRunMercadoPagoWorker,
+  onStatusChange,
+  t
 }: Props) {
   const [integration, setIntegration] = useState<MercadoPagoIntegration | null>(initialIntegration);
   const [accessToken, setAccessToken] = useState("");
@@ -72,6 +83,9 @@ export function MercadoPagoWalletPanel({
             reportRange: "Report range",
             syncMovements: "Sync movements",
             syncHelp: "Requests the selected period and imports it automatically when the report is already available.",
+            workerTitle: "Mercado Pago worker",
+            workerSubtitle: "Automatically syncs recent wallet movements without duplicating imported transactions.",
+            workerHint: "This run uses the configured lookback window. The continuous Docker worker runs separately.",
             from: "From",
             to: "To",
             reports: "Available reports",
@@ -102,6 +116,9 @@ export function MercadoPagoWalletPanel({
             reportRange: "Rango del reporte",
             syncMovements: "Sincronizar movimientos",
             syncHelp: "Pide el periodo seleccionado e importa automaticamente si el reporte ya esta disponible.",
+            workerTitle: "Worker Mercado Pago",
+            workerSubtitle: "Sincroniza automaticamente movimientos recientes de la billetera sin duplicar transacciones.",
+            workerHint: "Esta ejecucion usa la ventana reciente configurada. El worker continuo de Docker corre aparte.",
             from: "Desde",
             to: "Hasta",
             reports: "Reportes disponibles",
@@ -385,6 +402,19 @@ export function MercadoPagoWalletPanel({
           </div>
         </div>
       ) : null}
+
+      <WorkerControlPanel
+        isDisabled={!token || integration?.status !== "active"}
+        isRunning={isRunningMercadoPagoWorker}
+        jobRuns={mercadoPagoJobRuns}
+        jobStatus={mercadoPagoJobStatus}
+        localWorkerCommand="docker compose --profile worker up -d mercado-pago-worker"
+        manualModeHint={copy.workerHint}
+        onRun={onRunMercadoPagoWorker}
+        subtitle={copy.workerSubtitle}
+        t={t}
+        title={copy.workerTitle}
+      />
     </Panel>
   );
 }
