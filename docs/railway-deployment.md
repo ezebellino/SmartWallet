@@ -115,3 +115,4 @@ Open https://<frontend-domain>
 - Do not use localhost for Mercado Pago productive credentials.
 - Railway root directory matters: `/backend` and `/frontend` are independent services.
 - If a service does not pick up the expected config file, set commands manually in Railway service settings.
+- If a deploy fails without build/deploy logs, first verify the Docker image locally and then trigger a fresh GitHub deploy.
