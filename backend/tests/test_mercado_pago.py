@@ -1,5 +1,7 @@
 from datetime import date
 
+import httpx
+
 from sqlalchemy.orm import Session
 
 from app.services.mercado_pago import MercadoPagoProvider
@@ -118,6 +120,78 @@ def test_mercado_pago_imports_report_and_skips_duplicates(client, auth_headers, 
     duplicate_body = duplicate_response.json()
     assert duplicate_body["imported_count"] == 0
     assert duplicate_body["skipped_count"] == 2
+
+
+def test_mercado_pago_import_uses_human_readable_description(client, auth_headers, db_session: Session) -> None:
+    csv_text = "\n".join(
+        [
+            "SOURCE_ID;EXTERNAL_REFERENCE;TRANSACTION_TYPE;TRANSACTION_AMOUNT;TRANSACTION_CURRENCY;TRANSACTION_DATE;SETTLEMENT_NET_AMOUNT;DESCRIPTION;PAYER_NAME;STORE_NAME",
+            "mp-store-1;;SETTLEMENT;-2114.00;ARS;2026-08-18T13:00:00.000-03:00;-2114.00;Cafe Martinez;;Sucursal Centro",
+            "mp-transfer-1;;SETTLEMENT;50000.00;ARS;2026-08-18T14:00:00.000-03:00;50000.00;SETTLEMENT;Juan Perez;",
+        ]
+    )
+
+    client.patch(
+        "/mercado-pago/integration",
+        headers=auth_headers,
+        json={"enabled": True, "access_token": "APP_USR-1234567890abcdef"},
+    )
+    from app.routers.mercado_pago import get_mercado_pago_service
+    from app.services.mercado_pago import MercadoPagoService
+    from app.main import app
+
+    fake_provider = FakeMercadoPagoProvider(csv_text)
+
+    def override_service() -> MercadoPagoService:
+        return MercadoPagoService(db_session, provider=fake_provider)
+
+    app.dependency_overrides[get_mercado_pago_service] = override_service
+    try:
+        response = client.post("/mercado-pago/import", headers=auth_headers, json={})
+    finally:
+        app.dependency_overrides.pop(get_mercado_pago_service, None)
+
+    assert response.status_code == 200
+    movements = response.json()["movements"]
+    assert movements[0]["description"] == "Mercado Pago - Cafe Martinez"
+    assert movements[1]["description"] == "Mercado Pago - Juan Perez"
+
+
+def test_mercado_pago_provider_updates_old_report_config(monkeypatch) -> None:
+    requests: list[tuple[str, str, dict | None]] = []
+
+    def fake_get(url: str, headers: dict, timeout: float) -> httpx.Response:
+        requests.append(("GET", url, None))
+        request = httpx.Request("GET", url)
+        return httpx.Response(
+            200,
+            request=request,
+            json={
+                "columns": [{"key": "SOURCE_ID"}],
+                "file_name_prefix": "settlement-report",
+                "frequency": {"hour": 0, "value": 1, "type": "monthly"},
+                "separator": ";",
+                "display_timezone": "GMT-03",
+                "report_translation": "es",
+                "header_language": "es",
+                "scheduled": False,
+            },
+        )
+
+    def fake_put(url: str, headers: dict, json: dict, timeout: float) -> httpx.Response:
+        requests.append(("PUT", url, json))
+        return httpx.Response(200, request=httpx.Request("PUT", url), json=json)
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+    monkeypatch.setattr(httpx, "put", fake_put)
+
+    MercadoPagoProvider().ensure_account_money_report_config("APP_USR-test")
+
+    assert [method for method, _, _ in requests] == ["GET", "PUT"]
+    updated_payload = requests[1][2]
+    assert updated_payload is not None
+    updated_columns = {column["key"] for column in updated_payload["columns"]}
+    assert {"DESCRIPTION", "PAYER_NAME", "STORE_NAME", "POS_NAME"}.issubset(updated_columns)
 
 
 def test_mercado_pago_sync_imports_matching_report(client, auth_headers, db_session: Session) -> None:

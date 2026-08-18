@@ -40,6 +40,14 @@ REPORT_COLUMNS = [
     "TRANSACTION_DATE",
     "SETTLEMENT_NET_AMOUNT",
     "SETTLEMENT_CURRENCY",
+    "DESCRIPTION",
+    "PAYER_NAME",
+    "STORE_NAME",
+    "POS_NAME",
+    "POI_WALLET_NAME",
+    "POI_BANK_NAME",
+    "BUSINESS_UNIT",
+    "PAYMENT_METHOD",
 ]
 
 
@@ -85,6 +93,9 @@ class MercadoPagoProvider:
             timeout=self.timeout_seconds,
         )
         if response.status_code == 200:
+            current_config = response.json()
+            if isinstance(current_config, dict):
+                self._update_config_if_missing_columns(access_token, current_config)
             return
         if response.status_code != 404:
             self._raise_for_status(response, "read Mercado Pago report configuration")
@@ -98,6 +109,48 @@ class MercadoPagoProvider:
         if create_response.status_code in (200, 201, 409):
             return
         self._raise_for_status(create_response, "create Mercado Pago report configuration")
+
+    def _update_config_if_missing_columns(self, access_token: str, current_config: dict[str, Any]) -> None:
+        current_columns = current_config.get("columns", [])
+        current_keys = {
+            str(item.get("key", "")).upper()
+            for item in current_columns
+            if isinstance(item, dict)
+        }
+        if set(REPORT_COLUMNS).issubset(current_keys):
+            return
+
+        updated_config = {
+            **self._default_report_config(),
+            **{
+                key: value
+                for key, value in current_config.items()
+                if key
+                in {
+                    "file_name_prefix",
+                    "frequency",
+                    "separator",
+                    "display_timezone",
+                    "report_translation",
+                    "header_language",
+                    "scheduled",
+                    "include_withdraw",
+                    "refund_detailed",
+                    "shipping_detail",
+                    "coupon_detailed",
+                    "show_chargeback_cancel",
+                    "show_fee_prevision",
+                }
+            },
+            "columns": [{"key": key} for key in REPORT_COLUMNS],
+        }
+        update_response = httpx.put(
+            f"{self.base_url}/v1/account/settlement_report/config",
+            headers=self._headers(access_token),
+            json=updated_config,
+            timeout=self.timeout_seconds,
+        )
+        self._raise_for_status(update_response, "update Mercado Pago report configuration")
 
     def download_account_money_report(self, access_token: str, file_name: str) -> str:
         response = httpx.get(
@@ -430,6 +483,20 @@ class MercadoPagoService:
 
     def _description(self, row: dict[str, str]) -> str:
         transaction_type = self._row_value(row, "TRANSACTION_TYPE") or "Movimiento"
+        human_label = self._human_description_value(
+            row,
+            "DESCRIPTION",
+            "PAYER_NAME",
+            "STORE_NAME",
+            "POS_NAME",
+            "POI_WALLET_NAME",
+            "POI_BANK_NAME",
+            "BUSINESS_UNIT",
+            "PAYMENT_METHOD",
+        )
+        if human_label and human_label.upper() != transaction_type.upper():
+            return f"Mercado Pago - {self._clean_description(human_label)}"
+
         source_id = self._row_value(row, "SOURCE_ID")
         external_reference = self._row_value(row, "EXTERNAL_REFERENCE")
         parts = [f"Mercado Pago - {transaction_type}"]
@@ -438,6 +505,19 @@ class MercadoPagoService:
         if external_reference and external_reference != source_id:
             parts.append(f"ref {external_reference}")
         return " | ".join(parts)
+
+    def _human_description_value(self, row: dict[str, str], *keys: str) -> str | None:
+        transaction_type = (self._row_value(row, "TRANSACTION_TYPE") or "").upper()
+        technical_values = {transaction_type, "SETTLEMENT", "WITHDRAWAL", "REFUND", "CHARGEBACK", "DISPUTE", "PAYOUT"}
+        for key in keys:
+            value = self._row_value(row, key)
+            if value and value.upper() not in technical_values:
+                return value
+        return None
+
+    def _clean_description(self, value: str) -> str:
+        cleaned = " ".join(value.replace("_", " ").split())
+        return cleaned[:500]
 
     def _row_value(self, row: dict[str, str], *keys: str) -> str | None:
         normalized = {key.upper().strip(): value for key, value in row.items()}
