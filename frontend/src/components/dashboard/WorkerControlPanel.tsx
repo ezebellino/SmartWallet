@@ -74,6 +74,23 @@ function workerStateLabel(state: string, t: (key: TranslationKey) => string) {
   return state;
 }
 
+function asNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function asText(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : "-";
+}
+
+function firstUserDetail(run: JobRun | null) {
+  const users = run?.details?.users;
+  if (!Array.isArray(users)) {
+    return null;
+  }
+  const [first] = users;
+  return first && typeof first === "object" ? (first as Record<string, unknown>) : null;
+}
+
 export function WorkerControlPanel({
   isDisabled,
   isRunning,
@@ -88,6 +105,7 @@ export function WorkerControlPanel({
   title
 }: Props) {
   const latestRun = jobRuns[0] ?? null;
+  const latestUserDetail = firstUserDetail(latestRun);
   const [copiedCommand, setCopiedCommand] = useState(false);
 
   async function handleCopyWorkerCommand() {
@@ -175,32 +193,69 @@ export function WorkerControlPanel({
       ) : null}
 
       {latestRun ? (
-        <div className="mt-4 grid gap-2 md:grid-cols-5">
-          <div className="rounded-md border border-borderSoft bg-panel px-3 py-2">
-            <div className="text-xs text-muted">{t("status")}</div>
-            <div className={`mt-1 inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold ${statusClass(latestRun.status)}`}>
-              {latestRun.status}
+        <>
+          <div className="mt-4 grid gap-2 md:grid-cols-5">
+            <div className="rounded-md border border-borderSoft bg-panel px-3 py-2">
+              <div className="text-xs text-muted">{t("status")}</div>
+              <div className={`mt-1 inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold ${statusClass(latestRun.status)}`}>
+                {latestRun.status}
+              </div>
+            </div>
+            <div className="rounded-md border border-borderSoft bg-panel px-3 py-2">
+              <div className="text-xs text-muted">{t("workerUsersProcessed")}</div>
+              <div className="mt-1 text-base font-semibold text-text">{latestRun.users_processed}</div>
+            </div>
+            <div className="rounded-md border border-borderSoft bg-panel px-3 py-2">
+              <div className="text-xs text-muted">{t("workerSuccessFailure")}</div>
+              <div className="mt-1 text-base font-semibold text-text">
+                {latestRun.success_count}/{latestRun.failure_count}
+              </div>
+            </div>
+            <div className="rounded-md border border-borderSoft bg-panel px-3 py-2">
+              <div className="text-xs text-muted">{t("lastRefresh")}</div>
+              <div className="mt-1 text-xs font-semibold text-text">{formatDateTime(latestRun.finished_at)}</div>
+            </div>
+            <div className="rounded-md border border-borderSoft bg-panel px-3 py-2">
+              <div className="text-xs text-muted">{t("workerDuration")}</div>
+              <div className="mt-1 text-base font-semibold text-text">{formatDuration(latestRun.duration_ms)}</div>
             </div>
           </div>
-          <div className="rounded-md border border-borderSoft bg-panel px-3 py-2">
-            <div className="text-xs text-muted">{t("workerUsersProcessed")}</div>
-            <div className="mt-1 text-base font-semibold text-text">{latestRun.users_processed}</div>
-          </div>
-          <div className="rounded-md border border-borderSoft bg-panel px-3 py-2">
-            <div className="text-xs text-muted">{t("workerSuccessFailure")}</div>
-            <div className="mt-1 text-base font-semibold text-text">
-              {latestRun.success_count}/{latestRun.failure_count}
+
+          {latestUserDetail ? (
+            <div className="mt-3 rounded-md border border-cyan/20 bg-cyan/5 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-semibold uppercase text-cyan">{t("workerLatestRunDiagnostic")}</span>
+                <span className={`rounded-md border px-2 py-0.5 text-xs font-semibold ${statusClass(asText(latestUserDetail.status))}`}>
+                  {asText(latestUserDetail.status)}
+                </span>
+              </div>
+              <div className="mt-3 grid gap-2 text-xs md:grid-cols-4">
+                <div className="rounded-md border border-borderSoft bg-background px-3 py-2">
+                  <div className="text-muted">{t("workerReports")}</div>
+                  <div className="mt-1 text-base font-semibold text-text">{asNumber(latestUserDetail.available_reports)}</div>
+                </div>
+                <div className="rounded-md border border-borderSoft bg-background px-3 py-2">
+                  <div className="text-muted">{t("workerReportRequested")}</div>
+                  <div className="mt-1 text-base font-semibold text-text">{latestUserDetail.report_requested ? t("yes") : t("no")}</div>
+                </div>
+                <div className="rounded-md border border-borderSoft bg-background px-3 py-2">
+                  <div className="text-muted">{t("workerImported")}</div>
+                  <div className="mt-1 text-base font-semibold text-text">{asNumber(latestUserDetail.imported_count)}</div>
+                </div>
+                <div className="rounded-md border border-borderSoft bg-background px-3 py-2">
+                  <div className="text-muted">{t("workerSkippedFailed")}</div>
+                  <div className="mt-1 text-base font-semibold text-text">
+                    {asNumber(latestUserDetail.skipped_count)} / {asNumber(latestUserDetail.failed_count)}
+                  </div>
+                </div>
+              </div>
+              <p className="mt-2 truncate text-xs text-muted">
+                {t("workerFile")}: {asText(latestUserDetail.file_name)}
+              </p>
+              {latestUserDetail.error ? <p className="mt-2 text-xs leading-5 text-rose">{asText(latestUserDetail.error)}</p> : null}
             </div>
-          </div>
-          <div className="rounded-md border border-borderSoft bg-panel px-3 py-2">
-            <div className="text-xs text-muted">{t("lastRefresh")}</div>
-            <div className="mt-1 text-xs font-semibold text-text">{formatDateTime(latestRun.finished_at)}</div>
-          </div>
-          <div className="rounded-md border border-borderSoft bg-panel px-3 py-2">
-            <div className="text-xs text-muted">{t("workerDuration")}</div>
-            <div className="mt-1 text-base font-semibold text-text">{formatDuration(latestRun.duration_ms)}</div>
-          </div>
-        </div>
+          ) : null}
+        </>
       ) : (
         <p className="mt-4 rounded-md border border-dashed border-borderSoft px-3 py-4 text-sm text-muted">
           {t("workerNoRuns")}

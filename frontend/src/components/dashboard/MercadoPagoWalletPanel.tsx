@@ -11,7 +11,14 @@ import {
   updateMercadoPagoIntegration
 } from "@/services/api";
 import type { Language, TranslationKey } from "@/i18n";
-import type { JobRun, JobStatus, MercadoPagoImportResponse, MercadoPagoIntegration, MercadoPagoReport } from "@/types/api";
+import type {
+  JobRun,
+  JobStatus,
+  MercadoPagoImportResponse,
+  MercadoPagoIntegration,
+  MercadoPagoReport,
+  MercadoPagoSyncResponse
+} from "@/types/api";
 import { Panel } from "@/components/ui";
 import { WorkerControlPanel } from "@/components/dashboard/WorkerControlPanel";
 
@@ -60,6 +67,7 @@ export function MercadoPagoWalletPanel({
   const [reports, setReports] = useState<MercadoPagoReport[]>([]);
   const [selectedFileName, setSelectedFileName] = useState("");
   const [lastImport, setLastImport] = useState<MercadoPagoImportResponse | null>(null);
+  const [lastSync, setLastSync] = useState<MercadoPagoSyncResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const initialRange = useMemo(() => monthRange(selectedYear, selectedMonth), [selectedMonth, selectedYear]);
   const [beginDate, setBeginDate] = useState(initialRange.beginDate);
@@ -99,7 +107,12 @@ export function MercadoPagoWalletPanel({
             requested: "Mercado Pago report requested",
             importedStatus: "Mercado Pago movements imported",
             syncPending: "Mercado Pago is preparing the report. Try again in a few minutes.",
-            syncImported: "Mercado Pago movements synced"
+            syncImported: "Mercado Pago movements synced",
+            latestSync: "Latest sync",
+            reportsFound: "Reports found",
+            reportRequested: "Report requested",
+            yes: "Yes",
+            no: "No"
           }
         : {
             title: "Wallet Mercado Pago",
@@ -132,7 +145,12 @@ export function MercadoPagoWalletPanel({
             requested: "Reporte de Mercado Pago solicitado",
             importedStatus: "Movimientos de Mercado Pago importados",
             syncPending: "Mercado Pago esta preparando el reporte. Volve a intentar en unos minutos.",
-            syncImported: "Movimientos de Mercado Pago sincronizados"
+            syncImported: "Movimientos de Mercado Pago sincronizados",
+            latestSync: "Ultima sincronizacion",
+            reportsFound: "Reportes encontrados",
+            reportRequested: "Reporte solicitado",
+            yes: "Si",
+            no: "No"
           },
     [language]
   );
@@ -236,6 +254,7 @@ export function MercadoPagoWalletPanel({
       } else {
         onStatusChange(response.message || copy.syncPending);
       }
+      setLastSync(response);
       await loadReports();
     });
   }
@@ -377,7 +396,7 @@ export function MercadoPagoWalletPanel({
         </select>
         <button
           className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-emerald px-3 py-2 text-sm font-semibold text-black transition hover:bg-emerald/90 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={!token || isLoading || integration?.status !== "active"}
+          disabled={!token || isLoading || integration?.status !== "active" || reports.length === 0}
           onClick={handleImportReport}
           type="button"
         >
@@ -385,6 +404,28 @@ export function MercadoPagoWalletPanel({
           {copy.importLatest}
         </button>
       </div>
+
+      {lastSync ? (
+        <div className="mt-4 rounded-md border border-cyan/20 bg-cyan/5 p-3 text-xs">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-semibold text-cyan">{copy.latestSync}</span>
+            <span className={`rounded-md border px-2 py-0.5 font-semibold ${lastSync.status === "imported" ? "border-emerald/30 text-emerald" : "border-amber/30 text-amber"}`}>
+              {lastSync.status}
+            </span>
+          </div>
+          <p className="mt-2 leading-5 text-muted">{lastSync.message}</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="rounded-md border border-borderSoft bg-background px-3 py-2">
+              <div className="text-muted">{copy.reportsFound}</div>
+              <div className="mt-1 text-base font-semibold text-text">{lastSync.available_reports}</div>
+            </div>
+            <div className="rounded-md border border-borderSoft bg-background px-3 py-2">
+              <div className="text-muted">{copy.reportRequested}</div>
+              <div className="mt-1 text-base font-semibold text-text">{lastSync.report_requested ? copy.yes : copy.no}</div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {lastImport ? (
         <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
