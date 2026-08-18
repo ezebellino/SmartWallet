@@ -98,6 +98,18 @@ cd backend
 .\.venv\Scripts\python.exe -m pytest
 ```
 
+Recommended Docker test run:
+
+```powershell
+.\run-backend-tests.ps1
+```
+
+Run only one backend test file:
+
+```powershell
+.\run-backend-tests.ps1 tests/test_mercado_pago.py
+```
+
 Run backend for frontend authentication:
 
 ```powershell
@@ -112,7 +124,7 @@ Run the Docker development stack:
 docker compose up --build -d
 ```
 
-The Docker backend runs Alembic migrations before starting Uvicorn and mounts `backend/app` plus `backend/alembic`, so code and migration changes are picked up without rebuilding the image for every source edit.
+The Docker backend runs Alembic migrations before starting Uvicorn and mounts `backend/app`, `backend/alembic`, and `backend/tests`, so code, migration, and test changes are picked up without rebuilding the image for every source edit.
 
 The frontend expects the API at:
 

@@ -19,3 +19,17 @@ class JobRunRead(BaseModel):
     details: dict | None
     created_at: datetime
     updated_at: datetime
+
+
+class JobStatusRead(BaseModel):
+    job_key: str
+    state: str
+    interval_minutes: int
+    latest_run: JobRunRead | None
+    heartbeat_status: str | None = None
+    heartbeat_last_seen_at: datetime | None = None
+    heartbeat_message: str | None = None
+    heartbeat_is_alive: bool = False
+    next_run_at: datetime | None
+    is_overdue: bool
+    message: str

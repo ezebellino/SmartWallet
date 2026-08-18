@@ -48,3 +48,12 @@ class JobRunRepository:
         if job_key:
             statement = statement.where(JobRun.job_key == job_key)
         return list(self.db.scalars(statement).all())
+
+    def latest(self, *, job_key: str) -> JobRun | None:
+        statement = (
+            select(JobRun)
+            .where(JobRun.job_key == job_key)
+            .order_by(JobRun.started_at.desc(), JobRun.id.desc())
+            .limit(1)
+        )
+        return self.db.scalars(statement).first()

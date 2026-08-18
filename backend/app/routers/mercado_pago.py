@@ -12,6 +12,8 @@ from app.schemas.mercado_pago import (
     MercadoPagoReportRead,
     MercadoPagoReportRequest,
     MercadoPagoReportRequestResponse,
+    MercadoPagoSyncRequest,
+    MercadoPagoSyncResponse,
 )
 from app.services.mercado_pago import MercadoPagoService
 
@@ -70,5 +72,17 @@ def import_report(
 ) -> MercadoPagoImportResponse:
     try:
         return service.import_report(current_user.id, data.file_name)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/sync", response_model=MercadoPagoSyncResponse)
+def sync_movements(
+    data: MercadoPagoSyncRequest,
+    current_user: User = Depends(get_current_user),
+    service: MercadoPagoService = Depends(get_mercado_pago_service),
+) -> MercadoPagoSyncResponse:
+    try:
+        return service.sync_movements(current_user.id, data.begin_date, data.end_date)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

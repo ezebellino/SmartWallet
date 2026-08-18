@@ -4,6 +4,7 @@ import time
 
 from app.core.config import settings
 from app.database.session import SessionLocal
+from app.repositories.worker_heartbeats import WorkerHeartbeatRepository
 from app.services.portfolio_refresh_worker import PORTFOLIO_REFRESH_JOB_KEY, PortfolioRefreshWorker
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -39,18 +40,27 @@ def run_job(job_key: str) -> None:
     )
 
 
+def write_heartbeat(job_key: str, status: str, message: str | None = None) -> None:
+    with SessionLocal() as db:
+        WorkerHeartbeatRepository(db).beat(job_key=job_key, status=status, message=message)
+
+
 def loop_job(job_key: str, *, interval_minutes: int, startup_delay_seconds: float) -> None:
     interval_seconds = max(interval_minutes * 60, 60)
     delay_seconds = max(startup_delay_seconds, 0)
+    write_heartbeat(job_key, "starting", f"interval={interval_minutes}m")
     if delay_seconds:
         logger.info("Worker startup delay: %.1fs", delay_seconds)
         time.sleep(delay_seconds)
 
     while True:
         try:
+            write_heartbeat(job_key, "running", "Executing portfolio refresh")
             run_job(job_key)
+            write_heartbeat(job_key, "sleeping", f"Sleeping for {interval_minutes} minutes")
         except Exception:
             logger.exception("Worker job failed outside tracked execution")
+            write_heartbeat(job_key, "error", "Worker job failed outside tracked execution")
         time.sleep(interval_seconds)
 
 

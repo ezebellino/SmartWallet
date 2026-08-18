@@ -25,6 +25,7 @@ from app.schemas.mercado_pago import (
     MercadoPagoIntegrationUpdate,
     MercadoPagoReportRead,
     MercadoPagoReportRequestResponse,
+    MercadoPagoSyncResponse,
 )
 from app.schemas.transaction import TransactionCreate
 
@@ -144,7 +145,7 @@ class MercadoPagoService:
         if not access_token:
             raise ValueError("Mercado Pago access token is required")
         reports = [self._build_report_read(item) for item in self.provider.list_account_money_reports(access_token)]
-        return sorted(reports, key=lambda item: item.date_created or datetime.min, reverse=True)
+        return self._sort_reports(reports)
 
     def import_report(self, user_id: int, file_name: str | None = None) -> MercadoPagoImportResponse:
         access_token = self._get_access_token(user_id)
@@ -181,6 +182,34 @@ class MercadoPagoService:
             failed_count=sum(1 for item in movements if item.status == "failed"),
             file_name=report_file_name,
             movements=movements,
+        )
+
+    def sync_movements(self, user_id: int, begin_date: date, end_date: date) -> MercadoPagoSyncResponse:
+        access_token = self._get_access_token(user_id)
+        if not access_token:
+            raise ValueError("Mercado Pago access token is required")
+        if end_date < begin_date:
+            raise ValueError("end_date must be greater than or equal to begin_date")
+
+        reports = self._available_reports(access_token)
+        report = self._find_report_for_range(reports, begin_date, end_date)
+        if report:
+            import_result = self.import_report(user_id, report.file_name)
+            return MercadoPagoSyncResponse(
+                status="imported",
+                message="Mercado Pago movements were imported from the latest matching report.",
+                report_requested=False,
+                available_reports=len(reports),
+                import_result=import_result,
+            )
+
+        self.provider.request_account_money_report(access_token, begin_date, end_date)
+        return MercadoPagoSyncResponse(
+            status="pending",
+            message="Mercado Pago is preparing the report. Try syncing again in a few minutes.",
+            report_requested=True,
+            available_reports=len(reports),
+            import_result=None,
         )
 
     def _import_row(self, user_id: int, row: dict[str, str]) -> MercadoPagoImportedMovement:
@@ -235,10 +264,30 @@ class MercadoPagoService:
         )
 
     def _latest_report_file_name(self, access_token: str) -> str | None:
+        parsed = self._available_reports(access_token)
+        return parsed[0].file_name if parsed else None
+
+    def _available_reports(self, access_token: str) -> list[MercadoPagoReportRead]:
         reports = self.provider.list_account_money_reports(access_token)
         parsed = [self._build_report_read(item) for item in reports if item.get("file_name")]
-        parsed.sort(key=lambda item: item.date_created or datetime.min, reverse=True)
-        return parsed[0].file_name if parsed else None
+        return self._sort_reports(parsed)
+
+    def _find_report_for_range(
+        self,
+        reports: list[MercadoPagoReportRead],
+        begin_date: date,
+        end_date: date,
+    ) -> MercadoPagoReportRead | None:
+        for report in reports:
+            if not report.file_name or not report.begin_date or not report.end_date:
+                continue
+            if report.begin_date.date() <= begin_date and report.end_date.date() >= end_date:
+                return report
+        return None
+
+    def _sort_reports(self, reports: list[MercadoPagoReportRead]) -> list[MercadoPagoReportRead]:
+        fallback = datetime.min.replace(tzinfo=timezone.utc)
+        return sorted(reports, key=lambda item: item.date_created or fallback, reverse=True)
 
     def _category_for(self, user_id: int, transaction_type: TransactionType) -> Category:
         category_type = CategoryType.income if transaction_type == TransactionType.income else CategoryType.expense
@@ -321,7 +370,10 @@ class MercadoPagoService:
     def _parse_datetime(self, value: Any) -> datetime | None:
         if not isinstance(value, str) or not value:
             return None
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed
 
     def _get_setting(self, user_id: int) -> MarketIntegrationSetting | None:
         statement = select(MarketIntegrationSetting).where(

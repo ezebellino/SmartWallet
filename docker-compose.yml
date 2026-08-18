@@ -33,6 +33,7 @@ services:
       - ./backend/app:/app/app
       - ./backend/alembic:/app/alembic
       - ./backend/alembic.ini:/app/alembic.ini
+      - ./backend/tests:/app/tests
     depends_on:
       postgres:
         condition: service_healthy

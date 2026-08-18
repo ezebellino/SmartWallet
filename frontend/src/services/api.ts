@@ -25,6 +25,7 @@ import type {
   InvestmentOperationType,
   InvestmentPriceSnapshot,
   InvestmentRiskLevel,
+  JobStatus,
   JobRun,
   MarketDataIntegration,
   MarketDataIntegrationsResponse,
@@ -33,6 +34,7 @@ import type {
   MercadoPagoImportResponse,
   MercadoPagoIntegration,
   MercadoPagoReport,
+  MercadoPagoSyncResponse,
   MonthlyComparison,
   MonthlyProjection,
   MonthlySummary,
@@ -147,6 +149,12 @@ export function getJobRuns(token: string, jobKey?: string, limit = 10) {
     params.set("job_key", jobKey);
   }
   return request<JobRun[]>(`/jobs/runs?${params.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function getPortfolioRefreshJobStatus(token: string) {
+  return request<JobStatus>("/jobs/portfolio-refresh/status", {
     headers: { Authorization: `Bearer ${token}` }
   });
 }
@@ -655,6 +663,14 @@ export function importMercadoPagoReport(token: string, fileName?: string | null)
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify({ file_name: fileName ?? null })
+  });
+}
+
+export function syncMercadoPagoMovements(token: string, beginDate: string, endDate: string) {
+  return request<MercadoPagoSyncResponse>("/mercado-pago/sync", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ begin_date: beginDate, end_date: endDate })
   });
 }
 

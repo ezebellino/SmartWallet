@@ -109,7 +109,7 @@ def test_generate_basic_notifications_includes_important_binance_alerts(client, 
             ("BTC", Decimal("0.0100000000"), Decimal("0"), Decimal("0.0100000000")),
             ("USDT", Decimal("25.0000000000"), Decimal("0"), Decimal("25.0000000000")),
         ],
-        fetched_at=datetime(2026, 8, 11, 12, 0, tzinfo=timezone.utc),
+        fetched_at=datetime.now(timezone.utc),
     )
 
     def override_service() -> NotificationService:

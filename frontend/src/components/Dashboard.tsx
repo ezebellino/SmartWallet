@@ -36,6 +36,7 @@ import {
   getInvestmentOperations,
   getInvestmentPriceHistory,
   getJobRuns,
+  getPortfolioRefreshJobStatus,
   getMarketDataIntegrations,
   getMercadoPagoIntegration,
   getMonthlyComparison,
@@ -93,6 +94,7 @@ import type {
   InvestmentPriceSnapshot,
   InvestmentRiskLevel,
   JobRun,
+  JobStatus,
   MarketDataIntegrationsResponse,
   MarketDataIntegrationUpdate,
   MarketDataRefreshResponse,
@@ -164,6 +166,10 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() + 1 };
   });
+  const [selectedDashboardPeriod, setSelectedDashboardPeriod] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  });
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetUsage, setBudgetUsage] = useState<BudgetUsage[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -173,6 +179,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
   const [investmentAlerts, setInvestmentAlerts] = useState<InvestmentAlertsResponse | null>(null);
   const [investmentOperations, setInvestmentOperations] = useState<InvestmentOperation[]>([]);
   const [jobRuns, setJobRuns] = useState<JobRun[]>([]);
+  const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
   const [marketDataIntegrations, setMarketDataIntegrations] = useState<MarketDataIntegrationsResponse | null>(null);
   const [marketDataRefresh, setMarketDataRefresh] = useState<MarketDataRefreshResponse | null>(null);
   const [mercadoPagoIntegration, setMercadoPagoIntegration] = useState<MercadoPagoIntegration | null>(null);
@@ -276,7 +283,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
           tone: activeBudgetAlerts > 0 ? ("warn" as const) : ("good" as const)
         },
         { label: t("summaryExpenseCategories"), value: String(categories.filter((category) => category.type === "expense").length), tone: "neutral" as const },
-        { label: t("summaryCurrentMonth"), value: `${new Date().getMonth() + 1}/${new Date().getFullYear()}`, tone: "neutral" as const }
+        { label: t("summaryCurrentMonth"), value: `${selectedDashboardPeriod.month}/${selectedDashboardPeriod.year}`, tone: "neutral" as const }
       ],
       goals: [
         { label: t("summaryGoals"), value: String(goals.length), tone: "neutral" as const },
@@ -319,6 +326,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     investmentAssets.length,
     investmentOperations.length,
     language,
+    selectedDashboardPeriod,
     dollarSavingsSnapshot,
     marketDataRefresh,
     report,
@@ -523,6 +531,19 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     [categories.length, dollarSavingsSnapshot.totalUsd, investmentAssets.length, language, report, transactions.length]
   );
 
+  function handleDashboardPeriodChange(direction: "previous" | "next" | "current") {
+    if (direction === "current") {
+      const now = new Date();
+      setSelectedDashboardPeriod({ year: now.getFullYear(), month: now.getMonth() + 1 });
+      return;
+    }
+
+    setSelectedDashboardPeriod((current) => {
+      const date = new Date(current.year, current.month - 1 + (direction === "previous" ? -1 : 1), 1);
+      return { year: date.getFullYear(), month: date.getMonth() + 1 };
+    });
+  }
+
   const refreshFromApi = useCallback(async () => {
     if (!token) {
       setStatus(t("signInToSync"));
@@ -532,9 +553,8 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     setIsSyncing(true);
 
     try {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth() + 1;
+      const year = selectedDashboardPeriod.year;
+      const month = selectedDashboardPeriod.month;
       const [
         summaryResponse,
         accountTransfersResponse,
@@ -555,6 +575,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         investmentAssetsResponse,
         investmentOperationsResponse,
         jobRunsResponse,
+        jobStatusResponse,
         marketDataIntegrationsResponse,
         mercadoPagoIntegrationResponse,
         notificationsResponse,
@@ -581,6 +602,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         getInvestmentAssets(token),
         getInvestmentOperations(token),
         getJobRuns(token, "portfolio_refresh"),
+        getPortfolioRefreshJobStatus(token),
         getMarketDataIntegrations(token),
         getMercadoPagoIntegration(token),
         getNotifications(token),
@@ -613,6 +635,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
       setInvestmentAssets(investmentAssetsResponse);
       setInvestmentOperations(investmentOperationsResponse);
       setJobRuns(jobRunsResponse);
+      setJobStatus(jobStatusResponse);
       setMarketDataIntegrations(marketDataIntegrationsResponse);
       setMercadoPagoIntegration(mercadoPagoIntegrationResponse);
       setNotifications(notificationsResponse);
@@ -630,7 +653,14 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     } finally {
       setIsSyncing(false);
     }
-  }, [token, language, selectedReportPeriod.month, selectedReportPeriod.year]);
+  }, [
+    token,
+    language,
+    selectedDashboardPeriod.month,
+    selectedDashboardPeriod.year,
+    selectedReportPeriod.month,
+    selectedReportPeriod.year
+  ]);
 
   async function refreshDollarSavings(tokenValue: string) {
     const dollarSavingsResponse = await getDollarSavings(tokenValue);
@@ -739,9 +769,8 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
   }
 
   async function refreshCurrentMonth(tokenValue: string) {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
+    const year = selectedDashboardPeriod.year;
+    const month = selectedDashboardPeriod.month;
     const [
       summaryResponse,
       monthlyComparisonResponse,
@@ -792,10 +821,16 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
       getBinanceIntegration(tokenValue),
       getBinancePortfolioSummary(tokenValue),
       getBinanceBalanceSnapshots(tokenValue),
-      getJobRuns(tokenValue, "portfolio_refresh")
+      getJobRuns(tokenValue, "portfolio_refresh"),
+      getPortfolioRefreshJobStatus(tokenValue)
     ]);
-    const [binanceIntegrationResponse, binancePortfolioSummaryResponse, binanceSnapshotsResponse, jobRunsResponse] =
-      optionalResults;
+    const [
+      binanceIntegrationResponse,
+      binancePortfolioSummaryResponse,
+      binanceSnapshotsResponse,
+      jobRunsResponse,
+      jobStatusResponse
+    ] = optionalResults;
 
     if (binanceIntegrationResponse.status === "fulfilled") {
       setBinanceIntegration(binanceIntegrationResponse.value);
@@ -808,6 +843,9 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     }
     if (jobRunsResponse.status === "fulfilled") {
       setJobRuns(jobRunsResponse.value);
+    }
+    if (jobStatusResponse.status === "fulfilled") {
+      setJobStatus(jobStatusResponse.value);
     }
   }
 
@@ -1360,6 +1398,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         getBinancePortfolioSummary(token),
         getBinanceBalanceSnapshots(token),
         getJobRuns(token, "portfolio_refresh"),
+        getPortfolioRefreshJobStatus(token),
         getNotifications(token)
       ]);
 
@@ -1368,6 +1407,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         binancePortfolioSummaryResponse,
         binanceSnapshotsResponse,
         jobRunsResponse,
+        jobStatusResponse,
         notificationsResponse
       ] = refreshResults;
 
@@ -1384,6 +1424,9 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
         setJobRuns(jobRunsResponse.value);
       } else {
         setJobRuns((current) => [run, ...current.filter((item) => item.id !== run.id)]);
+      }
+      if (jobStatusResponse.status === "fulfilled") {
+        setJobStatus(jobStatusResponse.value);
       }
       if (notificationsResponse.status === "fulfilled") {
         setNotifications(notificationsResponse.value);
@@ -1519,7 +1562,10 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
             isSyncing={isSyncing}
             language={language}
             onLanguageChange={onLanguageChange}
+            onPeriodChange={handleDashboardPeriodChange}
             sessionRemainingMs={sessionRemainingMs}
+            selectedMonth={selectedDashboardPeriod.month}
+            selectedYear={selectedDashboardPeriod.year}
             status={status}
             t={t}
             userName={userName}
@@ -1621,6 +1667,8 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
               <MercadoPagoWalletPanel
                 initialIntegration={mercadoPagoIntegration}
                 language={language}
+                selectedMonth={selectedDashboardPeriod.month}
+                selectedYear={selectedDashboardPeriod.year}
                 token={token}
                 onImported={refreshFromApi}
                 onStatusChange={setStatus}
@@ -1643,8 +1691,8 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
               budgetUsage={budgetUsage}
               budgets={budgets}
               categories={categories}
-              currentMonth={new Date().getMonth() + 1}
-              currentYear={new Date().getFullYear()}
+              currentMonth={selectedDashboardPeriod.month}
+              currentYear={selectedDashboardPeriod.year}
               isDisabled={!token}
               onCreate={handleCreateBudget}
               onDelete={handleDeleteBudget}
@@ -1705,6 +1753,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
               isRunningPortfolioWorker={isRunningPortfolioWorker}
               investmentAlerts={investmentAlerts}
               jobRuns={jobRuns}
+              jobStatus={jobStatus}
               marketDataIntegrations={marketDataIntegrations}
               marketDataRefresh={marketDataRefresh}
               onCreateAsset={handleCreateInvestmentAsset}

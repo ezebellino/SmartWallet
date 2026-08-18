@@ -56,3 +56,16 @@ class MercadoPagoImportResponse(BaseModel):
     failed_count: int
     file_name: str | None = None
     movements: list[MercadoPagoImportedMovement]
+
+
+class MercadoPagoSyncRequest(BaseModel):
+    begin_date: date
+    end_date: date
+
+
+class MercadoPagoSyncResponse(BaseModel):
+    status: str
+    message: str
+    report_requested: bool
+    available_reports: int
+    import_result: MercadoPagoImportResponse | None = None

@@ -26,6 +26,7 @@ import type {
   InvestmentPriceSnapshot,
   InvestmentRiskLevel,
   JobRun,
+  JobStatus,
   PortfolioSummary
 } from "@/types/api";
 
@@ -64,6 +65,7 @@ type Props = {
   isDisabled: boolean;
   isRunningPortfolioWorker: boolean;
   jobRuns: JobRun[];
+  jobStatus: JobStatus | null;
   marketDataIntegrations: MarketDataIntegrationsResponse | null;
   marketDataRefresh: MarketDataRefreshResponse | null;
   onCreateAsset: (payload: AssetPayload) => Promise<void>;
@@ -147,6 +149,7 @@ export function InvestmentsManager({
   isDisabled,
   isRunningPortfolioWorker,
   jobRuns,
+  jobStatus,
   marketDataIntegrations,
   marketDataRefresh,
   onCreateAsset,
@@ -473,6 +476,7 @@ export function InvestmentsManager({
         isDisabled={isDisabled}
         isRunning={isRunningPortfolioWorker}
         jobRuns={jobRuns}
+        jobStatus={jobStatus}
         onRun={onRunPortfolioWorker}
         t={t}
       />

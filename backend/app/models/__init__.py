@@ -12,6 +12,7 @@ from app.models.notification import Notification
 from app.models.saving_goal import SavingGoal
 from app.models.transaction import Transaction
 from app.models.user import User
+from app.models.worker_heartbeat import WorkerHeartbeat
 
 __all__ = [
     "Category",
@@ -31,4 +32,5 @@ __all__ = [
     "SavingGoal",
     "Transaction",
     "User",
+    "WorkerHeartbeat",
 ]

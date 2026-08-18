@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Download, FileClock, KeyRound, RefreshCw, ShieldCheck } from "lucide-react";
+import { CalendarSync, Download, FileClock, KeyRound, RefreshCw, ShieldCheck } from "lucide-react";
 import {
   getMercadoPagoIntegration,
   getMercadoPagoReports,
   importMercadoPagoReport,
   requestMercadoPagoReport,
+  syncMercadoPagoMovements,
   updateMercadoPagoIntegration
 } from "@/services/api";
 import type { Language } from "@/i18n";
@@ -17,17 +18,41 @@ type Props = {
   token: string | null;
   language: Language;
   initialIntegration: MercadoPagoIntegration | null;
+  selectedMonth: number;
+  selectedYear: number;
   onImported: () => Promise<void>;
   onStatusChange: (message: string) => void;
 };
 
-export function MercadoPagoWalletPanel({ token, language, initialIntegration, onImported, onStatusChange }: Props) {
+function formatDate(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+function monthRange(year: number, month: number) {
+  return {
+    beginDate: formatDate(new Date(year, month - 1, 1)),
+    endDate: formatDate(new Date(year, month, 0))
+  };
+}
+
+export function MercadoPagoWalletPanel({
+  token,
+  language,
+  initialIntegration,
+  selectedMonth,
+  selectedYear,
+  onImported,
+  onStatusChange
+}: Props) {
   const [integration, setIntegration] = useState<MercadoPagoIntegration | null>(initialIntegration);
   const [accessToken, setAccessToken] = useState("");
   const [reports, setReports] = useState<MercadoPagoReport[]>([]);
   const [selectedFileName, setSelectedFileName] = useState("");
   const [lastImport, setLastImport] = useState<MercadoPagoImportResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const initialRange = useMemo(() => monthRange(selectedYear, selectedMonth), [selectedMonth, selectedYear]);
+  const [beginDate, setBeginDate] = useState(initialRange.beginDate);
+  const [endDate, setEndDate] = useState(initialRange.endDate);
 
   const copy = useMemo(
     () =>
@@ -45,6 +70,8 @@ export function MercadoPagoWalletPanel({ token, language, initialIntegration, on
             importLatest: "Import latest",
             refreshReports: "Refresh list",
             reportRange: "Report range",
+            syncMovements: "Sync movements",
+            syncHelp: "Requests the selected period and imports it automatically when the report is already available.",
             from: "From",
             to: "To",
             reports: "Available reports",
@@ -56,7 +83,9 @@ export function MercadoPagoWalletPanel({ token, language, initialIntegration, on
             signIn: "Sign in to connect Mercado Pago.",
             saved: "Mercado Pago token saved",
             requested: "Mercado Pago report requested",
-            importedStatus: "Mercado Pago movements imported"
+            importedStatus: "Mercado Pago movements imported",
+            syncPending: "Mercado Pago is preparing the report. Try again in a few minutes.",
+            syncImported: "Mercado Pago movements synced"
           }
         : {
             title: "Wallet Mercado Pago",
@@ -71,6 +100,8 @@ export function MercadoPagoWalletPanel({ token, language, initialIntegration, on
             importLatest: "Importar ultimo",
             refreshReports: "Actualizar lista",
             reportRange: "Rango del reporte",
+            syncMovements: "Sincronizar movimientos",
+            syncHelp: "Pide el periodo seleccionado e importa automaticamente si el reporte ya esta disponible.",
             from: "Desde",
             to: "Hasta",
             reports: "Reportes disponibles",
@@ -82,15 +113,12 @@ export function MercadoPagoWalletPanel({ token, language, initialIntegration, on
             signIn: "Inicia sesion para conectar Mercado Pago.",
             saved: "Token de Mercado Pago guardado",
             requested: "Reporte de Mercado Pago solicitado",
-            importedStatus: "Movimientos de Mercado Pago importados"
+            importedStatus: "Movimientos de Mercado Pago importados",
+            syncPending: "Mercado Pago esta preparando el reporte. Volve a intentar en unos minutos.",
+            syncImported: "Movimientos de Mercado Pago sincronizados"
           },
     [language]
   );
-
-  const today = new Date().toISOString().slice(0, 10);
-  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
-  const [beginDate, setBeginDate] = useState(monthStart);
-  const [endDate, setEndDate] = useState(today);
 
   useEffect(() => {
     if (!token) {
@@ -103,6 +131,11 @@ export function MercadoPagoWalletPanel({ token, language, initialIntegration, on
   useEffect(() => {
     setIntegration(initialIntegration);
   }, [initialIntegration]);
+
+  useEffect(() => {
+    setBeginDate(initialRange.beginDate);
+    setEndDate(initialRange.endDate);
+  }, [initialRange.beginDate, initialRange.endDate]);
 
   async function loadIntegration() {
     if (!token) {
@@ -173,6 +206,20 @@ export function MercadoPagoWalletPanel({ token, language, initialIntegration, on
       setLastImport(response);
       onStatusChange(copy.importedStatus);
       await onImported();
+    });
+  }
+
+  async function handleSyncMovements() {
+    await runAction(async () => {
+      const response = await syncMercadoPagoMovements(token!, beginDate, endDate);
+      if (response.import_result) {
+        setLastImport(response.import_result);
+        onStatusChange(copy.syncImported);
+        await onImported();
+      } else {
+        onStatusChange(response.message || copy.syncPending);
+      }
+      await loadReports();
     });
   }
 
@@ -264,6 +311,16 @@ export function MercadoPagoWalletPanel({ token, language, initialIntegration, on
             />
           </label>
         </div>
+        <button
+          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-md bg-emerald px-3 py-2 text-sm font-semibold text-black transition hover:bg-emerald/90 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={!token || isLoading || integration?.status !== "active"}
+          onClick={handleSyncMovements}
+          type="button"
+        >
+          <CalendarSync size={15} />
+          {copy.syncMovements}
+        </button>
+        <p className="mt-2 text-xs leading-4 text-muted">{copy.syncHelp}</p>
         <button
           className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-md border border-cyan/30 bg-cyan/10 px-3 py-2 text-sm font-semibold text-cyan transition hover:bg-cyan/15 disabled:cursor-not-allowed disabled:opacity-60"
           disabled={!token || isLoading || integration?.status !== "active"}

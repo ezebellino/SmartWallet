@@ -344,6 +344,14 @@ export type MercadoPagoImportResponse = {
   movements: MercadoPagoImportMovement[];
 };
 
+export type MercadoPagoSyncResponse = {
+  status: "imported" | "pending" | string;
+  message: string;
+  report_requested: boolean;
+  available_reports: number;
+  import_result: MercadoPagoImportResponse | null;
+};
+
 export type InvestmentPriceSnapshot = {
   id: number;
   asset_id: number;
@@ -463,6 +471,20 @@ export type JobRun = {
   details: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
+};
+
+export type JobStatus = {
+  heartbeat_is_alive: boolean;
+  heartbeat_last_seen_at: string | null;
+  heartbeat_message: string | null;
+  heartbeat_status: string | null;
+  interval_minutes: number;
+  is_overdue: boolean;
+  job_key: string;
+  latest_run: JobRun | null;
+  message: string;
+  next_run_at: string | null;
+  state: "alive" | "never_run" | "running" | "scheduled" | "overdue" | string;
 };
 
 export type BinanceIntegration = {
