@@ -68,6 +68,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
+    if (response.status === 401) {
+      throw new Error("Sesion vencida o invalida. Cerra sesion e inicia sesion nuevamente.");
+    }
     throw new Error(typeof body.detail === "string" ? body.detail : "Request failed");
   }
 

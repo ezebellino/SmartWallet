@@ -132,7 +132,7 @@ export function AccountsManager({
           placeholder="Banco Provincia, Mercado Pago..."
           value={accountName}
         />
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2">
           <select
             className="rounded-md border border-borderSoft bg-background px-3 py-2.5 text-sm text-text outline-none"
             disabled={isDisabled || isSaving}
@@ -155,9 +155,9 @@ export function AccountsManager({
             value={institution}
           />
         </div>
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
           <input
-            className="rounded-md border border-borderSoft bg-background px-3 py-2.5 text-sm text-text outline-none"
+            className="min-w-0 rounded-md border border-borderSoft bg-background px-3 py-2.5 text-sm text-text outline-none"
             disabled={isDisabled || isSaving}
             min="0"
             name="initialBalance"
@@ -167,11 +167,11 @@ export function AccountsManager({
             type="number"
             value={initialBalance}
           />
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
             {accountColors.map((option) => (
               <button
                 aria-label={option}
-                className={`h-8 w-8 rounded-md border ${color === option ? "border-text" : "border-borderSoft"}`}
+                className={`h-8 w-8 shrink-0 rounded-md border ${color === option ? "border-text" : "border-borderSoft"}`}
                 disabled={isDisabled || isSaving}
                 key={option}
                 onClick={() => setColor(option)}
@@ -219,7 +219,7 @@ export function AccountsManager({
           <ArrowRightLeft size={14} />
           Transferencia interna
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2">
           <select
             className="rounded-md border border-borderSoft bg-background px-3 py-2.5 text-sm text-text outline-none"
             disabled={isDisabled || isSaving || accounts.length < 2}
@@ -247,7 +247,7 @@ export function AccountsManager({
             ))}
           </select>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2">
           <input
             className="rounded-md border border-borderSoft bg-background px-3 py-2.5 text-sm text-text outline-none"
             disabled={isDisabled || isSaving || accounts.length < 2}

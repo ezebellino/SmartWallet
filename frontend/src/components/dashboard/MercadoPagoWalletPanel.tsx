@@ -404,11 +404,15 @@ export function MercadoPagoWalletPanel({
       ) : null}
 
       <WorkerControlPanel
+        continuousServiceHint={
+          language === "en"
+            ? "The continuous worker is deployed on Railway as smartwallet-mercado-pago-worker. If there is still no signal after saving the token, use Run now to force the first sync."
+            : "El worker continuo esta desplegado en Railway como smartwallet-mercado-pago-worker. Si todavia no hay senal despues de guardar el token, usa Ejecutar ahora para forzar la primera sincronizacion."
+        }
         isDisabled={!token || integration?.status !== "active"}
         isRunning={isRunningMercadoPagoWorker}
         jobRuns={mercadoPagoJobRuns}
         jobStatus={mercadoPagoJobStatus}
-        localWorkerCommand="docker compose --profile worker up -d mercado-pago-worker"
         manualModeHint={copy.workerHint}
         onRun={onRunMercadoPagoWorker}
         subtitle={copy.workerSubtitle}

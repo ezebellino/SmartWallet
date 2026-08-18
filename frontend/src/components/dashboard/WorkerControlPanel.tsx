@@ -8,6 +8,7 @@ type Props = {
   isRunning: boolean;
   jobRuns: JobRun[];
   jobStatus: JobStatus | null;
+  continuousServiceHint?: string;
   localWorkerCommand?: string;
   manualModeHint?: string;
   onRun: () => Promise<void>;
@@ -78,6 +79,7 @@ export function WorkerControlPanel({
   isRunning,
   jobRuns,
   jobStatus,
+  continuousServiceHint,
   localWorkerCommand = LOCAL_WORKER_COMMAND,
   manualModeHint,
   onRun,
@@ -146,6 +148,10 @@ export function WorkerControlPanel({
           {jobStatus.heartbeat_is_alive ? (
             <p className="mt-2 rounded-md border border-emerald/25 bg-emerald/10 px-3 py-2 text-xs leading-5 text-emerald">
               {t("workerAliveHint")}
+            </p>
+          ) : continuousServiceHint ? (
+            <p className="mt-3 rounded-md border border-amber/25 bg-amber/10 px-3 py-2 text-xs leading-5 text-amber">
+              {continuousServiceHint}
             </p>
           ) : (
             <div className="mt-3 rounded-md border border-amber/25 bg-amber/10 p-3">
