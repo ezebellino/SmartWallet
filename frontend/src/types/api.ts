@@ -344,6 +344,20 @@ export type MercadoPagoImportResponse = {
   movements: MercadoPagoImportMovement[];
 };
 
+export type MercadoPagoNormalizedMovement = {
+  transaction_id: number;
+  external_id: string;
+  current_description: string | null;
+  suggested_description: string;
+};
+
+export type MercadoPagoNormalizeResponse = {
+  candidate_count: number;
+  updated_count: number;
+  file_name: string | null;
+  movements: MercadoPagoNormalizedMovement[];
+};
+
 export type MercadoPagoSyncResponse = {
   status: "imported" | "pending" | string;
   message: string;

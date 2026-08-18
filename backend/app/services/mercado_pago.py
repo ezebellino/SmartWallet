@@ -23,6 +23,8 @@ from app.schemas.mercado_pago import (
     MercadoPagoImportResponse,
     MercadoPagoIntegrationRead,
     MercadoPagoIntegrationUpdate,
+    MercadoPagoNormalizedMovement,
+    MercadoPagoNormalizeResponse,
     MercadoPagoReportRead,
     MercadoPagoReportRequestResponse,
     MercadoPagoSyncResponse,
@@ -327,6 +329,20 @@ class MercadoPagoService:
             movements=movements,
         )
 
+    def preview_existing_movement_normalization(
+        self,
+        user_id: int,
+        file_name: str | None = None,
+    ) -> MercadoPagoNormalizeResponse:
+        return self._normalize_existing_movements(user_id, file_name, apply_changes=False)
+
+    def normalize_existing_movements(
+        self,
+        user_id: int,
+        file_name: str | None = None,
+    ) -> MercadoPagoNormalizeResponse:
+        return self._normalize_existing_movements(user_id, file_name, apply_changes=True)
+
     def sync_movements(self, user_id: int, begin_date: date, end_date: date) -> MercadoPagoSyncResponse:
         access_token = self._get_access_token(user_id)
         if not access_token:
@@ -353,6 +369,59 @@ class MercadoPagoService:
             report_requested=True,
             available_reports=len(reports),
             import_result=None,
+        )
+
+    def _normalize_existing_movements(
+        self,
+        user_id: int,
+        file_name: str | None,
+        *,
+        apply_changes: bool,
+    ) -> MercadoPagoNormalizeResponse:
+        access_token = self._get_access_token(user_id)
+        if not access_token:
+            raise ValueError("Mercado Pago access token is required")
+
+        report_file_name = file_name or self._latest_report_file_name(access_token)
+        if not report_file_name:
+            raise ValueError("No Mercado Pago report is available to normalize movements")
+
+        rows = self._parse_csv(self.provider.download_account_money_report(access_token, report_file_name))
+        movements: list[MercadoPagoNormalizedMovement] = []
+
+        for row in rows:
+            external_id = self._external_id(row)
+            transaction = self.transactions.get_by_external_reference(
+                user_id=user_id,
+                external_source=EXTERNAL_SOURCE,
+                external_id=external_id,
+            )
+            if not transaction:
+                continue
+
+            suggested_description = self._description(row)
+            if not self._should_normalize_description(transaction.description, suggested_description):
+                continue
+
+            movements.append(
+                MercadoPagoNormalizedMovement(
+                    transaction_id=transaction.id,
+                    external_id=external_id,
+                    current_description=transaction.description,
+                    suggested_description=suggested_description,
+                )
+            )
+            if apply_changes:
+                transaction.description = suggested_description
+
+        if apply_changes and movements:
+            self.db.commit()
+
+        return MercadoPagoNormalizeResponse(
+            candidate_count=len(movements),
+            updated_count=len(movements) if apply_changes else 0,
+            file_name=report_file_name,
+            movements=movements,
         )
 
     def _import_row(self, user_id: int, row: dict[str, str]) -> MercadoPagoImportedMovement:
@@ -518,6 +587,26 @@ class MercadoPagoService:
     def _clean_description(self, value: str) -> str:
         cleaned = " ".join(value.replace("_", " ").split())
         return cleaned[:500]
+
+    def _should_normalize_description(self, current_description: str | None, suggested_description: str) -> bool:
+        if not current_description or current_description == suggested_description:
+            return False
+        if not suggested_description.startswith("Mercado Pago - "):
+            return False
+        if not self._is_technical_mercado_pago_description(current_description):
+            return False
+        return not self._is_technical_mercado_pago_description(suggested_description)
+
+    def _is_technical_mercado_pago_description(self, description: str | None) -> bool:
+        if not description:
+            return False
+        normalized = " ".join(description.split())
+        if not normalized.startswith("Mercado Pago - "):
+            return False
+        label = normalized.removeprefix("Mercado Pago - ").split("|", maxsplit=1)[0].strip().upper()
+        if "| source " in normalized or "| ref " in normalized:
+            return True
+        return label in {"SETTLEMENT", "WITHDRAWAL", "REFUND", "CHARGEBACK", "DISPUTE", "PAYOUT", "MOVIMIENTO"}
 
     def _row_value(self, row: dict[str, str], *keys: str) -> str | None:
         normalized = {key.upper().strip(): value for key, value in row.items()}

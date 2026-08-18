@@ -194,6 +194,64 @@ def test_mercado_pago_provider_updates_old_report_config(monkeypatch) -> None:
     assert {"DESCRIPTION", "PAYER_NAME", "STORE_NAME", "POS_NAME"}.issubset(updated_columns)
 
 
+def test_mercado_pago_normalizes_existing_technical_descriptions(client, auth_headers, db_session: Session) -> None:
+    old_csv = "\n".join(
+        [
+            "SOURCE_ID;EXTERNAL_REFERENCE;TRANSACTION_TYPE;TRANSACTION_AMOUNT;TRANSACTION_CURRENCY;TRANSACTION_DATE;SETTLEMENT_NET_AMOUNT",
+            "mp-old-1;;SETTLEMENT;-2114.00;ARS;2026-08-18T13:00:00.000-03:00;-2114.00",
+        ]
+    )
+    enriched_csv = "\n".join(
+        [
+            "SOURCE_ID;EXTERNAL_REFERENCE;TRANSACTION_TYPE;TRANSACTION_AMOUNT;TRANSACTION_CURRENCY;TRANSACTION_DATE;SETTLEMENT_NET_AMOUNT;DESCRIPTION;PAYER_NAME",
+            "mp-old-1;;SETTLEMENT;-2114.00;ARS;2026-08-18T13:00:00.000-03:00;-2114.00;Cafe Martinez;",
+        ]
+    )
+
+    client.patch(
+        "/mercado-pago/integration",
+        headers=auth_headers,
+        json={"enabled": True, "access_token": "APP_USR-1234567890abcdef"},
+    )
+    from app.routers.mercado_pago import get_mercado_pago_service
+    from app.services.mercado_pago import MercadoPagoService
+    from app.main import app
+
+    provider = FakeMercadoPagoProvider(old_csv)
+
+    def override_service() -> MercadoPagoService:
+        return MercadoPagoService(db_session, provider=provider)
+
+    app.dependency_overrides[get_mercado_pago_service] = override_service
+    try:
+        import_response = client.post("/mercado-pago/import", headers=auth_headers, json={})
+        provider.csv_text = enriched_csv
+        preview_response = client.post("/mercado-pago/normalize-preview", headers=auth_headers, json={})
+        apply_response = client.post("/mercado-pago/normalize", headers=auth_headers, json={})
+        second_preview_response = client.post("/mercado-pago/normalize-preview", headers=auth_headers, json={})
+    finally:
+        app.dependency_overrides.pop(get_mercado_pago_service, None)
+
+    assert import_response.status_code == 200
+    transaction_id = import_response.json()["movements"][0]["transaction_id"]
+    assert import_response.json()["movements"][0]["description"] == "Mercado Pago - SETTLEMENT | source mp-old-1"
+
+    assert preview_response.status_code == 200
+    preview_body = preview_response.json()
+    assert preview_body["candidate_count"] == 1
+    assert preview_body["updated_count"] == 0
+    assert preview_body["movements"][0] == {
+        "transaction_id": transaction_id,
+        "external_id": "mp-old-1",
+        "current_description": "Mercado Pago - SETTLEMENT | source mp-old-1",
+        "suggested_description": "Mercado Pago - Cafe Martinez",
+    }
+
+    assert apply_response.status_code == 200
+    assert apply_response.json()["updated_count"] == 1
+    assert second_preview_response.json()["candidate_count"] == 0
+
+
 def test_mercado_pago_sync_imports_matching_report(client, auth_headers, db_session: Session) -> None:
     csv_text = "\n".join(
         [

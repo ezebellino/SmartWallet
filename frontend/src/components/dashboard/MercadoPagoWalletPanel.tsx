@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarSync, Download, FileClock, KeyRound, RefreshCw, ShieldCheck } from "lucide-react";
+import { CalendarSync, Download, FileClock, KeyRound, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
 import {
+  applyMercadoPagoNormalization,
   getMercadoPagoIntegration,
   getMercadoPagoReports,
   importMercadoPagoReport,
+  previewMercadoPagoNormalization,
   requestMercadoPagoReport,
   syncMercadoPagoMovements,
   updateMercadoPagoIntegration
@@ -16,6 +18,7 @@ import type {
   JobStatus,
   MercadoPagoImportResponse,
   MercadoPagoIntegration,
+  MercadoPagoNormalizeResponse,
   MercadoPagoReport,
   MercadoPagoSyncResponse
 } from "@/types/api";
@@ -68,6 +71,7 @@ export function MercadoPagoWalletPanel({
   const [selectedFileName, setSelectedFileName] = useState("");
   const [lastImport, setLastImport] = useState<MercadoPagoImportResponse | null>(null);
   const [lastSync, setLastSync] = useState<MercadoPagoSyncResponse | null>(null);
+  const [normalizationPreview, setNormalizationPreview] = useState<MercadoPagoNormalizeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const initialRange = useMemo(() => monthRange(selectedYear, selectedMonth), [selectedMonth, selectedYear]);
   const [beginDate, setBeginDate] = useState(initialRange.beginDate);
@@ -106,6 +110,14 @@ export function MercadoPagoWalletPanel({
             saved: "Mercado Pago token saved",
             requested: "Mercado Pago report requested",
             importedStatus: "Mercado Pago movements imported",
+            previewCleanup: "Preview cleanup",
+            applyCleanup: "Apply cleanup",
+            cleanupTitle: "Clean existing descriptions",
+            cleanupHelp:
+              "Uses the selected report to rename old imported movements that still show technical text.",
+            cleanupFound: "Descriptions to improve",
+            cleanupApplied: "Existing Mercado Pago descriptions cleaned",
+            noCleanup: "No old technical descriptions found for this report.",
             syncPending: "Mercado Pago is preparing the report. Try again in a few minutes.",
             syncImported: "Mercado Pago movements synced",
             latestSync: "Latest sync",
@@ -144,6 +156,14 @@ export function MercadoPagoWalletPanel({
             saved: "Token de Mercado Pago guardado",
             requested: "Reporte de Mercado Pago solicitado",
             importedStatus: "Movimientos de Mercado Pago importados",
+            previewCleanup: "Previsualizar limpieza",
+            applyCleanup: "Aplicar limpieza",
+            cleanupTitle: "Limpiar descripciones existentes",
+            cleanupHelp:
+              "Usa el reporte seleccionado para renombrar movimientos viejos importados que todavia muestran texto tecnico.",
+            cleanupFound: "Descripciones para mejorar",
+            cleanupApplied: "Descripciones existentes de Mercado Pago limpiadas",
+            noCleanup: "No se encontraron descripciones tecnicas viejas para este reporte.",
             syncPending: "Mercado Pago esta preparando el reporte. Volve a intentar en unos minutos.",
             syncImported: "Movimientos de Mercado Pago sincronizados",
             latestSync: "Ultima sincronizacion",
@@ -239,8 +259,28 @@ export function MercadoPagoWalletPanel({
     await runAction(async () => {
       const response = await importMercadoPagoReport(token!, selectedFileName || null);
       setLastImport(response);
+      setNormalizationPreview(null);
       onStatusChange(copy.importedStatus);
       await onImported();
+    });
+  }
+
+  async function handlePreviewNormalization() {
+    await runAction(async () => {
+      const response = await previewMercadoPagoNormalization(token!, selectedFileName || null);
+      setNormalizationPreview(response);
+      onStatusChange(response.candidate_count > 0 ? copy.cleanupFound : copy.noCleanup);
+    });
+  }
+
+  async function handleApplyNormalization() {
+    await runAction(async () => {
+      const response = await applyMercadoPagoNormalization(token!, selectedFileName || null);
+      setNormalizationPreview(response);
+      onStatusChange(response.updated_count > 0 ? copy.cleanupApplied : copy.noCleanup);
+      if (response.updated_count > 0) {
+        await onImported();
+      }
     });
   }
 
@@ -249,6 +289,7 @@ export function MercadoPagoWalletPanel({
       const response = await syncMercadoPagoMovements(token!, beginDate, endDate);
       if (response.import_result) {
         setLastImport(response.import_result);
+        setNormalizationPreview(null);
         onStatusChange(copy.syncImported);
         await onImported();
       } else {
@@ -403,6 +444,59 @@ export function MercadoPagoWalletPanel({
           <Download size={15} />
           {copy.importLatest}
         </button>
+      </div>
+
+      <div className="mt-5 rounded-lg border border-borderSoft bg-background/70 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-text">{copy.cleanupTitle}</h3>
+            <p className="mt-1 text-xs leading-4 text-muted">{copy.cleanupHelp}</p>
+          </div>
+          <Sparkles size={18} className="text-amber" />
+        </div>
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <button
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-sm font-semibold text-amber transition hover:bg-amber/15 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={!token || isLoading || integration?.status !== "active" || reports.length === 0}
+            onClick={handlePreviewNormalization}
+            type="button"
+          >
+            <Sparkles size={15} />
+            {copy.previewCleanup}
+          </button>
+          <button
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-amber px-3 py-2 text-sm font-semibold text-black transition hover:bg-amber/90 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={
+              !token ||
+              isLoading ||
+              integration?.status !== "active" ||
+              reports.length === 0 ||
+              !normalizationPreview ||
+              normalizationPreview.candidate_count === 0
+            }
+            onClick={handleApplyNormalization}
+            type="button"
+          >
+            <Sparkles size={15} />
+            {copy.applyCleanup}
+          </button>
+        </div>
+        {normalizationPreview ? (
+          <div className="mt-3 rounded-md border border-amber/20 bg-amber/5 p-3 text-xs">
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-semibold text-amber">{copy.cleanupFound}</span>
+              <span className="text-text">{normalizationPreview.candidate_count}</span>
+            </div>
+            <div className="mt-3 space-y-2">
+              {normalizationPreview.movements.slice(0, 3).map((movement) => (
+                <div key={movement.transaction_id} className="rounded-md border border-borderSoft bg-background px-3 py-2">
+                  <div className="truncate text-muted">{movement.current_description}</div>
+                  <div className="mt-1 truncate font-semibold text-text">{movement.suggested_description}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {lastSync ? (

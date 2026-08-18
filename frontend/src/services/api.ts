@@ -33,6 +33,7 @@ import type {
   MarketDataRefreshResponse,
   MercadoPagoImportResponse,
   MercadoPagoIntegration,
+  MercadoPagoNormalizeResponse,
   MercadoPagoReport,
   MercadoPagoSyncResponse,
   MonthlyComparison,
@@ -676,6 +677,22 @@ export function getMercadoPagoReports(token: string) {
 
 export function importMercadoPagoReport(token: string, fileName?: string | null) {
   return request<MercadoPagoImportResponse>("/mercado-pago/import", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ file_name: fileName ?? null })
+  });
+}
+
+export function previewMercadoPagoNormalization(token: string, fileName?: string | null) {
+  return request<MercadoPagoNormalizeResponse>("/mercado-pago/normalize-preview", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ file_name: fileName ?? null })
+  });
+}
+
+export function applyMercadoPagoNormalization(token: string, fileName?: string | null) {
+  return request<MercadoPagoNormalizeResponse>("/mercado-pago/normalize", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify({ file_name: fileName ?? null })

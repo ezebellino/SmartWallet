@@ -9,6 +9,8 @@ from app.schemas.mercado_pago import (
     MercadoPagoImportResponse,
     MercadoPagoIntegrationRead,
     MercadoPagoIntegrationUpdate,
+    MercadoPagoNormalizeRequest,
+    MercadoPagoNormalizeResponse,
     MercadoPagoReportRead,
     MercadoPagoReportRequest,
     MercadoPagoReportRequestResponse,
@@ -72,6 +74,30 @@ def import_report(
 ) -> MercadoPagoImportResponse:
     try:
         return service.import_report(current_user.id, data.file_name)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/normalize-preview", response_model=MercadoPagoNormalizeResponse)
+def preview_normalization(
+    data: MercadoPagoNormalizeRequest,
+    current_user: User = Depends(get_current_user),
+    service: MercadoPagoService = Depends(get_mercado_pago_service),
+) -> MercadoPagoNormalizeResponse:
+    try:
+        return service.preview_existing_movement_normalization(current_user.id, data.file_name)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/normalize", response_model=MercadoPagoNormalizeResponse)
+def normalize_movements(
+    data: MercadoPagoNormalizeRequest,
+    current_user: User = Depends(get_current_user),
+    service: MercadoPagoService = Depends(get_mercado_pago_service),
+) -> MercadoPagoNormalizeResponse:
+    try:
+        return service.normalize_existing_movements(current_user.id, data.file_name)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 

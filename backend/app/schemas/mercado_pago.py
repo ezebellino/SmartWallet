@@ -58,6 +58,24 @@ class MercadoPagoImportResponse(BaseModel):
     movements: list[MercadoPagoImportedMovement]
 
 
+class MercadoPagoNormalizeRequest(BaseModel):
+    file_name: str | None = Field(default=None, max_length=260)
+
+
+class MercadoPagoNormalizedMovement(BaseModel):
+    transaction_id: int
+    external_id: str
+    current_description: str | None = None
+    suggested_description: str
+
+
+class MercadoPagoNormalizeResponse(BaseModel):
+    candidate_count: int
+    updated_count: int
+    file_name: str | None = None
+    movements: list[MercadoPagoNormalizedMovement]
+
+
 class MercadoPagoSyncRequest(BaseModel):
     begin_date: date
     end_date: date
