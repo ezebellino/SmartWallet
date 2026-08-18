@@ -31,6 +31,22 @@ from app.schemas.transaction import TransactionCreate
 
 PROVIDER_KEY = "mercadopago"
 EXTERNAL_SOURCE = "mercado_pago"
+REPORT_COLUMNS = [
+    "SOURCE_ID",
+    "EXTERNAL_REFERENCE",
+    "TRANSACTION_TYPE",
+    "TRANSACTION_AMOUNT",
+    "TRANSACTION_CURRENCY",
+    "TRANSACTION_DATE",
+    "SETTLEMENT_NET_AMOUNT",
+    "SETTLEMENT_CURRENCY",
+]
+
+
+class MercadoPagoApiError(ValueError):
+    def __init__(self, message: str, status_code: int) -> None:
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class MercadoPagoProvider:
@@ -39,6 +55,7 @@ class MercadoPagoProvider:
         self.base_url = "https://api.mercadopago.com"
 
     def request_account_money_report(self, access_token: str, begin_date: date, end_date: date) -> None:
+        self.ensure_account_money_report_config(access_token)
         response = httpx.post(
             f"{self.base_url}/v1/account/settlement_report",
             headers=self._headers(access_token),
@@ -51,6 +68,7 @@ class MercadoPagoProvider:
         self._raise_for_status(response, "request Mercado Pago report")
 
     def list_account_money_reports(self, access_token: str) -> list[dict[str, Any]]:
+        self.ensure_account_money_report_config(access_token)
         response = httpx.get(
             f"{self.base_url}/v1/account/settlement_report/list",
             headers=self._headers(access_token),
@@ -59,6 +77,27 @@ class MercadoPagoProvider:
         self._raise_for_status(response, "list Mercado Pago reports")
         data = response.json()
         return data if isinstance(data, list) else []
+
+    def ensure_account_money_report_config(self, access_token: str) -> None:
+        response = httpx.get(
+            f"{self.base_url}/v1/account/settlement_report/config",
+            headers=self._headers(access_token),
+            timeout=self.timeout_seconds,
+        )
+        if response.status_code == 200:
+            return
+        if response.status_code != 404:
+            self._raise_for_status(response, "read Mercado Pago report configuration")
+
+        create_response = httpx.post(
+            f"{self.base_url}/v1/account/settlement_report/config",
+            headers=self._headers(access_token),
+            json=self._default_report_config(),
+            timeout=self.timeout_seconds,
+        )
+        if create_response.status_code in (200, 201, 409):
+            return
+        self._raise_for_status(create_response, "create Mercado Pago report configuration")
 
     def download_account_money_report(self, access_token: str, file_name: str) -> str:
         response = httpx.get(
@@ -81,7 +120,30 @@ class MercadoPagoProvider:
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             message = self._error_message(response)
-            raise ValueError(f"Could not {action}: {message}") from exc
+            if response.status_code == 404:
+                message = (
+                    f"{message}. Check that the Mercado Pago productive access token belongs to an account "
+                    "with Account Money reports enabled."
+                )
+            raise MercadoPagoApiError(f"Could not {action}: {message}", response.status_code) from exc
+
+    def _default_report_config(self) -> dict[str, Any]:
+        return {
+            "columns": [{"key": key} for key in REPORT_COLUMNS],
+            "file_name_prefix": "settlement-report",
+            "frequency": {"hour": 0, "value": 1, "type": "monthly"},
+            "separator": ";",
+            "display_timezone": "GMT-03",
+            "report_translation": "es",
+            "header_language": "es",
+            "scheduled": False,
+            "include_withdraw": True,
+            "refund_detailed": True,
+            "shipping_detail": False,
+            "coupon_detailed": False,
+            "show_chargeback_cancel": True,
+            "show_fee_prevision": False,
+        }
 
     def _error_message(self, response: httpx.Response) -> str:
         fallback = f"Mercado Pago returned HTTP {response.status_code}"

@@ -10,8 +10,10 @@ class FakeMercadoPagoProvider(MercadoPagoProvider):
         self.csv_text = csv_text
         self.reports = reports
         self.requested_reports: list[tuple[date, date]] = []
+        self.configured = True
 
     def request_account_money_report(self, access_token: str, begin_date: date, end_date: date) -> None:
+        self.ensure_account_money_report_config(access_token)
         self.requested_reports.append((begin_date, end_date))
 
     def list_account_money_reports(self, access_token: str) -> list[dict]:
@@ -28,6 +30,25 @@ class FakeMercadoPagoProvider(MercadoPagoProvider):
 
     def download_account_money_report(self, access_token: str, file_name: str) -> str:
         return self.csv_text
+
+    def ensure_account_money_report_config(self, access_token: str) -> None:
+        self.configured = True
+
+
+class UnconfiguredMercadoPagoProvider(FakeMercadoPagoProvider):
+    def __init__(self) -> None:
+        super().__init__("", reports=[])
+        self.configured = False
+        self.created_config = False
+
+    def ensure_account_money_report_config(self, access_token: str) -> None:
+        self.created_config = True
+        self.configured = True
+
+    def request_account_money_report(self, access_token: str, begin_date: date, end_date: date) -> None:
+        self.ensure_account_money_report_config(access_token)
+        assert self.configured
+        super().request_account_money_report(access_token, begin_date, end_date)
 
 
 def test_mercado_pago_requires_token(client) -> None:
@@ -168,4 +189,34 @@ def test_mercado_pago_sync_requests_report_when_no_matching_file(client, auth_he
     assert body["status"] == "pending"
     assert body["report_requested"] is True
     assert body["import_result"] is None
+    assert fake_provider.requested_reports == [(date(2026, 8, 1), date(2026, 8, 31))]
+
+
+def test_mercado_pago_request_report_ensures_report_configuration(client, auth_headers, db_session: Session) -> None:
+    client.patch(
+        "/mercado-pago/integration",
+        headers=auth_headers,
+        json={"enabled": True, "access_token": "APP_USR-1234567890abcdef"},
+    )
+    from app.routers.mercado_pago import get_mercado_pago_service
+    from app.services.mercado_pago import MercadoPagoService
+    from app.main import app
+
+    fake_provider = UnconfiguredMercadoPagoProvider()
+
+    def override_service() -> MercadoPagoService:
+        return MercadoPagoService(db_session, provider=fake_provider)
+
+    app.dependency_overrides[get_mercado_pago_service] = override_service
+    try:
+        response = client.post(
+            "/mercado-pago/reports",
+            headers=auth_headers,
+            json={"begin_date": "2026-08-01", "end_date": "2026-08-31"},
+        )
+    finally:
+        app.dependency_overrides.pop(get_mercado_pago_service, None)
+
+    assert response.status_code == 202
+    assert fake_provider.created_config is True
     assert fake_provider.requested_reports == [(date(2026, 8, 1), date(2026, 8, 31))]
