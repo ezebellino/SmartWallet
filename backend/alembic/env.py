@@ -20,7 +20,7 @@ logging.getLogger("alembic.runtime.migration").disabled = True
 
 target_metadata = Base.metadata
 extra_args = context.get_x_argument(as_dictionary=True)
-config.set_main_option("sqlalchemy.url", extra_args.get("database_url", settings.database_url))
+config.set_main_option("sqlalchemy.url", extra_args.get("database_url", settings.sqlalchemy_database_url))
 
 
 def run_migrations_offline() -> None:
