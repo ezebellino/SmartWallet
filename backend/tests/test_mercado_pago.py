@@ -252,6 +252,53 @@ def test_mercado_pago_normalizes_existing_technical_descriptions(client, auth_he
     assert second_preview_response.json()["candidate_count"] == 0
 
 
+def test_mercado_pago_normalization_falls_back_to_clean_type_label(
+    client,
+    auth_headers,
+    db_session: Session,
+) -> None:
+    csv_text = "\n".join(
+        [
+            "SOURCE_ID;EXTERNAL_REFERENCE;TRANSACTION_TYPE;TRANSACTION_AMOUNT;TRANSACTION_CURRENCY;TRANSACTION_DATE;SETTLEMENT_NET_AMOUNT",
+            "mp-fallback-income;;SETTLEMENT;2500.00;ARS;2026-08-18T13:00:00.000-03:00;2500.00",
+            "mp-fallback-expense;;SETTLEMENT;-1800.00;ARS;2026-08-18T14:00:00.000-03:00;-1800.00",
+        ]
+    )
+
+    client.patch(
+        "/mercado-pago/integration",
+        headers=auth_headers,
+        json={"enabled": True, "access_token": "APP_USR-1234567890abcdef"},
+    )
+    from app.routers.mercado_pago import get_mercado_pago_service
+    from app.services.mercado_pago import MercadoPagoService
+    from app.main import app
+
+    provider = FakeMercadoPagoProvider(csv_text)
+
+    def override_service() -> MercadoPagoService:
+        return MercadoPagoService(db_session, provider=provider)
+
+    app.dependency_overrides[get_mercado_pago_service] = override_service
+    try:
+        import_response = client.post("/mercado-pago/import", headers=auth_headers, json={})
+        preview_response = client.post("/mercado-pago/normalize-preview", headers=auth_headers, json={})
+        apply_response = client.post("/mercado-pago/normalize", headers=auth_headers, json={})
+    finally:
+        app.dependency_overrides.pop(get_mercado_pago_service, None)
+
+    assert import_response.status_code == 200
+    assert preview_response.status_code == 200
+    preview_body = preview_response.json()
+    assert preview_body["candidate_count"] == 2
+    assert [item["suggested_description"] for item in preview_body["movements"]] == [
+        "Mercado Pago - Ingreso",
+        "Mercado Pago - Gasto",
+    ]
+    assert apply_response.status_code == 200
+    assert apply_response.json()["updated_count"] == 2
+
+
 def test_mercado_pago_sync_imports_matching_report(client, auth_headers, db_session: Session) -> None:
     csv_text = "\n".join(
         [

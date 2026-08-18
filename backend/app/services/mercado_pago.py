@@ -399,7 +399,7 @@ class MercadoPagoService:
             if not transaction:
                 continue
 
-            suggested_description = self._description(row)
+            suggested_description = self._normalization_description(row, transaction.type)
             if not self._should_normalize_description(transaction.description, suggested_description):
                 continue
 
@@ -607,6 +607,14 @@ class MercadoPagoService:
         if "| source " in normalized or "| ref " in normalized:
             return True
         return label in {"SETTLEMENT", "WITHDRAWAL", "REFUND", "CHARGEBACK", "DISPUTE", "PAYOUT", "MOVIMIENTO"}
+
+    def _normalization_description(self, row: dict[str, str], transaction_type: TransactionType) -> str:
+        description = self._description(row)
+        if not self._is_technical_mercado_pago_description(description):
+            return description
+
+        label = "Ingreso" if transaction_type == TransactionType.income else "Gasto"
+        return f"Mercado Pago - {label}"
 
     def _row_value(self, row: dict[str, str], *keys: str) -> str | None:
         normalized = {key.upper().strip(): value for key, value in row.items()}
