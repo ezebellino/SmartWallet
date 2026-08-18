@@ -38,34 +38,38 @@ type Props = {
 const today = new Date().toISOString().slice(0, 10);
 const initialVisibleCount = 8;
 const dayMs = 24 * 60 * 60 * 1000;
-const yesterday = new Date(Date.now() - dayMs).toISOString().slice(0, 10);
-const lastWeek = new Date(Date.now() - dayMs * 6).toISOString().slice(0, 10);
-const movementGroupOrder = ["today", "yesterday", "week", "older"] as const;
-type MovementGroupKey = (typeof movementGroupOrder)[number];
+type PeriodFilter = "all" | "day" | "week" | "month";
 
-function getMovementGroupKey(date: string): MovementGroupKey {
-  if (date === today) {
-    return "today";
-  }
-
-  if (date === yesterday) {
-    return "yesterday";
-  }
-
-  if (date >= lastWeek) {
-    return "week";
-  }
-
-  return "older";
+function parseLocalDate(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
 }
 
-function getMovementGroupLabel(key: MovementGroupKey): TranslationKey {
-  return {
-    older: "movementGroupOlder",
-    today: "movementGroupToday",
-    week: "movementGroupThisWeek",
-    yesterday: "movementGroupYesterday"
-  }[key] as TranslationKey;
+function formatLocalDate(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+function getPeriodRange(period: PeriodFilter, anchorDate: string) {
+  if (period === "all") {
+    return null;
+  }
+
+  const anchor = parseLocalDate(anchorDate);
+  if (period === "day") {
+    return { end: anchorDate, start: anchorDate };
+  }
+
+  if (period === "week") {
+    const day = anchor.getDay();
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    const start = new Date(anchor.getTime() + mondayOffset * dayMs);
+    const end = new Date(start.getTime() + 6 * dayMs);
+    return { end: formatLocalDate(end), start: formatLocalDate(start) };
+  }
+
+  const start = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+  return { end: formatLocalDate(end), start: formatLocalDate(start) };
 }
 
 export function TransactionManager({ categories, isDisabled, onCreate, onCreateCategory, onDelete, onUpdate, transactions, t }: Props) {
@@ -83,6 +87,8 @@ export function TransactionManager({ categories, isDisabled, onCreate, onCreateC
   const [editingDate, setEditingDate] = useState(today);
   const [filterType, setFilterType] = useState<TransactionType | "all">("all");
   const [filterCategoryId, setFilterCategoryId] = useState("all");
+  const [filterPeriod, setFilterPeriod] = useState<PeriodFilter>("month");
+  const [filterAnchorDate, setFilterAnchorDate] = useState(today);
   const [searchQuery, setSearchQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(initialVisibleCount);
   const [isSaving, setIsSaving] = useState(false);
@@ -95,6 +101,7 @@ export function TransactionManager({ categories, isDisabled, onCreate, onCreateC
     () => new Map(categories.map((category) => [category.id, category])),
     [categories]
   );
+  const periodRange = useMemo(() => getPeriodRange(filterPeriod, filterAnchorDate), [filterAnchorDate, filterPeriod]);
   const filteredTransactions = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
@@ -102,12 +109,14 @@ export function TransactionManager({ categories, isDisabled, onCreate, onCreateC
       const category = categoryById.get(transaction.category_id);
       const matchesType = filterType === "all" || transaction.type === filterType;
       const matchesCategory = filterCategoryId === "all" || transaction.category_id === Number(filterCategoryId);
+      const matchesPeriod =
+        !periodRange || (transaction.transaction_date >= periodRange.start && transaction.transaction_date <= periodRange.end);
       const searchableText = `${transaction.description ?? ""} ${category?.name ?? ""}`.toLowerCase();
       const matchesSearch = !normalizedQuery || searchableText.includes(normalizedQuery);
 
-      return matchesType && matchesCategory && matchesSearch;
+      return matchesType && matchesCategory && matchesPeriod && matchesSearch;
     });
-  }, [categoryById, filterCategoryId, filterType, searchQuery, transactions]);
+  }, [categoryById, filterCategoryId, filterType, periodRange, searchQuery, transactions]);
   const filteredTotals = useMemo(
     () =>
       filteredTransactions.reduce(
@@ -126,13 +135,13 @@ export function TransactionManager({ categories, isDisabled, onCreate, onCreateC
   const visibleTransactions = filteredTransactions.slice(0, visibleCount);
   const groupedVisibleTransactions = useMemo(() => {
     const groups = new Map<
-      MovementGroupKey,
-      { expenses: number; income: number; items: Transaction[]; key: MovementGroupKey }
+      string,
+      { date: string; expenses: number; income: number; items: Transaction[] }
     >();
 
     for (const transaction of visibleTransactions) {
-      const groupKey = getMovementGroupKey(transaction.transaction_date);
-      const current = groups.get(groupKey) ?? { expenses: 0, income: 0, items: [], key: groupKey };
+      const groupKey = transaction.transaction_date;
+      const current = groups.get(groupKey) ?? { date: transaction.transaction_date, expenses: 0, income: 0, items: [] };
       const amountValue = Number(transaction.amount);
 
       current.items.push(transaction);
@@ -145,18 +154,15 @@ export function TransactionManager({ categories, isDisabled, onCreate, onCreateC
       groups.set(groupKey, current);
     }
 
-    return movementGroupOrder.map((key) => groups.get(key)).filter(Boolean) as Array<{
-      expenses: number;
-      income: number;
-      items: Transaction[];
-      key: MovementGroupKey;
-    }>;
+    return [...groups.values()];
   }, [visibleTransactions]);
   const filteredNet = filteredTotals.income - filteredTotals.expenses;
 
   function resetFilters() {
     setFilterType("all");
     setFilterCategoryId("all");
+    setFilterPeriod("month");
+    setFilterAnchorDate(today);
     setSearchQuery("");
     setVisibleCount(initialVisibleCount);
   }
@@ -406,6 +412,43 @@ export function TransactionManager({ categories, isDisabled, onCreate, onCreateC
             placeholder={t("searchMovements")}
             value={searchQuery}
           />
+          <div className="grid gap-3 lg:grid-cols-[1fr_180px]">
+            <div className="grid grid-cols-4 rounded-md border border-borderSoft bg-panel p-1">
+              {(["day", "week", "month", "all"] as const).map((option) => (
+                <button
+                  className={`min-w-0 rounded px-2 py-2 text-xs font-semibold transition sm:text-sm ${
+                    filterPeriod === option ? "bg-cyan text-background" : "text-muted hover:text-text"
+                  }`}
+                  key={option}
+                  onClick={() => {
+                    setFilterPeriod(option);
+                    setVisibleCount(initialVisibleCount);
+                  }}
+                  type="button"
+                >
+                  {t(`periodFilter${option}` as TranslationKey)}
+                </button>
+              ))}
+            </div>
+            <label className="block text-xs font-semibold text-muted">
+              {t("periodReferenceDate")}
+              <input
+                className="mt-1 w-full rounded-md border border-borderSoft bg-panel px-3 py-2 text-sm text-text outline-none transition focus:border-cyan"
+                disabled={filterPeriod === "all"}
+                onChange={(event) => {
+                  setFilterAnchorDate(event.target.value);
+                  setVisibleCount(initialVisibleCount);
+                }}
+                type="date"
+                value={filterAnchorDate}
+              />
+            </label>
+          </div>
+          {periodRange ? (
+            <p className="rounded-md border border-cyan/20 bg-cyan/8 px-3 py-2 text-xs text-cyan">
+              {t("periodRange")}: {formatDate(periodRange.start)} - {formatDate(periodRange.end)}
+            </p>
+          ) : null}
           <div className="grid gap-3 sm:grid-cols-2">
             <select
               className="rounded-md border border-borderSoft bg-panel px-3 py-2.5 text-sm text-text outline-none transition focus:border-cyan"
@@ -482,11 +525,11 @@ export function TransactionManager({ categories, isDisabled, onCreate, onCreateC
             const groupNet = group.income - group.expenses;
 
             return (
-              <section className="space-y-2" key={group.key}>
+              <section className="space-y-2" key={group.date}>
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-borderSoft/80 bg-panel/70 px-3 py-2">
                   <div className="inline-flex items-center gap-2 text-sm font-semibold text-text">
                     <CalendarDays size={15} className="text-cyan" />
-                    {t(getMovementGroupLabel(group.key))}
+                    {formatDate(group.date)}
                     <span className="rounded-full bg-background px-2 py-0.5 text-xs text-muted">{group.items.length}</span>
                   </div>
                   <div className={groupNet >= 0 ? "text-sm font-semibold text-emerald" : "text-sm font-semibold text-rose"}>
