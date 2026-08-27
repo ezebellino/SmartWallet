@@ -326,6 +326,7 @@ class MercadoPagoService:
         csv_text = self.provider.download_account_money_report(access_token, report_file_name)
         rows = self._parse_csv(csv_text)
         movements: list[MercadoPagoImportedMovement] = []
+        first_movement_date, latest_movement_date = self._movement_date_range(rows)
 
         for row in rows:
             try:
@@ -348,6 +349,9 @@ class MercadoPagoService:
             skipped_count=sum(1 for item in movements if item.status == "skipped"),
             failed_count=sum(1 for item in movements if item.status == "failed"),
             file_name=report_file_name,
+            row_count=len(rows),
+            first_movement_date=first_movement_date,
+            latest_movement_date=latest_movement_date,
             movements=movements,
         )
 
@@ -573,6 +577,17 @@ class MercadoPagoService:
             raise ValueError("Mercado Pago row does not include a transaction date")
         normalized = raw.replace("Z", "+00:00")
         return datetime.fromisoformat(normalized).date()
+
+    def _movement_date_range(self, rows: list[dict[str, str]]) -> tuple[date | None, date | None]:
+        dates: list[date] = []
+        for row in rows:
+            try:
+                dates.append(self._transaction_date(row))
+            except (TypeError, ValueError):
+                continue
+        if not dates:
+            return None, None
+        return min(dates), max(dates)
 
     def _external_id(self, row: dict[str, str]) -> str:
         candidate = self._row_value(row, "SOURCE_ID", "EXTERNAL_REFERENCE", "ORDER_ID")

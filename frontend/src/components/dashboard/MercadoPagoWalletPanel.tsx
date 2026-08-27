@@ -105,6 +105,9 @@ export function MercadoPagoWalletPanel({
             imported: "Imported",
             skipped: "Skipped",
             failed: "Failed",
+            rowsRead: "Rows read",
+            fileRange: "File movement range",
+            noFileRange: "No movement dates found in the imported file",
             sourceNote: "First request the report. When Mercado Pago finishes preparing it, refresh the list and import.",
             signIn: "Sign in to connect Mercado Pago.",
             saved: "Mercado Pago token saved",
@@ -151,6 +154,9 @@ export function MercadoPagoWalletPanel({
             imported: "Importados",
             skipped: "Omitidos",
             failed: "Con error",
+            rowsRead: "Filas leidas",
+            fileRange: "Rango real del archivo",
+            noFileRange: "No se encontraron fechas de movimientos en el archivo importado",
             sourceNote: "Primero pedi el reporte. Cuando Mercado Pago termine de prepararlo, actualiza la lista e importa.",
             signIn: "Inicia sesion para conectar Mercado Pago.",
             saved: "Token de Mercado Pago guardado",
@@ -530,18 +536,34 @@ export function MercadoPagoWalletPanel({
       ) : null}
 
       {lastImport ? (
-        <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
-          <div className="rounded-md border border-emerald/25 bg-emerald/10 p-2 text-emerald">
-            <div className="text-lg font-semibold">{lastImport.imported_count}</div>
-            {copy.imported}
+        <div className="mt-4 space-y-2">
+          <div className="rounded-md border border-borderSoft bg-background px-3 py-2 text-xs text-muted">
+            <div className="flex items-center justify-between gap-3">
+              <span>{copy.rowsRead}</span>
+              <span className="font-semibold text-text">{lastImport.row_count}</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-3">
+              <span>{copy.fileRange}</span>
+              <span className="text-right font-semibold text-text">
+                {lastImport.first_movement_date && lastImport.latest_movement_date
+                  ? `${lastImport.first_movement_date} - ${lastImport.latest_movement_date}`
+                  : copy.noFileRange}
+              </span>
+            </div>
           </div>
-          <div className="rounded-md border border-cyan/25 bg-cyan/10 p-2 text-cyan">
-            <div className="text-lg font-semibold">{lastImport.skipped_count}</div>
-            {copy.skipped}
-          </div>
-          <div className="rounded-md border border-rose/25 bg-rose/10 p-2 text-rose">
-            <div className="text-lg font-semibold">{lastImport.failed_count}</div>
-            {copy.failed}
+          <div className="grid grid-cols-3 gap-2 text-center text-xs">
+            <div className="rounded-md border border-emerald/25 bg-emerald/10 p-2 text-emerald">
+              <div className="text-lg font-semibold">{lastImport.imported_count}</div>
+              {copy.imported}
+            </div>
+            <div className="rounded-md border border-cyan/25 bg-cyan/10 p-2 text-cyan">
+              <div className="text-lg font-semibold">{lastImport.skipped_count}</div>
+              {copy.skipped}
+            </div>
+            <div className="rounded-md border border-rose/25 bg-rose/10 p-2 text-rose">
+              <div className="text-lg font-semibold">{lastImport.failed_count}</div>
+              {copy.failed}
+            </div>
           </div>
         </div>
       ) : null}

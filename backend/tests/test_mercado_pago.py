@@ -124,11 +124,15 @@ def test_mercado_pago_imports_report_and_skips_duplicates(client, auth_headers, 
     assert body["imported_count"] == 2
     assert body["skipped_count"] == 0
     assert body["failed_count"] == 0
+    assert body["row_count"] == 2
+    assert body["first_movement_date"] == "2026-08-05"
+    assert body["latest_movement_date"] == "2026-08-06"
 
     assert duplicate_response.status_code == 200
     duplicate_body = duplicate_response.json()
     assert duplicate_body["imported_count"] == 0
     assert duplicate_body["skipped_count"] == 2
+    assert duplicate_body["row_count"] == 2
 
 
 def test_mercado_pago_import_uses_human_readable_description(client, auth_headers, db_session: Session) -> None:

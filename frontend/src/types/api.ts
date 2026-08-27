@@ -341,6 +341,9 @@ export type MercadoPagoImportResponse = {
   skipped_count: number;
   failed_count: number;
   file_name: string | null;
+  row_count: number;
+  first_movement_date: string | null;
+  latest_movement_date: string | null;
   movements: MercadoPagoImportMovement[];
 };
 

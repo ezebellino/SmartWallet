@@ -55,6 +55,9 @@ class MercadoPagoImportResponse(BaseModel):
     skipped_count: int
     failed_count: int
     file_name: str | None = None
+    row_count: int = 0
+    first_movement_date: date | None = None
+    latest_movement_date: date | None = None
     movements: list[MercadoPagoImportedMovement]
 
 
