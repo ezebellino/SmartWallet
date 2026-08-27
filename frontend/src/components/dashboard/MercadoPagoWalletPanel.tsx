@@ -90,7 +90,7 @@ export function MercadoPagoWalletPanel({
             missingToken: "Token required",
             disabled: "Disabled",
             requestReport: "Request report",
-            importLatest: "Import latest",
+            importLatest: "Import selected",
             refreshReports: "Refresh list",
             reportRange: "Report range",
             syncMovements: "Sync movements",
@@ -136,7 +136,7 @@ export function MercadoPagoWalletPanel({
             missingToken: "Falta token",
             disabled: "Desactivado",
             requestReport: "Pedir reporte",
-            importLatest: "Importar ultimo",
+            importLatest: "Importar seleccionado",
             refreshReports: "Actualizar lista",
             reportRange: "Rango del reporte",
             syncMovements: "Sincronizar movimientos",
@@ -204,7 +204,7 @@ export function MercadoPagoWalletPanel({
     }
   }
 
-  async function loadReports() {
+  async function loadReports(options: { preferLatest?: boolean } = {}) {
     if (!token) {
       return;
     }
@@ -212,7 +212,14 @@ export function MercadoPagoWalletPanel({
     try {
       const response = await getMercadoPagoReports(token);
       setReports(response);
-      setSelectedFileName((current) => current || response[0]?.file_name || "");
+      setSelectedFileName((current) => {
+        const latestFileName = response[0]?.file_name || "";
+        const currentStillExists = response.some((report) => report.file_name === current);
+        if (options.preferLatest || !current || !currentStillExists) {
+          return latestFileName;
+        }
+        return current;
+      });
     } catch (error) {
       onStatusChange(error instanceof Error ? error.message : "Mercado Pago error");
     }
@@ -251,7 +258,7 @@ export function MercadoPagoWalletPanel({
     await runAction(async () => {
       await requestMercadoPagoReport(token!, beginDate, endDate);
       onStatusChange(copy.requested);
-      await loadReports();
+      await loadReports({ preferLatest: true });
     });
   }
 
@@ -296,7 +303,7 @@ export function MercadoPagoWalletPanel({
         onStatusChange(response.message || copy.syncPending);
       }
       setLastSync(response);
-      await loadReports();
+      await loadReports({ preferLatest: true });
     });
   }
 
@@ -415,7 +422,7 @@ export function MercadoPagoWalletPanel({
           <button
             className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-borderSoft text-muted transition hover:border-cyan/35 hover:text-cyan disabled:opacity-50"
             disabled={!token || isLoading || integration?.status !== "active"}
-            onClick={() => void runAction(loadReports)}
+            onClick={() => void runAction(() => loadReports({ preferLatest: true }))}
             title={copy.refreshReports}
             type="button"
           >
@@ -432,6 +439,7 @@ export function MercadoPagoWalletPanel({
           {reports.map((report) => (
             <option key={report.file_name} value={report.file_name}>
               {report.file_name}
+              {report.date_created ? ` - ${new Date(report.date_created).toLocaleDateString()}` : ""}
             </option>
           ))}
         </select>

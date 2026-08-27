@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 import httpx
 
@@ -396,6 +396,50 @@ def test_mercado_pago_normalization_uses_payment_detail_for_existing_movements(
     assert preview_response.json()["movements"][0]["suggested_description"] == "Mercado Pago - Juan Perez"
 
 
+def test_mercado_pago_normalization_upgrades_generic_fallback_with_payment_detail(
+    client,
+    auth_headers,
+    db_session: Session,
+) -> None:
+    csv_text = "\n".join(
+        [
+            "SOURCE_ID;EXTERNAL_REFERENCE;TRANSACTION_TYPE;TRANSACTION_AMOUNT;TRANSACTION_CURRENCY;TRANSACTION_DATE;SETTLEMENT_NET_AMOUNT",
+            "1748477427139;;SETTLEMENT;2114.00;ARS;2026-08-18T13:00:00.000-03:00;2114.00",
+        ]
+    )
+
+    client.patch(
+        "/mercado-pago/integration",
+        headers=auth_headers,
+        json={"enabled": True, "access_token": "APP_USR-1234567890abcdef"},
+    )
+    from app.routers.mercado_pago import get_mercado_pago_service
+    from app.services.mercado_pago import MercadoPagoService
+    from app.main import app
+
+    provider = FakeMercadoPagoProvider(csv_text)
+
+    def override_service() -> MercadoPagoService:
+        return MercadoPagoService(db_session, provider=provider)
+
+    app.dependency_overrides[get_mercado_pago_service] = override_service
+    try:
+        import_response = client.post("/mercado-pago/import", headers=auth_headers, json={})
+        fallback_response = client.post("/mercado-pago/normalize", headers=auth_headers, json={})
+        provider.payment_details = {"1748477427139": {"payer": {"first_name": "Juan", "last_name": "Perez"}}}
+        preview_response = client.post("/mercado-pago/normalize-preview", headers=auth_headers, json={})
+    finally:
+        app.dependency_overrides.pop(get_mercado_pago_service, None)
+
+    assert import_response.status_code == 200
+    assert fallback_response.status_code == 200
+    assert fallback_response.json()["movements"][0]["suggested_description"] == "Mercado Pago - Ingreso"
+    assert preview_response.status_code == 200
+    assert preview_response.json()["candidate_count"] == 1
+    assert preview_response.json()["movements"][0]["current_description"] == "Mercado Pago - Ingreso"
+    assert preview_response.json()["movements"][0]["suggested_description"] == "Mercado Pago - Juan Perez"
+
+
 def test_mercado_pago_sync_imports_matching_report(client, auth_headers, db_session: Session) -> None:
     csv_text = "\n".join(
         [
@@ -433,6 +477,56 @@ def test_mercado_pago_sync_imports_matching_report(client, auth_headers, db_sess
     assert body["status"] == "imported"
     assert body["report_requested"] is False
     assert body["import_result"]["imported_count"] == 1
+
+
+def test_mercado_pago_sync_requests_fresh_report_when_matching_report_is_stale(
+    client,
+    auth_headers,
+    db_session: Session,
+) -> None:
+    today = date.today()
+    stale_created_at = today - timedelta(days=1)
+    reports = [
+        {
+            "id": 1,
+            "file_name": "settlement-report-stale.csv",
+            "begin_date": f"{today.isoformat()}T00:00:00Z",
+            "end_date": f"{today.isoformat()}T23:59:59Z",
+            "created_from": "manual",
+            "date_created": f"{stale_created_at.isoformat()}T10:00:00Z",
+        }
+    ]
+
+    client.patch(
+        "/mercado-pago/integration",
+        headers=auth_headers,
+        json={"enabled": True, "access_token": "APP_USR-1234567890abcdef"},
+    )
+    from app.routers.mercado_pago import get_mercado_pago_service
+    from app.services.mercado_pago import MercadoPagoService
+    from app.main import app
+
+    fake_provider = FakeMercadoPagoProvider("", reports=reports)
+
+    def override_service() -> MercadoPagoService:
+        return MercadoPagoService(db_session, provider=fake_provider)
+
+    app.dependency_overrides[get_mercado_pago_service] = override_service
+    try:
+        response = client.post(
+            "/mercado-pago/sync",
+            headers=auth_headers,
+            json={"begin_date": today.isoformat(), "end_date": today.isoformat()},
+        )
+    finally:
+        app.dependency_overrides.pop(get_mercado_pago_service, None)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "pending"
+    assert body["report_requested"] is True
+    assert body["import_result"] is None
+    assert fake_provider.requested_reports == [(today, today)]
 
 
 def test_mercado_pago_sync_requests_report_when_no_matching_file(client, auth_headers, db_session: Session) -> None:

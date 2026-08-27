@@ -516,8 +516,17 @@ class MercadoPagoService:
             if not report.file_name or not report.begin_date or not report.end_date:
                 continue
             if report.begin_date.date() <= begin_date and report.end_date.date() >= end_date:
+                if self._is_stale_report_for_range(report, end_date):
+                    continue
                 return report
         return None
+
+    def _is_stale_report_for_range(self, report: MercadoPagoReportRead, end_date: date) -> bool:
+        if not report.date_created:
+            return False
+
+        effective_end_date = min(end_date, date.today())
+        return report.date_created.date() < effective_end_date
 
     def _sort_reports(self, reports: list[MercadoPagoReportRead]) -> list[MercadoPagoReportRead]:
         fallback = datetime.min.replace(tzinfo=timezone.utc)
@@ -619,9 +628,14 @@ class MercadoPagoService:
             return False
         if not suggested_description.startswith("Mercado Pago - "):
             return False
-        if not self._is_technical_mercado_pago_description(current_description):
-            return False
-        return not self._is_technical_mercado_pago_description(suggested_description)
+        if self._is_technical_mercado_pago_description(current_description):
+            return not self._is_technical_mercado_pago_description(suggested_description)
+        if self._is_generic_mercado_pago_description(current_description):
+            return not (
+                self._is_technical_mercado_pago_description(suggested_description)
+                or self._is_generic_mercado_pago_description(suggested_description)
+            )
+        return False
 
     def _is_technical_mercado_pago_description(self, description: str | None) -> bool:
         if not description:
@@ -633,6 +647,12 @@ class MercadoPagoService:
         if "| source " in normalized or "| ref " in normalized:
             return True
         return label in {"SETTLEMENT", "WITHDRAWAL", "REFUND", "CHARGEBACK", "DISPUTE", "PAYOUT", "MOVIMIENTO"}
+
+    def _is_generic_mercado_pago_description(self, description: str | None) -> bool:
+        if not description:
+            return False
+        normalized = " ".join(description.split())
+        return normalized in {"Mercado Pago - Ingreso", "Mercado Pago - Gasto"}
 
     def _normalization_description(
         self,
