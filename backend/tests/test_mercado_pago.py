@@ -8,9 +8,15 @@ from app.services.mercado_pago import MercadoPagoProvider
 
 
 class FakeMercadoPagoProvider(MercadoPagoProvider):
-    def __init__(self, csv_text: str, reports: list[dict] | None = None) -> None:
+    def __init__(
+        self,
+        csv_text: str,
+        reports: list[dict] | None = None,
+        payment_details: dict[str, dict] | None = None,
+    ) -> None:
         self.csv_text = csv_text
         self.reports = reports
+        self.payment_details = payment_details or {}
         self.requested_reports: list[tuple[date, date]] = []
         self.configured = True
 
@@ -35,6 +41,9 @@ class FakeMercadoPagoProvider(MercadoPagoProvider):
 
     def ensure_account_money_report_config(self, access_token: str) -> None:
         self.configured = True
+
+    def get_payment_detail(self, access_token: str, payment_id: str) -> dict | None:
+        return self.payment_details.get(payment_id)
 
 
 class UnconfiguredMercadoPagoProvider(FakeMercadoPagoProvider):
@@ -297,6 +306,94 @@ def test_mercado_pago_normalization_falls_back_to_clean_type_label(
     ]
     assert apply_response.status_code == 200
     assert apply_response.json()["updated_count"] == 2
+
+
+def test_mercado_pago_import_uses_payment_detail_when_report_has_no_human_name(
+    client,
+    auth_headers,
+    db_session: Session,
+) -> None:
+    csv_text = "\n".join(
+        [
+            "SOURCE_ID;EXTERNAL_REFERENCE;TRANSACTION_TYPE;TRANSACTION_AMOUNT;TRANSACTION_CURRENCY;TRANSACTION_DATE;SETTLEMENT_NET_AMOUNT",
+            "1748477427139;;SETTLEMENT;2114.00;ARS;2026-08-18T13:00:00.000-03:00;2114.00",
+            "174286444638;;SETTLEMENT;-60426.00;ARS;2026-08-17T13:00:00.000-03:00;-60426.00",
+        ]
+    )
+
+    client.patch(
+        "/mercado-pago/integration",
+        headers=auth_headers,
+        json={"enabled": True, "access_token": "APP_USR-1234567890abcdef"},
+    )
+    from app.routers.mercado_pago import get_mercado_pago_service
+    from app.services.mercado_pago import MercadoPagoService
+    from app.main import app
+
+    provider = FakeMercadoPagoProvider(
+        csv_text,
+        payment_details={
+            "1748477427139": {"payer": {"first_name": "Juan", "last_name": "Perez"}},
+            "174286444638": {"description": "Verduleria San Martin"},
+        },
+    )
+
+    def override_service() -> MercadoPagoService:
+        return MercadoPagoService(db_session, provider=provider)
+
+    app.dependency_overrides[get_mercado_pago_service] = override_service
+    try:
+        response = client.post("/mercado-pago/import", headers=auth_headers, json={})
+    finally:
+        app.dependency_overrides.pop(get_mercado_pago_service, None)
+
+    assert response.status_code == 200
+    movements = response.json()["movements"]
+    assert movements[0]["description"] == "Mercado Pago - Juan Perez"
+    assert movements[1]["description"] == "Mercado Pago - Verduleria San Martin"
+
+
+def test_mercado_pago_normalization_uses_payment_detail_for_existing_movements(
+    client,
+    auth_headers,
+    db_session: Session,
+) -> None:
+    old_csv = "\n".join(
+        [
+            "SOURCE_ID;EXTERNAL_REFERENCE;TRANSACTION_TYPE;TRANSACTION_AMOUNT;TRANSACTION_CURRENCY;TRANSACTION_DATE;SETTLEMENT_NET_AMOUNT",
+            "1748477427139;;SETTLEMENT;2114.00;ARS;2026-08-18T13:00:00.000-03:00;2114.00",
+        ]
+    )
+
+    client.patch(
+        "/mercado-pago/integration",
+        headers=auth_headers,
+        json={"enabled": True, "access_token": "APP_USR-1234567890abcdef"},
+    )
+    from app.routers.mercado_pago import get_mercado_pago_service
+    from app.services.mercado_pago import MercadoPagoService
+    from app.main import app
+
+    provider = FakeMercadoPagoProvider(old_csv)
+
+    def override_service() -> MercadoPagoService:
+        return MercadoPagoService(db_session, provider=provider)
+
+    app.dependency_overrides[get_mercado_pago_service] = override_service
+    try:
+        import_response = client.post("/mercado-pago/import", headers=auth_headers, json={})
+        provider.payment_details = {"1748477427139": {"payer": {"first_name": "Juan", "last_name": "Perez"}}}
+        preview_response = client.post("/mercado-pago/normalize-preview", headers=auth_headers, json={})
+    finally:
+        app.dependency_overrides.pop(get_mercado_pago_service, None)
+
+    assert import_response.status_code == 200
+    assert import_response.json()["movements"][0]["description"] == (
+        "Mercado Pago - SETTLEMENT | source 1748477427139"
+    )
+    assert preview_response.status_code == 200
+    assert preview_response.json()["candidate_count"] == 1
+    assert preview_response.json()["movements"][0]["suggested_description"] == "Mercado Pago - Juan Perez"
 
 
 def test_mercado_pago_sync_imports_matching_report(client, auth_headers, db_session: Session) -> None:

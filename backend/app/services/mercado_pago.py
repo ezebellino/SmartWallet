@@ -163,6 +163,27 @@ class MercadoPagoProvider:
         self._raise_for_status(response, "download Mercado Pago report")
         return response.text
 
+    def get_payment_detail(self, access_token: str, payment_id: str) -> dict[str, Any] | None:
+        if not payment_id.isdigit():
+            return None
+
+        try:
+            response = httpx.get(
+                f"{self.base_url}/v1/payments/{payment_id}",
+                headers=self._headers(access_token),
+                timeout=self.timeout_seconds,
+            )
+        except httpx.HTTPError:
+            return None
+        if response.status_code == 404:
+            return None
+        try:
+            self._raise_for_status(response, "read Mercado Pago payment detail")
+        except MercadoPagoApiError:
+            return None
+        data = response.json()
+        return data if isinstance(data, dict) else None
+
     def _headers(self, access_token: str) -> dict[str, str]:
         return {
             "accept": "application/json",
@@ -238,6 +259,7 @@ class MercadoPagoService:
         self.provider = provider or MercadoPagoProvider()
         self.transactions = TransactionRepository(db)
         self.categories = CategoryRepository(db)
+        self._payment_details_cache: dict[str, dict[str, Any] | None] = {}
 
     def get_integration(self, user_id: int) -> MercadoPagoIntegrationRead:
         setting = self._get_setting(user_id)
@@ -307,7 +329,7 @@ class MercadoPagoService:
 
         for row in rows:
             try:
-                movement = self._import_row(user_id, row)
+                movement = self._import_row(user_id, row, access_token)
             except Exception as exc:
                 movement = MercadoPagoImportedMovement(
                     external_id=self._external_id(row),
@@ -399,7 +421,7 @@ class MercadoPagoService:
             if not transaction:
                 continue
 
-            suggested_description = self._normalization_description(row, transaction.type)
+            suggested_description = self._normalization_description(row, transaction.type, access_token)
             if not self._should_normalize_description(transaction.description, suggested_description):
                 continue
 
@@ -424,7 +446,7 @@ class MercadoPagoService:
             movements=movements,
         )
 
-    def _import_row(self, user_id: int, row: dict[str, str]) -> MercadoPagoImportedMovement:
+    def _import_row(self, user_id: int, row: dict[str, str], access_token: str) -> MercadoPagoImportedMovement:
         external_id = self._external_id(row)
         existing = self.transactions.get_by_external_reference(
             user_id=user_id,
@@ -437,7 +459,7 @@ class MercadoPagoService:
         category = self._category_for(user_id, transaction_type)
         transaction_date = self._transaction_date(row)
         currency = self._row_value(row, "TRANSACTION_CURRENCY", "SETTLEMENT_CURRENCY") or "ARS"
-        description = self._description(row)
+        description = self._description(row, access_token)
 
         if existing:
             return MercadoPagoImportedMovement(
@@ -550,7 +572,7 @@ class MercadoPagoService:
         payload = "|".join(f"{key}={value}" for key, value in sorted(row.items()))
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
-    def _description(self, row: dict[str, str]) -> str:
+    def _description(self, row: dict[str, str], access_token: str | None = None) -> str:
         transaction_type = self._row_value(row, "TRANSACTION_TYPE") or "Movimiento"
         human_label = self._human_description_value(
             row,
@@ -565,6 +587,10 @@ class MercadoPagoService:
         )
         if human_label and human_label.upper() != transaction_type.upper():
             return f"Mercado Pago - {self._clean_description(human_label)}"
+
+        payment_label = self._payment_detail_description(row, access_token)
+        if payment_label:
+            return f"Mercado Pago - {self._clean_description(payment_label)}"
 
         source_id = self._row_value(row, "SOURCE_ID")
         external_reference = self._row_value(row, "EXTERNAL_REFERENCE")
@@ -608,13 +634,91 @@ class MercadoPagoService:
             return True
         return label in {"SETTLEMENT", "WITHDRAWAL", "REFUND", "CHARGEBACK", "DISPUTE", "PAYOUT", "MOVIMIENTO"}
 
-    def _normalization_description(self, row: dict[str, str], transaction_type: TransactionType) -> str:
-        description = self._description(row)
+    def _normalization_description(
+        self,
+        row: dict[str, str],
+        transaction_type: TransactionType,
+        access_token: str | None = None,
+    ) -> str:
+        description = self._description(row, access_token)
         if not self._is_technical_mercado_pago_description(description):
             return description
 
         label = "Ingreso" if transaction_type == TransactionType.income else "Gasto"
         return f"Mercado Pago - {label}"
+
+    def _payment_detail_description(self, row: dict[str, str], access_token: str | None) -> str | None:
+        if not access_token:
+            return None
+
+        source_id = self._row_value(row, "SOURCE_ID")
+        if not source_id:
+            return None
+
+        payment_detail = self._payment_detail(access_token, source_id)
+        if not payment_detail:
+            return None
+
+        return self._best_payment_detail_label(payment_detail)
+
+    def _payment_detail(self, access_token: str, payment_id: str) -> dict[str, Any] | None:
+        if payment_id not in self._payment_details_cache:
+            self._payment_details_cache[payment_id] = self.provider.get_payment_detail(access_token, payment_id)
+        return self._payment_details_cache[payment_id]
+
+    def _best_payment_detail_label(self, payment_detail: dict[str, Any]) -> str | None:
+        payer = payment_detail.get("payer") if isinstance(payment_detail.get("payer"), dict) else {}
+        additional_info = (
+            payment_detail.get("additional_info") if isinstance(payment_detail.get("additional_info"), dict) else {}
+        )
+        additional_payer = (
+            additional_info.get("payer") if isinstance(additional_info.get("payer"), dict) else {}
+        )
+        point_of_interaction = (
+            payment_detail.get("point_of_interaction")
+            if isinstance(payment_detail.get("point_of_interaction"), dict)
+            else {}
+        )
+        business_info = (
+            point_of_interaction.get("business_info")
+            if isinstance(point_of_interaction.get("business_info"), dict)
+            else {}
+        )
+
+        for first_name, last_name in (
+            (payer.get("first_name"), payer.get("last_name")),
+            (additional_payer.get("first_name"), additional_payer.get("last_name")),
+        ):
+            full_name = " ".join(str(part).strip() for part in (first_name, last_name) if part)
+            if full_name:
+                return full_name
+
+        for candidate in (
+            payment_detail.get("description"),
+            payment_detail.get("statement_descriptor"),
+            business_info.get("name"),
+            payer.get("email"),
+            additional_payer.get("email"),
+        ):
+            if isinstance(candidate, str) and self._is_human_payment_detail_value(candidate):
+                return candidate
+
+        items = additional_info.get("items")
+        if isinstance(items, list):
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                title = item.get("title")
+                if isinstance(title, str) and self._is_human_payment_detail_value(title):
+                    return title
+
+        return None
+
+    def _is_human_payment_detail_value(self, value: str) -> bool:
+        cleaned = self._clean_description(value)
+        if not cleaned:
+            return False
+        return cleaned.upper() not in {"SETTLEMENT", "WITHDRAWAL", "REFUND", "CHARGEBACK", "DISPUTE", "PAYOUT"}
 
     def _row_value(self, row: dict[str, str], *keys: str) -> str | None:
         normalized = {key.upper().strip(): value for key, value in row.items()}
