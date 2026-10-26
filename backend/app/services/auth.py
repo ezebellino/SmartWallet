@@ -40,6 +40,9 @@ class AuthService:
             )
         return self._build_auth_response(user)
 
+    def refresh(self, user: User) -> AuthResponse:
+        return self._build_auth_response(user)
+
     def _build_auth_response(self, user: User) -> AuthResponse:
         token = Token(access_token=create_access_token(str(user.id)))
         return AuthResponse(user=user, token=token)

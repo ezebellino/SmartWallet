@@ -33,11 +33,12 @@ class PortfolioRefreshWorker:
         self.session_factory = session_factory
         self.binance_client_factory = binance_client_factory or BinanceClient
 
-    def run_once(self) -> JobRun:
+    def run_once(self, user_id: int | None = None) -> JobRun:
         with self.session_factory() as db:
             job_runs = JobRunRepository(db)
             run, timer_started_at = job_runs.start(job_key=PORTFOLIO_REFRESH_JOB_KEY)
-            user_ids = self._list_user_ids_with_binance(db)
+            configured_user_ids = self._list_user_ids_with_binance(db)
+            user_ids = configured_user_ids if user_id is None else [user_id] if user_id in configured_user_ids else []
             details: dict[str, object] = {"users": []}
             success_count = 0
             failure_count = 0
@@ -60,9 +61,10 @@ class PortfolioRefreshWorker:
                     success_count += 1
                     details["users"].append({"user_id": user_id, **result})  # type: ignore[index]
                 except Exception as error:
+                    logger.error("Portfolio refresh failed for user_id=%s exception_type=%s", user_id, type(error).__name__)
                     failure_count += 1
                     details["users"].append(  # type: ignore[index]
-                        {"user_id": user_id, "status": "failed", "error": str(error)[:500]}
+                        {"user_id": user_id, "status": "failed", "error": "Provider request failed"}
                     )
 
             status = "success" if failure_count == 0 else "partial_success" if success_count else "failed"

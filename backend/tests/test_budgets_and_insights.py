@@ -96,3 +96,28 @@ def test_budget_rejects_income_category(client: TestClient, auth_headers: dict[s
 
     assert response.status_code == 400
 
+
+def test_budget_cannot_be_changed_by_another_user(client: TestClient, auth_headers: dict[str, str]) -> None:
+    category_id = _create_expense_category(client, auth_headers, "Private expenses")
+    created = client.post(
+        "/budgets",
+        headers=auth_headers,
+        json={"category_id": category_id, "year": 2026, "month": 7, "limit_amount": "500.00"},
+    )
+    assert created.status_code == 201
+    budget_id = created.json()["id"]
+    other = client.post(
+        "/auth/register",
+        json={"email": "other-budget@example.com", "password": "strong-password", "full_name": "Other User"},
+    )
+    other_headers = {"Authorization": f"Bearer {other.json()['token']['access_token']}"}
+
+    assert client.get("/budgets", headers=other_headers).json() == []
+    assert client.patch(
+        f"/budgets/{budget_id}", headers=other_headers, json={"limit_amount": "1.00"}
+    ).status_code == 404
+    assert client.delete(f"/budgets/{budget_id}", headers=other_headers).status_code == 404
+    owner_budgets = client.get("/budgets", headers=auth_headers).json()
+    assert len(owner_budgets) == 1
+    assert owner_budgets[0]["limit_amount"] == "500.00"
+

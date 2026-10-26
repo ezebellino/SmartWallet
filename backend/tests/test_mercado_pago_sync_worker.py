@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.models.job_run import JobRun
 from app.models.transaction import Transaction
+from app.services.mercado_pago import MercadoPagoService
 from app.services.mercado_pago_sync_worker import MERCADO_PAGO_SYNC_JOB_KEY, MercadoPagoSyncWorker
 
 
@@ -38,6 +39,9 @@ class FakeMercadoPagoWorkerProvider:
             ]
         )
 
+    def get_payment_detail(self, access_token, payment_id) -> None:
+        return None
+
 
 class PendingMercadoPagoWorkerProvider(FakeMercadoPagoWorkerProvider):
     def list_account_money_reports(self, access_token) -> list[dict]:
@@ -47,6 +51,11 @@ class PendingMercadoPagoWorkerProvider(FakeMercadoPagoWorkerProvider):
 class FailingMercadoPagoWorkerProvider(FakeMercadoPagoWorkerProvider):
     def list_account_money_reports(self, access_token) -> list[dict]:
         raise RuntimeError("mercado pago unavailable")
+
+
+class LeakingMercadoPagoWorkerProvider(FakeMercadoPagoWorkerProvider):
+    def get_payment_detail(self, access_token, payment_id) -> None:
+        raise RuntimeError("provider failure APP_USR-example-sensitive-token")
 
 
 def configure_mercado_pago(client, auth_headers: dict[str, str]) -> None:
@@ -136,7 +145,7 @@ def test_mercado_pago_sync_worker_records_user_failures(
     assert run.failure_count == 1
     assert run.details is not None
     assert run.details["users"][0]["status"] == "failed"
-    assert "mercado pago unavailable" in run.details["users"][0]["error"]
+    assert run.details["users"][0]["error"] == "Provider request failed"
 
 
 def test_mercado_pago_sync_worker_succeeds_with_no_configured_users(db_session: Session) -> None:
@@ -150,6 +159,18 @@ def test_mercado_pago_sync_worker_succeeds_with_no_configured_users(db_session: 
     assert run.status == "success"
     assert run.users_processed == 0
     assert run.message == "No Mercado Pago users configured"
+
+
+def test_mercado_pago_import_does_not_expose_provider_error(client, db_session: Session, auth_headers) -> None:
+    configure_mercado_pago(client, auth_headers)
+    result = MercadoPagoService(db_session, provider=LeakingMercadoPagoWorkerProvider()).import_report(
+        user_id=1,
+        file_name="settlement-report-worker.csv",
+    )
+
+    assert result.failed_count == 2
+    assert all(item.description == "Could not import this movement" for item in result.movements)
+    assert "APP_USR-example-sensitive-token" not in result.model_dump_json()
 
 
 def test_jobs_api_runs_mercado_pago_sync_and_lists_history(client, auth_headers: dict[str, str], monkeypatch) -> None:
@@ -170,6 +191,10 @@ def test_jobs_api_runs_mercado_pago_sync_and_lists_history(client, auth_headers:
         "app.services.mercado_pago.MercadoPagoProvider.request_account_money_report",
         lambda self, access_token, begin_date, end_date: None,
     )
+    monkeypatch.setattr(
+        "app.services.mercado_pago.MercadoPagoProvider.get_payment_detail",
+        lambda self, access_token, payment_id: None,
+    )
 
     run_response = client.post("/jobs/mercado-pago-sync/run", headers=auth_headers)
     list_response = client.get("/jobs/runs?job_key=mercado_pago_sync", headers=auth_headers)
@@ -183,3 +208,35 @@ def test_jobs_api_runs_mercado_pago_sync_and_lists_history(client, auth_headers:
     assert list_response.json()[0]["id"] == run_response.json()["id"]
     assert status_response.status_code == 200
     assert status_response.json()["job_key"] == "mercado_pago_sync"
+
+
+def test_manual_mercado_pago_run_only_processes_requesting_user(client, auth_headers, monkeypatch) -> None:
+    configure_mercado_pago(client, auth_headers)
+    other = client.post(
+        "/auth/register",
+        json={"email": "other-mp@example.com", "password": "strong-password", "full_name": "Other User"},
+    ).json()
+    other_headers = {"Authorization": f"Bearer {other['token']['access_token']}"}
+    configure_mercado_pago(client, other_headers)
+    monkeypatch.setattr(
+        "app.services.mercado_pago.MercadoPagoProvider.list_account_money_reports",
+        lambda self, access_token: FakeMercadoPagoWorkerProvider().list_account_money_reports(access_token),
+    )
+    monkeypatch.setattr(
+        "app.services.mercado_pago.MercadoPagoProvider.download_account_money_report",
+        lambda self, access_token, file_name: FakeMercadoPagoWorkerProvider().download_account_money_report(
+            access_token, file_name
+        ),
+    )
+    monkeypatch.setattr(
+        "app.services.mercado_pago.MercadoPagoProvider.get_payment_detail",
+        lambda self, access_token, payment_id: None,
+    )
+
+    response = client.post("/jobs/mercado-pago-sync/run", headers=auth_headers)
+
+    assert response.status_code == 200
+    assert response.json()["users_processed"] == 1
+    assert response.json()["details"]["users"][0]["user_id"] != other["user"]["id"]
+    assert client.get("/jobs/runs?job_key=mercado_pago_sync", headers=other_headers).json() == []
+    assert client.get("/jobs/mercado-pago-sync/status", headers=other_headers).json()["latest_run"] is None

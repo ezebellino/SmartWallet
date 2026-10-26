@@ -28,11 +28,12 @@ class MercadoPagoSyncWorker:
         self.provider_factory = provider_factory or MercadoPagoProvider
         self.lookback_days = max(lookback_days or settings.mercado_pago_sync_lookback_days, 1)
 
-    def run_once(self) -> JobRun:
+    def run_once(self, user_id: int | None = None) -> JobRun:
         with self.session_factory() as db:
             job_runs = JobRunRepository(db)
             run, timer_started_at = job_runs.start(job_key=MERCADO_PAGO_SYNC_JOB_KEY)
-            user_ids = self._list_user_ids_with_mercado_pago(db)
+            configured_user_ids = self._list_user_ids_with_mercado_pago(db)
+            user_ids = configured_user_ids if user_id is None else [user_id] if user_id in configured_user_ids else []
             details: dict[str, object] = {"lookback_days": self.lookback_days, "users": []}
             success_count = 0
             failure_count = 0
@@ -55,10 +56,10 @@ class MercadoPagoSyncWorker:
                     success_count += 1
                     details["users"].append({"user_id": user_id, **result})  # type: ignore[index]
                 except Exception as error:
-                    logger.exception("Mercado Pago sync failed for user_id=%s", user_id)
+                    logger.error("Mercado Pago sync failed for user_id=%s exception_type=%s", user_id, type(error).__name__)
                     failure_count += 1
                     details["users"].append(  # type: ignore[index]
-                        {"user_id": user_id, "status": "failed", "error": str(error)[:500]}
+                        {"user_id": user_id, "status": "failed", "error": "Provider request failed"}
                     )
 
             status = "success" if failure_count == 0 else "partial_success" if success_count else "failed"

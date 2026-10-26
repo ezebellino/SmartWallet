@@ -70,6 +70,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     if (response.status === 401) {
+      if (path === "/auth/login") {
+        throw new Error("Invalid email or password");
+      }
       throw new Error("Sesion vencida o invalida. Cerra sesion e inicia sesion nuevamente.");
     }
     throw new Error(typeof body.detail === "string" ? body.detail : "Request failed");
@@ -93,6 +96,21 @@ export function register(email: string, password: string, fullName: string) {
   return request<AuthResponse>("/auth/register", {
     method: "POST",
     body: JSON.stringify({ email, password, full_name: fullName })
+  });
+}
+
+export function getCurrentUser(token: string) {
+  return request<AuthResponse["user"]>("/auth/me", {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store"
+  });
+}
+
+export function refreshSession(token: string) {
+  return request<AuthResponse>("/auth/refresh", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store"
   });
 }
 

@@ -71,3 +71,31 @@ def test_compound_interest_simulation(client: TestClient) -> None:
     assert simulation["total_contributions"] == "2200.00"
     assert simulation["total_interest"] == "207.76"
     assert len(simulation["points"]) == 12
+
+
+def test_goal_cannot_be_changed_by_another_user(client: TestClient, auth_headers: dict[str, str]) -> None:
+    created = client.post(
+        "/goals",
+        headers=auth_headers,
+        json={"name": "Private goal", "target_amount": "1000.00", "current_amount": "100.00"},
+    )
+    assert created.status_code == 201
+    goal_id = created.json()["id"]
+    other = client.post(
+        "/auth/register",
+        json={"email": "other-goal@example.com", "password": "strong-password", "full_name": "Other User"},
+    )
+    other_headers = {"Authorization": f"Bearer {other.json()['token']['access_token']}"}
+
+    assert client.get("/goals", headers=other_headers).json() == []
+    assert client.patch(
+        f"/goals/{goal_id}", headers=other_headers, json={"name": "Changed goal"}
+    ).status_code == 404
+    assert client.post(
+        f"/goals/{goal_id}/contributions", headers=other_headers, json={"amount": "50.00"}
+    ).status_code == 404
+    assert client.delete(f"/goals/{goal_id}", headers=other_headers).status_code == 404
+    owner_goals = client.get("/goals", headers=auth_headers).json()
+    assert len(owner_goals) == 1
+    assert owner_goals[0]["name"] == "Private goal"
+    assert owner_goals[0]["current_amount"] == "100.00"

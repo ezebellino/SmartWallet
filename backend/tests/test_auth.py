@@ -1,4 +1,7 @@
 from fastapi.testclient import TestClient
+from datetime import timedelta
+
+from app.core.security import create_access_token
 
 
 def test_register_login_and_get_current_user(client: TestClient) -> None:
@@ -41,4 +44,20 @@ def test_register_rejects_duplicate_email(client: TestClient) -> None:
     response = client.post("/auth/register", json=payload)
 
     assert response.status_code == 409
+
+
+def test_refresh_requires_a_valid_unexpired_token(client: TestClient) -> None:
+    registered = client.post(
+        "/auth/register",
+        json={"email": "refresh@example.com", "password": "strong-password", "full_name": "Refresh User"},
+    ).json()
+    token = registered["token"]["access_token"]
+    refreshed = client.post("/auth/refresh", headers={"Authorization": f"Bearer {token}"})
+
+    assert refreshed.status_code == 200
+    assert refreshed.json()["user"]["email"] == "refresh@example.com"
+    assert client.post("/auth/refresh").status_code == 401
+
+    expired = create_access_token(str(registered["user"]["id"]), expires_delta=timedelta(seconds=-1))
+    assert client.post("/auth/refresh", headers={"Authorization": f"Bearer {expired}"}).status_code == 401
 

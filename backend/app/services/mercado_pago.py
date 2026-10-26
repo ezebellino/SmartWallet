@@ -331,7 +331,7 @@ class MercadoPagoService:
         for row in rows:
             try:
                 movement = self._import_row(user_id, row, access_token)
-            except Exception as exc:
+            except Exception:
                 movement = MercadoPagoImportedMovement(
                     external_id=self._external_id(row),
                     transaction_id=None,
@@ -340,7 +340,7 @@ class MercadoPagoService:
                     currency=self._row_value(row, "TRANSACTION_CURRENCY", "SETTLEMENT_CURRENCY") or "ARS",
                     date=date.today(),
                     status="failed",
-                    description=str(exc),
+                    description="Could not import this movement",
                 )
             movements.append(movement)
 

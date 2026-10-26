@@ -15,9 +15,9 @@ type Props = {
 
 export function AuthPanel({ onAuthenticated, language, onLanguageChange }: Props) {
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [email, setEmail] = useState("demo@smartwallet.ai");
-  const [password, setPassword] = useState("smart-demo");
-  const [fullName, setFullName] = useState("Demo User");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -34,7 +34,12 @@ export function AuthPanel({ onAuthenticated, language, onLanguageChange }: Props
       onAuthenticated(response.token.access_token, response.user.full_name);
     } catch (err) {
       const message = err instanceof Error ? err.message : t("authFailed");
-      setError(message.includes("Could not connect") ? t("networkError") : message);
+      setError(
+        message.includes("Could not connect") ? t("networkError")
+        : message === "Invalid email or password" ? t("invalidCredentials")
+        : message === "Email is already registered" ? t("emailAlreadyRegistered")
+        : message
+      );
     } finally {
       setLoading(false);
     }
@@ -68,6 +73,7 @@ export function AuthPanel({ onAuthenticated, language, onLanguageChange }: Props
                   className="w-full bg-transparent text-text outline-none"
                   id="full-name"
                   name="fullName"
+                  required
                   value={fullName}
                   onChange={(event) => setFullName(event.target.value)}
                 />
@@ -83,6 +89,7 @@ export function AuthPanel({ onAuthenticated, language, onLanguageChange }: Props
                 className="w-full bg-transparent text-text outline-none"
                 id="email"
                 name="email"
+                required
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
@@ -98,6 +105,8 @@ export function AuthPanel({ onAuthenticated, language, onLanguageChange }: Props
                 className="w-full bg-transparent text-text outline-none"
                 id="password"
                 name="password"
+                required
+                minLength={mode === "register" ? 8 : undefined}
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -113,7 +122,7 @@ export function AuthPanel({ onAuthenticated, language, onLanguageChange }: Props
             </span>
           </label>
 
-          {error && <p className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-sm text-rose">{error}</p>}
+          {error && <p className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-sm text-rose" role="alert">{error}</p>}
 
           <button
             className="w-full rounded-md bg-emerald px-4 py-3 text-sm font-semibold text-black transition hover:bg-emerald/90 disabled:cursor-not-allowed disabled:opacity-60"
@@ -126,7 +135,12 @@ export function AuthPanel({ onAuthenticated, language, onLanguageChange }: Props
 
         <button
           className="mt-5 w-full text-center text-sm text-muted transition hover:text-text"
-          onClick={() => setMode(mode === "login" ? "register" : "login")}
+          onClick={() => {
+            setMode(mode === "login" ? "register" : "login");
+            setPassword("");
+            setShowPassword(false);
+            setError(null);
+          }}
           type="button"
         >
           {mode === "login" ? t("switchToRegister") : t("switchToLogin")}

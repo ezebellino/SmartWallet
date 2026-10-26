@@ -1,17 +1,22 @@
 import contextlib
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user
 from app.core.config import settings
 from app.database.session import get_db
 from app.models.user import User
+from app.models.job_run import JobRun
+from app.models.market_integration import MarketIntegrationSetting
 from app.repositories.job_runs import JobRunRepository
 from app.repositories.worker_heartbeats import WorkerHeartbeatRepository
 from app.schemas.job_run import JobRunRead, JobStatusRead
+from app.services.mercado_pago import PROVIDER_KEY as MERCADO_PAGO_PROVIDER_KEY
 from app.services.mercado_pago_sync_worker import MERCADO_PAGO_SYNC_JOB_KEY, MercadoPagoSyncWorker
+from app.services.binance import BINANCE_PROVIDER_KEY
 from app.services.portfolio_refresh_worker import PORTFOLIO_REFRESH_JOB_KEY, PortfolioRefreshWorker
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -24,7 +29,12 @@ def list_job_runs(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[JobRunRead]:
-    return JobRunRepository(db).list_recent(job_key=job_key, limit=limit)
+    runs = JobRunRepository(db).list_recent(job_key=job_key, limit=500)
+    return [
+        _run_for_user(run, current_user.id)
+        for run in runs
+        if _user_detail(run, current_user.id) is not None
+    ][:limit]
 
 
 @router.get("/portfolio-refresh/status", response_model=JobStatusRead)
@@ -54,10 +64,16 @@ def mercado_pago_sync_status(
 
 
 def _build_job_status(*, db: Session, current_user: User, job_key: str, job_label: str) -> JobStatusRead:
-    del current_user
     interval_minutes = max(settings.worker_interval_minutes, 1)
     now = datetime.now(timezone.utc)
-    latest_run = JobRunRepository(db).latest(job_key=job_key)
+    latest_run = next(
+        (
+            run for run in JobRunRepository(db).list_recent(job_key=job_key, limit=500)
+            if _user_detail(run, current_user.id) is not None
+        ),
+        None,
+    )
+    visible_run = _run_for_user(latest_run, current_user.id) if latest_run else None
     heartbeat = WorkerHeartbeatRepository(db).get(job_key=job_key)
     heartbeat_last_seen_at = _ensure_aware(heartbeat.last_seen_at) if heartbeat else None
     heartbeat_alive_until = (
@@ -75,7 +91,7 @@ def _build_job_status(*, db: Session, current_user: User, job_key: str, job_labe
             latest_run=None,
             heartbeat_status=heartbeat.status if heartbeat else None,
             heartbeat_last_seen_at=heartbeat_last_seen_at,
-            heartbeat_message=heartbeat.last_message if heartbeat else None,
+            heartbeat_message=None,
             heartbeat_is_alive=heartbeat_is_alive,
             next_run_at=None,
             is_overdue=False,
@@ -91,10 +107,10 @@ def _build_job_status(*, db: Session, current_user: User, job_key: str, job_labe
             job_key=job_key,
             state="running",
             interval_minutes=interval_minutes,
-            latest_run=latest_run,
+            latest_run=visible_run,
             heartbeat_status=heartbeat.status if heartbeat else None,
             heartbeat_last_seen_at=heartbeat_last_seen_at,
-            heartbeat_message=heartbeat.last_message if heartbeat else None,
+            heartbeat_message=None,
             heartbeat_is_alive=heartbeat_is_alive,
             next_run_at=None,
             is_overdue=False,
@@ -118,10 +134,10 @@ def _build_job_status(*, db: Session, current_user: User, job_key: str, job_labe
         job_key=job_key,
         state=state,
         interval_minutes=interval_minutes,
-        latest_run=latest_run,
+        latest_run=visible_run,
         heartbeat_status=heartbeat.status if heartbeat else None,
         heartbeat_last_seen_at=heartbeat_last_seen_at,
-        heartbeat_message=heartbeat.last_message if heartbeat else None,
+        heartbeat_message=None,
         heartbeat_is_alive=heartbeat_is_alive,
         next_run_at=next_run_at,
         is_overdue=is_overdue,
@@ -135,13 +151,60 @@ def _ensure_aware(value: datetime) -> datetime:
     return value
 
 
+def _user_detail(run: JobRun, user_id: int) -> dict | None:
+    users = (run.details or {}).get("users", [])
+    if not isinstance(users, list):
+        return None
+    return next(
+        (item for item in users if isinstance(item, dict) and item.get("user_id") == user_id),
+        None,
+    )
+
+
+def _run_for_user(run: JobRun, user_id: int) -> JobRunRead:
+    detail = _user_detail(run, user_id)
+    if detail is None:
+        raise ValueError("Job run does not belong to user")
+    succeeded = detail.get("status") not in {"failed", "error"}
+    visible_detail = {key: value for key, value in detail.items() if key != "error"}
+    if not succeeded:
+        visible_detail["error"] = "Worker failed; check server logs"
+    return JobRunRead.model_validate(run).model_copy(
+        update={
+            "status": "success" if succeeded else "failed",
+            "users_processed": 1,
+            "success_count": int(succeeded),
+            "failure_count": int(not succeeded),
+            "message": "Your job run completed" if succeeded else "Your job run failed",
+            "details": {"users": [visible_detail]},
+        }
+    )
+
+
+def _require_integration(db: Session, user_id: int, provider_key: str) -> None:
+    setting = db.scalar(
+        select(MarketIntegrationSetting).where(
+            MarketIntegrationSetting.user_id == user_id,
+            MarketIntegrationSetting.provider_key == provider_key,
+            MarketIntegrationSetting.enabled.is_(True),
+            MarketIntegrationSetting.api_key_encrypted.is_not(None),
+        )
+    )
+    if setting is None:
+        raise HTTPException(status_code=400, detail="Integration is not configured")
+
+
 @router.post("/portfolio-refresh/run", response_model=JobRunRead)
 def run_portfolio_refresh(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> JobRunRead:
+    _require_integration(db, current_user.id, BINANCE_PROVIDER_KEY)
     worker = PortfolioRefreshWorker(lambda: contextlib.nullcontext(db))
-    return worker.run_once()
+    run = worker.run_once(user_id=current_user.id)
+    if _user_detail(run, current_user.id) is None:
+        raise HTTPException(status_code=409, detail="Integration changed; retry the job")
+    return _run_for_user(run, current_user.id)
 
 
 @router.post("/mercado-pago-sync/run", response_model=JobRunRead)
@@ -149,6 +212,9 @@ def run_mercado_pago_sync(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> JobRunRead:
-    del current_user
+    _require_integration(db, current_user.id, MERCADO_PAGO_PROVIDER_KEY)
     worker = MercadoPagoSyncWorker(lambda: contextlib.nullcontext(db))
-    return worker.run_once()
+    run = worker.run_once(user_id=current_user.id)
+    if _user_detail(run, current_user.id) is None:
+        raise HTTPException(status_code=409, detail="Integration changed; retry the job")
+    return _run_for_user(run, current_user.id)
