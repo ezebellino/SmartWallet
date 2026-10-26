@@ -192,6 +192,10 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
   const [spendingInsights, setSpendingInsights] = useState<SpendingInsightsResponse | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [activeSection, setActiveSection] = useState<DashboardSection>("dashboard");
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [activeSection]);
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [isGeneratingNotifications, setIsGeneratingNotifications] = useState(false);
@@ -1589,6 +1593,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
       <main className="min-w-0 flex-1 px-4 py-5 md:px-6 xl:px-8">
         <div className="mx-auto max-w-[1480px]">
           <DashboardHeader
+            activeSection={activeSection}
             isSyncing={isSyncing}
             language={language}
             onLanguageChange={onLanguageChange}
@@ -1602,18 +1607,25 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
             onSync={refreshFromApi}
             onLogout={onLogout}
           />
-          <QuickActionsBar
-            isSyncing={isSyncing}
-            items={quickActionItems}
-            onQuickTransactionOpen={() => setIsQuickTransactionOpen(true)}
-            onSectionChange={setActiveSection}
-            onSync={refreshFromApi}
-            t={t}
-          />
-          <ExecutiveFocus items={executiveFocusItems} onSectionChange={setActiveSection} t={t} />
-          <MetricsGrid metrics={metrics} onSectionChange={setActiveSection} t={t} />
-          <DashboardSectionNav activeSection={activeSection} onChange={setActiveSection} t={t} />
-          <DashboardSectionHero activeSection={activeSection} items={sectionSummaryItems} t={t} />
+          <div className="lg:hidden">
+            <DashboardSectionNav activeSection={activeSection} onChange={setActiveSection} t={t} />
+          </div>
+          {activeSection === "dashboard" ? (
+            <>
+              <MetricsGrid metrics={metrics} onSectionChange={setActiveSection} t={t} />
+              <QuickActionsBar
+                isSyncing={isSyncing}
+                items={quickActionItems}
+                onQuickTransactionOpen={() => setIsQuickTransactionOpen(true)}
+                onSectionChange={setActiveSection}
+                onSync={refreshFromApi}
+                t={t}
+              />
+              <ExecutiveFocus items={executiveFocusItems} onSectionChange={setActiveSection} t={t} />
+            </>
+          ) : (
+            <DashboardSectionHero activeSection={activeSection} items={sectionSummaryItems} t={t} />
+          )}
 
         {activeSection === "dashboard" ? (
           <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">

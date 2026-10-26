@@ -92,7 +92,7 @@ export function DashboardSectionHero({ activeSection, items, t }: Props) {
           </div>
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[380px]">
+        <div className="grid grid-cols-2 gap-2 lg:min-w-[380px]">
           {items.map((item) => (
             <div className="rounded-md border border-borderSoft bg-background/62 px-3 py-2 transition hover:border-cyan/25 hover:bg-background/80" key={item.label}>
               <div className="text-[11px] font-semibold uppercase text-muted">{item.label}</div>

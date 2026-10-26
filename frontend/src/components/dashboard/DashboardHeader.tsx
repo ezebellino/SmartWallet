@@ -1,8 +1,10 @@
 import { ChevronLeft, ChevronRight, Clock3, LogOut, RefreshCw, UserRound } from "lucide-react";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import type { DashboardSection } from "@/components/dashboard/DashboardSectionNav";
 import type { Language, TranslationKey } from "@/i18n";
 
 type Props = {
+  activeSection: DashboardSection;
   isSyncing: boolean;
   sessionRemainingMs: number;
   status: string;
@@ -18,6 +20,7 @@ type Props = {
 };
 
 export function DashboardHeader({
+  activeSection,
   isSyncing,
   sessionRemainingMs,
   status,
@@ -33,14 +36,18 @@ export function DashboardHeader({
 }: Props) {
   const sessionMinutes = Math.max(Math.ceil(sessionRemainingMs / 60000), 1);
   const isSessionNearEnd = sessionMinutes <= 5;
-  const periodLabel = new Intl.DateTimeFormat("es-AR", { month: "long", year: "numeric" }).format(
+  const locale = language === "en" ? "en-US" : "es-AR";
+  const formattedPeriod = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(
     new Date(selectedYear, selectedMonth - 1, 1)
   );
+  const periodLabel = formattedPeriod.charAt(0).toLocaleUpperCase(locale) + formattedPeriod.slice(1);
 
   return (
-    <header className="rounded-lg border border-borderSoft/80 bg-panel/54 p-4 shadow-panel ring-1 ring-white/[0.025] md:flex md:items-center md:justify-between">
+    <header className="rounded-lg border border-borderSoft/80 bg-panel/54 p-4 shadow-panel ring-1 ring-white/[0.025] md:flex md:flex-col md:items-stretch md:gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
       <div>
-        <h1 className="text-2xl font-semibold leading-tight text-text">{t("financialDashboard")}</h1>
+        <h1 className="text-2xl font-semibold leading-tight text-text">
+          {activeSection === "dashboard" ? t("financialDashboard") : t("personalFinance")}
+        </h1>
         <p className="mt-1 text-sm leading-5 text-muted">{status}</p>
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-3 md:mt-0">
@@ -54,7 +61,7 @@ export function DashboardHeader({
             <ChevronLeft size={15} />
           </button>
           <button
-            className="h-10 border-x border-borderSoft px-3 font-semibold capitalize text-text transition hover:bg-panelSoft"
+            className="h-10 border-x border-borderSoft px-3 font-semibold text-text transition hover:bg-panelSoft"
             onClick={() => onPeriodChange("current")}
             title={t("currentMonth")}
             type="button"

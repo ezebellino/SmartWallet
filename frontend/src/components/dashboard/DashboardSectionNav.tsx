@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { BarChart3, Banknote, Bot, Gauge, LineChart, Target, WalletCards } from "lucide-react";
 import type { TranslationKey } from "@/i18n";
 
@@ -24,8 +25,22 @@ const sections: Array<{
 ];
 
 export function DashboardSectionNav({ activeSection, onChange, t }: Props) {
+  const navigationRef = useRef<HTMLElement>(null);
+  const activeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const navigation = navigationRef.current;
+    const activeButton = activeButtonRef.current;
+    if (!navigation || !activeButton) return;
+
+    const buttonCenter =
+      activeButton.getBoundingClientRect().left - navigation.getBoundingClientRect().left +
+      navigation.scrollLeft + activeButton.clientWidth / 2;
+    navigation.scrollTo({ left: buttonCenter - navigation.clientWidth / 2, behavior: "smooth" });
+  }, [activeSection]);
+
   return (
-    <nav className="mt-4 overflow-x-auto rounded-lg border border-borderSoft/90 bg-panel/70 p-1 shadow-panel ring-1 ring-white/[0.025]">
+    <nav className="mt-4 overflow-x-auto rounded-lg border border-borderSoft/90 bg-panel/70 p-1 shadow-panel ring-1 ring-white/[0.025]" ref={navigationRef}>
       <div className="grid min-w-[1040px] grid-cols-7 gap-1 md:min-w-0">
         {sections.map((section) => {
           const Icon = section.icon;
@@ -40,6 +55,7 @@ export function DashboardSectionNav({ activeSection, onChange, t }: Props) {
               }`}
               key={section.id}
               onClick={() => onChange(section.id)}
+              ref={isActive ? activeButtonRef : undefined}
               type="button"
             >
               <Icon size={16} />
