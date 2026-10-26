@@ -1,5 +1,5 @@
-import { CalendarDays, Check, Copy, CreditCard, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { CalendarDays, Check, Copy, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Panel } from "@/components/ui";
 import type { TranslationKey } from "@/i18n";
 import { InlineCategoryCreator } from "@/components/dashboard/InlineCategoryCreator";
@@ -26,8 +26,10 @@ type TransactionUpdatePayload = {
 
 type Props = {
   categories: Category[];
+  createRequestId: number;
   isDisabled: boolean;
   onCreateCategory: (payload: { name: string; type: CategoryType; color: string; icon: string }) => Promise<Category | void>;
+  onCreateRequestHandled: () => void;
   onCreate: (payload: TransactionPayload) => Promise<void>;
   onDelete: (transactionId: number) => Promise<void>;
   onUpdate: (transactionId: number, payload: TransactionUpdatePayload) => Promise<void>;
@@ -72,13 +74,18 @@ function getPeriodRange(period: PeriodFilter, anchorDate: string) {
   return { end: formatLocalDate(end), start: formatLocalDate(start) };
 }
 
-export function TransactionManager({ categories, isDisabled, onCreate, onCreateCategory, onDelete, onUpdate, transactions, t }: Props) {
+export function TransactionManager({ categories, createRequestId, isDisabled, onCreate, onCreateCategory, onCreateRequestHandled, onDelete, onUpdate, transactions, t }: Props) {
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const amountRef = useRef<HTMLInputElement>(null);
+  const createFormRef = useRef<HTMLFormElement>(null);
   const [type, setType] = useState<TransactionType>("expense");
   const [categoryId, setCategoryId] = useState("");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("ARS");
   const [description, setDescription] = useState("");
   const [usdQuantity, setUsdQuantity] = useState("");
+  const [isUsdPurchase, setIsUsdPurchase] = useState(false);
+  const [isCategoryCreatorOpen, setIsCategoryCreatorOpen] = useState(false);
   const [transactionDate, setTransactionDate] = useState(today);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingCategoryId, setEditingCategoryId] = useState("");
@@ -101,6 +108,32 @@ export function TransactionManager({ categories, isDisabled, onCreate, onCreateC
     () => new Map(categories.map((category) => [category.id, category])),
     [categories]
   );
+  const recentTemplates = useMemo(() => {
+    const seen = new Set<string>();
+    return transactions.filter((transaction) => {
+      if (!categoryById.has(transaction.category_id)) return false;
+      const key = [transaction.type, transaction.category_id, transaction.amount, transaction.currency, transaction.description ?? ""].join("|");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 4);
+  }, [categoryById, transactions]);
+
+  useEffect(() => {
+    if (createRequestId > 0) {
+      setIsCreateOpen(true);
+      onCreateRequestHandled();
+    }
+  }, [createRequestId, onCreateRequestHandled]);
+
+  useEffect(() => {
+    if (!isCreateOpen) return;
+    const frame = window.requestAnimationFrame(() => {
+      createFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      amountRef.current?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isCreateOpen]);
   const periodRange = useMemo(() => getPeriodRange(filterPeriod, filterAnchorDate), [filterAnchorDate, filterPeriod]);
   const filteredTransactions = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -167,6 +200,18 @@ export function TransactionManager({ categories, isDisabled, onCreate, onCreateC
     setVisibleCount(initialVisibleCount);
   }
 
+  function applyTemplate(transaction: Transaction) {
+    setType(transaction.type);
+    setCategoryId(String(transaction.category_id));
+    setAmount(transaction.amount);
+    setCurrency(transaction.currency);
+    setDescription(transaction.description ?? "");
+    setTransactionDate(today);
+    setUsdQuantity("");
+    setIsUsdPurchase(false);
+    amountRef.current?.focus();
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const selectedCategoryId = Number(categoryId || availableCategories[0]?.id);
@@ -178,7 +223,7 @@ export function TransactionManager({ categories, isDisabled, onCreate, onCreateC
     try {
       const normalizedDescription = description.trim();
       const finalDescription =
-        type === "expense" && currency === "ARS" && usdQuantity
+        type === "expense" && currency === "ARS" && isUsdPurchase && usdQuantity
           ? `Compra USD ${usdQuantity}${normalizedDescription ? ` - ${normalizedDescription}` : ""}`
           : normalizedDescription;
 
@@ -194,8 +239,11 @@ export function TransactionManager({ categories, isDisabled, onCreate, onCreateC
       setCurrency("ARS");
       setDescription("");
       setUsdQuantity("");
+      setIsUsdPurchase(false);
       setCategoryId("");
       setTransactionDate(today);
+      setIsCreateOpen(false);
+      setIsCategoryCreatorOpen(false);
     } catch {
       // The dashboard status area displays the backend error.
     } finally {
@@ -275,15 +323,39 @@ export function TransactionManager({ categories, isDisabled, onCreate, onCreateC
 
   return (
     <Panel className="p-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-text">{t("realMovements")}</h2>
-          <p className="mt-1 text-sm text-muted">{t("realMovementsSubtitle")}</p>
         </div>
-        <CreditCard size={18} className="text-emerald" />
+        <button
+          aria-expanded={isCreateOpen}
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-cyan px-3 text-sm font-semibold text-background transition hover:brightness-110"
+          onClick={() => setIsCreateOpen((current) => !current)}
+          type="button"
+        >
+          {isCreateOpen ? <X size={16} /> : <Plus size={16} />}
+          {isCreateOpen ? t("cancel") : t("addMovement")}
+        </button>
       </div>
 
-      <form className="mt-5 grid gap-3" onSubmit={handleSubmit}>
+      {isCreateOpen ? <form className="mt-5 grid gap-3 border-b border-borderSoft pb-5" onSubmit={handleSubmit} ref={createFormRef}>
+        {recentTemplates.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-muted">{t("quickTemplatesTitle")}</span>
+            {recentTemplates.map((template) => (
+              <button
+                className="max-w-full truncate rounded-md border border-borderSoft px-2.5 py-1.5 text-xs text-muted transition hover:border-cyan/40 hover:text-text"
+                disabled={isDisabled || isSaving}
+                key={template.id}
+                onClick={() => applyTemplate(template)}
+                title={template.description || categoryById.get(template.category_id)?.name || t("uncategorized")}
+                type="button"
+              >
+                {template.description || categoryById.get(template.category_id)?.name || t("uncategorized")}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div className="grid grid-cols-2 rounded-md border border-borderSoft bg-background p-1">
           {(["expense", "income"] as const).map((option) => (
             <button
@@ -295,6 +367,8 @@ export function TransactionManager({ categories, isDisabled, onCreate, onCreateC
               onClick={() => {
                 setType(option);
                 setCategoryId("");
+                setUsdQuantity("");
+                setIsUsdPurchase(false);
               }}
               type="button"
             >
@@ -305,6 +379,7 @@ export function TransactionManager({ categories, isDisabled, onCreate, onCreateC
 
         <div className="grid gap-3 md:grid-cols-2">
           <input
+            ref={amountRef}
             className="rounded-md border border-borderSoft bg-background px-3 py-2.5 text-sm text-text outline-none transition placeholder:text-muted focus:border-cyan"
             disabled={isDisabled || isSaving}
             min="0"
@@ -317,7 +392,11 @@ export function TransactionManager({ categories, isDisabled, onCreate, onCreateC
           <select
             className="rounded-md border border-borderSoft bg-background px-3 py-2.5 text-sm text-text outline-none transition focus:border-cyan"
             disabled={isDisabled || isSaving}
-            onChange={(event) => setCurrency(event.target.value)}
+            onChange={(event) => {
+              setCurrency(event.target.value);
+              setUsdQuantity("");
+              setIsUsdPurchase(false);
+            }}
             value={currency}
           >
             <option value="ARS">ARS</option>
@@ -333,23 +412,39 @@ export function TransactionManager({ categories, isDisabled, onCreate, onCreateC
         </div>
 
         {type === "expense" && currency === "ARS" ? (
-          <div className="rounded-md border border-cyan/20 bg-cyan/8 p-3">
-            <label className="text-xs font-semibold uppercase text-cyan" htmlFor="usd-quantity">
-              {t("usdPurchasedQuantity")}
-            </label>
-            <input
-              className="mt-2 h-10 w-full rounded-md border border-borderSoft bg-background px-3 text-sm text-text outline-none transition placeholder:text-muted focus:border-cyan"
-              disabled={isDisabled || isSaving}
-              id="usd-quantity"
-              inputMode="decimal"
-              min="0"
-              onChange={(event) => setUsdQuantity(event.target.value)}
-              placeholder="100"
-              step="0.01"
-              type="number"
-              value={usdQuantity}
-            />
-            <p className="mt-2 text-xs leading-5 text-muted">{t("usdPurchasedQuantityHint")}</p>
+          <div>
+            <button
+              aria-expanded={isUsdPurchase}
+              className="inline-flex items-center gap-1 text-sm font-medium text-cyan transition hover:underline"
+              onClick={() => {
+                setIsUsdPurchase((current) => !current);
+                setUsdQuantity("");
+              }}
+              type="button"
+            >
+              {isUsdPurchase ? <X size={14} /> : <Plus size={14} />}
+              {isUsdPurchase ? t("cancel") : t("quickPresetUsd")}
+            </button>
+            {isUsdPurchase ? (
+              <div className="mt-2 rounded-md border border-cyan/20 bg-cyan/8 p-3">
+                <label className="text-xs font-semibold uppercase text-cyan" htmlFor="usd-quantity">
+                  {t("usdPurchasedQuantity")}
+                </label>
+                <input
+                  className="mt-2 h-10 w-full rounded-md border border-borderSoft bg-background px-3 text-sm text-text outline-none transition placeholder:text-muted focus:border-cyan"
+                  disabled={isDisabled || isSaving}
+                  id="usd-quantity"
+                  inputMode="decimal"
+                  min="0"
+                  onChange={(event) => setUsdQuantity(event.target.value)}
+                  placeholder="100"
+                  step="0.01"
+                  type="number"
+                  value={usdQuantity}
+                />
+                <p className="mt-2 text-xs leading-5 text-muted">{t("usdPurchasedQuantityHint")}</p>
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -370,13 +465,29 @@ export function TransactionManager({ categories, isDisabled, onCreate, onCreateC
           )}
         </select>
 
-        <InlineCategoryCreator
-          isDisabled={isDisabled || isSaving}
-          onCreate={onCreateCategory}
-          onCreated={(category) => setCategoryId(String(category.id))}
-          t={t}
-          type={type}
-        />
+        {availableCategories.length > 0 ? (
+          <button
+            aria-expanded={isCategoryCreatorOpen}
+            className="inline-flex items-center gap-1 justify-self-start text-sm font-medium text-cyan transition hover:underline"
+            onClick={() => setIsCategoryCreatorOpen((current) => !current)}
+            type="button"
+          >
+            {isCategoryCreatorOpen ? <X size={14} /> : <Plus size={14} />}
+            {isCategoryCreatorOpen ? t("cancel") : t("addCategory")}
+          </button>
+        ) : null}
+        {availableCategories.length === 0 || isCategoryCreatorOpen ? (
+          <InlineCategoryCreator
+            isDisabled={isDisabled || isSaving}
+            onCreate={onCreateCategory}
+            onCreated={(category) => {
+              setCategoryId(String(category.id));
+              setIsCategoryCreatorOpen(false);
+            }}
+            t={t}
+            type={type}
+          />
+        ) : null}
 
         <input
           className="rounded-md border border-borderSoft bg-background px-3 py-2.5 text-sm text-text outline-none transition placeholder:text-muted focus:border-cyan"
@@ -395,7 +506,7 @@ export function TransactionManager({ categories, isDisabled, onCreate, onCreateC
           <Plus size={16} />
           {isSaving ? t("saving") : t("addMovement")}
         </button>
-      </form>
+      </form> : null}
 
       <div className="mt-5 rounded-md border border-borderSoft bg-background p-3">
         <div className="flex items-center gap-2 text-sm font-medium text-text">

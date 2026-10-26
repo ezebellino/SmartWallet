@@ -120,7 +120,6 @@ import { CashflowChart } from "@/components/dashboard/CashflowChart";
 import { CategoryManager } from "@/components/dashboard/CategoryManager";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardSectionNav, type DashboardSection } from "@/components/dashboard/DashboardSectionNav";
-import { DashboardSectionHero } from "@/components/dashboard/DashboardSectionHero";
 import { DollarSavingsManager, buildDollarSavingsSnapshot } from "@/components/dashboard/DollarSavingsManager";
 import { ExpenseCategories } from "@/components/dashboard/ExpenseCategories";
 import { ExecutiveFocus, focusIcons } from "@/components/dashboard/ExecutiveFocus";
@@ -134,8 +133,7 @@ import { MonthlyProjectionPanel } from "@/components/dashboard/MonthlyProjection
 import { NotificationsInbox } from "@/components/dashboard/NotificationsInbox";
 import { PlanningPanel } from "@/components/dashboard/PlanningPanel";
 import { PrioritizedAlertsPanel } from "@/components/dashboard/PrioritizedAlertsPanel";
-import { QuickActionsBar, quickActionIcons } from "@/components/dashboard/QuickActionsBar";
-import { QuickTransactionPanel } from "@/components/dashboard/QuickTransactionPanel";
+import { QuickActionsBar } from "@/components/dashboard/QuickActionsBar";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { StatusToast } from "@/components/dashboard/StatusToast";
 import { TopExpenseCategoriesPanel } from "@/components/dashboard/TopExpenseCategoriesPanel";
@@ -201,7 +199,8 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
   const [isGeneratingNotifications, setIsGeneratingNotifications] = useState(false);
   const [isRunningPortfolioWorker, setIsRunningPortfolioWorker] = useState(false);
   const [isRunningMercadoPagoWorker, setIsRunningMercadoPagoWorker] = useState(false);
-  const [isQuickTransactionOpen, setIsQuickTransactionOpen] = useState(false);
+  const [createMovementRequest, setCreateMovementRequest] = useState(0);
+  const handleCreateMovementRequestHandled = useCallback(() => setCreateMovementRequest(0), []);
   const [isSyncing, setIsSyncing] = useState(false);
   const t = (key: TranslationKey) => translations[language][key];
   const [status, setStatus] = useState(t("localPreviewData"));
@@ -256,92 +255,6 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
       }),
     [categories, dollarSavings, transactions]
   );
-
-  const sectionSummaryItems = useMemo(() => {
-    const activeBudgetAlerts = budgetUsage.filter((budget) => budget.is_over_budget || budget.is_near_limit).length;
-    const activeGoals = goals.filter((goal) => goal.status === "active").length;
-    const investmentAlertCount = investmentAlerts?.alerts.length ?? 0;
-    const insightCount = spendingInsights?.insights.length ?? 0;
-
-    const itemsBySection = {
-      dashboard: [
-        { label: t("summaryMovements"), value: String(transactions.length), tone: "neutral" as const },
-        { label: t("summaryCategories"), value: String(categories.length), tone: "neutral" as const },
-        {
-          label: t("summaryBudgetAlerts"),
-          value: String(activeBudgetAlerts),
-          tone: activeBudgetAlerts > 0 ? ("warn" as const) : ("good" as const)
-        },
-        {
-          label: t("summaryInvestmentAlerts"),
-          value: String(investmentAlertCount),
-          tone: investmentAlertCount > 0 ? ("warn" as const) : ("good" as const)
-        }
-      ],
-      movements: [
-        { label: t("summaryMovements"), value: String(transactions.length), tone: "neutral" as const },
-        { label: t("summaryCategories"), value: String(categories.length), tone: "neutral" as const },
-        { label: t("summaryIncomeCategories"), value: String(categories.filter((category) => category.type === "income").length), tone: "good" as const },
-        { label: t("summaryExpenseCategories"), value: String(categories.filter((category) => category.type === "expense").length), tone: "bad" as const }
-      ],
-      budgets: [
-        { label: t("summaryActiveBudgets"), value: String(budgets.length), tone: "neutral" as const },
-        {
-          label: t("summaryBudgetAlerts"),
-          value: String(activeBudgetAlerts),
-          tone: activeBudgetAlerts > 0 ? ("warn" as const) : ("good" as const)
-        },
-        { label: t("summaryExpenseCategories"), value: String(categories.filter((category) => category.type === "expense").length), tone: "neutral" as const },
-        { label: t("summaryCurrentMonth"), value: `${selectedDashboardPeriod.month}/${selectedDashboardPeriod.year}`, tone: "neutral" as const }
-      ],
-      goals: [
-        { label: t("summaryGoals"), value: String(goals.length), tone: "neutral" as const },
-        { label: t("summaryActiveGoals"), value: String(activeGoals), tone: "good" as const },
-        { label: t("summaryCompletedGoals"), value: String(goals.filter((goal) => goal.status === "completed").length), tone: "good" as const },
-        { label: t("summaryPausedGoals"), value: String(goals.filter((goal) => goal.status === "paused").length), tone: "warn" as const }
-      ],
-      dollars: [
-        { label: t("summaryDollarTotal"), value: `USD ${dollarSavingsSnapshot.totalUsd.toFixed(2)}`, tone: "good" as const },
-        { label: t("manualDollarStock"), value: `USD ${dollarSavingsSnapshot.manualAmount.toFixed(2)}`, tone: "neutral" as const },
-        { label: t("detectedDollarPurchases"), value: `USD ${dollarSavingsSnapshot.totalPurchased.toFixed(2)}`, tone: "good" as const },
-        { label: t("detectedMovements"), value: String(dollarSavingsSnapshot.detectedMovements.length), tone: "neutral" as const }
-      ],
-      investments: [
-        { label: t("summaryAssets"), value: String(investmentAssets.length), tone: "neutral" as const },
-        { label: t("summaryOperations"), value: String(investmentOperations.length), tone: "neutral" as const },
-        {
-          label: t("summaryInvestmentAlerts"),
-          value: String(investmentAlertCount),
-          tone: investmentAlertCount > 0 ? ("warn" as const) : ("good" as const)
-        },
-        { label: t("summaryMarketRefresh"), value: marketDataRefresh ? t("marketPricesUpdatedShort") : t("neverUpdated"), tone: marketDataRefresh ? ("good" as const) : ("warn" as const) }
-      ],
-      aiReports: [
-        { label: t("summaryReport"), value: report ? t("reportReady") : t("reportPending"), tone: report ? ("good" as const) : ("warn" as const) },
-        { label: t("summaryInsights"), value: String(insightCount), tone: insightCount > 0 ? ("warn" as const) : ("good" as const) },
-        { label: t("summaryBudgetAlerts"), value: String(activeBudgetAlerts), tone: activeBudgetAlerts > 0 ? ("warn" as const) : ("good" as const) },
-        { label: t("summarySimulations"), value: t("available"), tone: "neutral" as const }
-      ]
-    };
-
-    return itemsBySection[activeSection];
-  }, [
-    activeSection,
-    budgetUsage,
-    budgets.length,
-    categories,
-    goals,
-    investmentAlerts,
-    investmentAssets.length,
-    investmentOperations.length,
-    language,
-    selectedDashboardPeriod,
-    dollarSavingsSnapshot,
-    marketDataRefresh,
-    report,
-    spendingInsights,
-    transactions.length
-  ]);
 
   const executiveFocusItems = useMemo(() => {
     const activeBudgetAlerts = budgetUsage.filter((budget) => budget.is_over_budget || budget.is_near_limit).length;
@@ -494,51 +407,6 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
 
     return items.slice(0, 4);
   }, [budgetUsage, expenseCategoryData, goals, metrics, report, language]);
-
-  const quickActionItems = useMemo(
-    () => [
-      {
-        descriptionKey: "quickAddMovementDescription" as const,
-        icon: quickActionIcons.movement,
-        labelKey: "quickAddMovement" as const,
-        type: "quickTransaction" as const,
-        value: String(transactions.length)
-      },
-      {
-        descriptionKey: "quickReviewCategoriesDescription" as const,
-        icon: quickActionIcons.wallet,
-        labelKey: "quickReviewCategories" as const,
-        section: "movements" as const,
-        type: "section" as const,
-        value: String(categories.length)
-      },
-      {
-        descriptionKey: "quickTrackDollarsDescription" as const,
-        icon: quickActionIcons.dollars,
-        labelKey: "quickTrackDollars" as const,
-        section: "dollars" as const,
-        type: "section" as const,
-        value: `USD ${dollarSavingsSnapshot.totalUsd.toFixed(0)}`
-      },
-      {
-        descriptionKey: "quickRegisterInvestmentDescription" as const,
-        icon: quickActionIcons.investment,
-        labelKey: "quickRegisterInvestment" as const,
-        section: "investments" as const,
-        type: "section" as const,
-        value: String(investmentAssets.length)
-      },
-      {
-        descriptionKey: "quickAiReportDescription" as const,
-        icon: quickActionIcons.ai,
-        labelKey: "quickAiReport" as const,
-        section: "aiReports" as const,
-        type: "section" as const,
-        value: report ? t("reportReady") : t("reportPending")
-      }
-    ],
-    [categories.length, dollarSavingsSnapshot.totalUsd, investmentAssets.length, language, report, transactions.length]
-  );
 
   function handleDashboardPeriodChange(direction: "previous" | "next" | "current") {
     if (direction === "current") {
@@ -1601,7 +1469,6 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
             sessionRemainingMs={sessionRemainingMs}
             selectedMonth={selectedDashboardPeriod.month}
             selectedYear={selectedDashboardPeriod.year}
-            status={status}
             t={t}
             userName={userName}
             onSync={refreshFromApi}
@@ -1612,20 +1479,17 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
           </div>
           {activeSection === "dashboard" ? (
             <>
-              <MetricsGrid metrics={metrics} onSectionChange={setActiveSection} t={t} />
               <QuickActionsBar
-                isSyncing={isSyncing}
-                items={quickActionItems}
-                onQuickTransactionOpen={() => setIsQuickTransactionOpen(true)}
-                onSectionChange={setActiveSection}
-                onSync={refreshFromApi}
+                onQuickTransactionOpen={() => {
+                  setCreateMovementRequest((current) => current + 1);
+                  setActiveSection("movements");
+                }}
                 t={t}
               />
+              <MetricsGrid metrics={metrics} onSectionChange={setActiveSection} t={t} />
               <ExecutiveFocus items={executiveFocusItems} onSectionChange={setActiveSection} t={t} />
             </>
-          ) : (
-            <DashboardSectionHero activeSection={activeSection} items={sectionSummaryItems} t={t} />
-          )}
+          ) : null}
 
         {activeSection === "dashboard" ? (
           <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -1690,9 +1554,11 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
           <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
             <TransactionManager
               categories={categories}
+              createRequestId={createMovementRequest}
               isDisabled={!token}
               onCreate={handleCreateTransaction}
               onCreateCategory={handleCreateCategory}
+              onCreateRequestHandled={handleCreateMovementRequestHandled}
               onDelete={handleDeleteTransaction}
               onUpdate={handleUpdateTransaction}
               transactions={transactions}
@@ -1850,16 +1716,6 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
           onOpenChange={setIsAssistantOpen}
           onSectionChange={setActiveSection}
           t={t}
-        />
-        <QuickTransactionPanel
-          categories={categories}
-          isDisabled={!token}
-          isOpen={isQuickTransactionOpen}
-          onClose={() => setIsQuickTransactionOpen(false)}
-          onCreate={handleCreateTransaction}
-          onCreateCategory={handleCreateCategory}
-          t={t}
-          transactions={transactions}
         />
         </div>
       </main>

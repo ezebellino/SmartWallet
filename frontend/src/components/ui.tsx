@@ -70,10 +70,10 @@ export function MetricCard({
         </div>
         <span className={clsx("mt-0.5 h-2 w-2 shrink-0 rounded-full", dotClass)} />
       </div>
-      <div className="mt-3 text-2xl font-semibold leading-none text-text">{value}</div>
-      <p className={clsx("mt-3 min-h-10 text-sm leading-5", toneClass)}>{detail}</p>
+      <div className="mt-3 text-lg font-semibold leading-tight text-text [overflow-wrap:anywhere] sm:text-2xl sm:leading-none">{value}</div>
+      <p className={clsx("mt-3 hidden min-h-10 text-sm leading-5 sm:block", toneClass)}>{detail}</p>
       {actionLabel ? (
-        <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-cyan transition group-hover:gap-2">
+        <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-cyan transition group-hover:gap-2 sm:mt-4">
           {actionLabel}
           <ArrowUpRight size={14} />
         </span>
@@ -86,7 +86,7 @@ export function MetricCard({
       <button
         className={clsx(
           panelClassName,
-          "group relative min-h-[168px] overflow-hidden p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-cyan/35 hover:bg-panelSoft/70 focus:outline-none focus-visible:border-cyan/55 focus-visible:ring-2 focus-visible:ring-cyan/25"
+          "group relative min-h-[136px] overflow-hidden p-3 text-left transition duration-200 hover:-translate-y-0.5 hover:border-cyan/35 hover:bg-panelSoft/70 focus:outline-none focus-visible:border-cyan/55 focus-visible:ring-2 focus-visible:ring-cyan/25 sm:min-h-[168px] sm:p-4"
         )}
         onClick={onClick}
         type="button"
@@ -97,7 +97,7 @@ export function MetricCard({
   }
 
   return (
-    <Panel className="group relative min-h-[168px] overflow-hidden p-4 transition duration-200 hover:-translate-y-0.5 hover:border-cyan/35 hover:bg-panelSoft/70">
+    <Panel className="group relative min-h-[136px] overflow-hidden p-3 transition duration-200 hover:-translate-y-0.5 hover:border-cyan/35 hover:bg-panelSoft/70 sm:min-h-[168px] sm:p-4">
       {content}
     </Panel>
   );
