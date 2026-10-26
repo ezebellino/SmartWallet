@@ -215,4 +215,5 @@ Objetivo: dejar el producto listo para operar sin fragilidad.
 - [x] ~~Completar `npm run build`: pasó al usar `NEXT_DIST_DIR=.next-cedear-build`, separado de la vista previa activa en `.next`. `npm run typecheck` también pasó.~~
 - [ ] Validar la respuesta real de IOL con un CEDEAR en ARS autorizado y comprobar que incluya moneda; si no la incluye, no aceptar el precio automáticamente hasta tener otra verificación fiable.
 - [x] ~~Smoke autenticado con cuenta ficticia: crear CEDEAR AAPL en ARS, registrar compra de 2 certificados, ver valuación ARS 24.000 y alternar ES/EN. Vista de 390 px sin overflow ni errores de consola. Frontend local `127.0.0.1:3002`, backend SQLite temporal `127.0.0.1:8002`.~~
-- [ ] Despliegue controlado a Railway. Ningún cambio de esta etapa está publicado allí.
+- [x] ~~GitHub `origin/main` actualizado en `224beba`; Railway autodesplegó frontend, backend y worker Mercado Pago en `SUCCESS`. Login público cargó sin errores de consola.~~
+- [ ] Validar una cotización CEDEAR real en producción con cuenta IOL autorizada; el despliegue no demuestra cobertura ni moneda de la API externa.
