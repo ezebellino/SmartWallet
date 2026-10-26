@@ -106,6 +106,22 @@ export function getCurrentUser(token: string) {
   });
 }
 
+export function updateCurrentUser(token: string, fullName: string) {
+  return request<AuthResponse["user"]>("/auth/me", {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ full_name: fullName })
+  });
+}
+
+export type MarketNewsItem = { title: string; url: string; published_at: string; source: string };
+
+export function getMarketNews(token: string) {
+  return request<{ items: MarketNewsItem[]; unavailable: boolean }>("/market-data/news", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
 export function refreshSession(token: string) {
   return request<AuthResponse>("/auth/refresh", {
     method: "POST",

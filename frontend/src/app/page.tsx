@@ -142,6 +142,7 @@ export default function Home() {
         sessionRemainingMs={remainingSessionMs}
         token={token}
         userName={userName}
+        onNameChange={setUserName}
         onLogout={handleLogout}
       />
       {showSessionWarning ? (

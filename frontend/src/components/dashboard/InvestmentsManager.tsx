@@ -1,12 +1,13 @@
 import { Check, LineChart, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { BinanceWalletPanel } from "@/components/dashboard/BinanceWalletPanel";
+import { CedearsOverview } from "@/components/dashboard/CedearsOverview";
 import { InvestmentAlertsPanel } from "@/components/dashboard/InvestmentAlertsPanel";
 import { InvestmentPerformancePanel } from "@/components/dashboard/InvestmentPerformancePanel";
 import { MarketIntegrationsPanel } from "@/components/dashboard/MarketIntegrationsPanel";
 import { WorkerControlPanel } from "@/components/dashboard/WorkerControlPanel";
-import { Panel } from "@/components/ui";
-import type { TranslationKey } from "@/i18n";
+import { InvestmentResearchPanel } from "@/components/dashboard/InvestmentResearchPanel";
+import type { Language, TranslationKey } from "@/i18n";
 import { confirmAction } from "@/lib/alerts";
 import { formatDate } from "@/lib/format";
 import type {
@@ -56,6 +57,8 @@ type PortfolioCurrencySummary = {
 };
 
 type Props = {
+  token: string;
+  language: Language;
   assets: InvestmentAsset[];
   binanceAccount: BinanceAccount | null;
   binanceIntegration: BinanceIntegration | null;
@@ -140,6 +143,8 @@ function formatPriceSource(value: string | null | undefined, t: (key: Translatio
 }
 
 export function InvestmentsManager({
+  token,
+  language,
   assets,
   binanceAccount,
   binanceIntegration,
@@ -168,6 +173,7 @@ export function InvestmentsManager({
   portfolio,
   t
 }: Props) {
+  const [view, setView] = useState<"portfolio" | "activity" | "analysis" | "connections">("portfolio");
   const [assetName, setAssetName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [assetType, setAssetType] = useState<InvestmentAssetType>("stock");
@@ -197,6 +203,17 @@ export function InvestmentsManager({
   const [isSaving, setIsSaving] = useState(false);
 
   const assetById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
+  function quoteMessage(assetId: number, status: string, message: string) {
+    const asset = assetById.get(assetId);
+    if (asset?.asset_type !== "cedear") return message;
+    if (status === "skipped") return t(asset.currency === "ARS" ? "cedearIolRequired" : "cedearArsOnly");
+    if (status === "failed") {
+      if (message === "IOL username and password are required") return t("cedearMissingCredentials");
+      if (message.toLowerCase().includes("currency")) return t("cedearCurrencyMismatch");
+      return t("cedearRefreshFailed");
+    }
+    return message;
+  }
   const recentOperations = operations.slice(0, 6);
   const portfolioCurrencySummary = useMemo<PortfolioCurrencySummary[]>(() => {
     if (portfolio?.totals_by_currency?.length) {
@@ -388,13 +405,13 @@ export function InvestmentsManager({
   }
 
   return (
-    <Panel className="p-5">
+    <section className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-text">{t("realInvestments")}</h2>
           <p className="mt-1 text-sm text-muted">{t("realInvestmentsSubtitle")}</p>
         </div>
-        <div className="flex items-center gap-2">
+        {view === "portfolio" ? <div className="flex items-center gap-2">
           <button
             className="inline-flex items-center justify-center gap-2 rounded-md border border-borderSoft px-3 py-2 text-sm font-semibold text-muted transition hover:text-text disabled:cursor-not-allowed disabled:opacity-55"
             disabled={isDisabled || isSaving || assets.length === 0}
@@ -405,10 +422,21 @@ export function InvestmentsManager({
             {t("refreshMarketPrices")}
           </button>
           <LineChart size={18} className="text-cyan" />
-        </div>
+        </div> : null}
       </div>
 
-      {marketDataRefresh ? (
+      <nav aria-label={language === "en" ? "Investment views" : "Vistas de inversiones"} className="flex gap-1 overflow-x-auto border-b border-borderSoft">
+        {([
+          ["portfolio", language === "en" ? "Portfolio" : "Cartera"],
+          ["activity", language === "en" ? "Activity" : "Actividad"],
+          ["analysis", language === "en" ? "Research" : "Análisis"],
+          ["connections", language === "en" ? "Connections" : "Conexiones"]
+        ] as const).map(([id, label]) => (
+          <button aria-current={view === id ? "page" : undefined} className={`shrink-0 border-b-2 px-3 py-2 text-sm font-semibold transition ${view === id ? "border-cyan text-cyan" : "border-transparent text-muted hover:text-text"}`} key={id} onClick={() => setView(id)} type="button">{label}</button>
+        ))}
+      </nav>
+
+      {view === "portfolio" && marketDataRefresh ? (
         <div className="mt-4 rounded-md border border-borderSoft bg-background p-3">
           <div className="grid gap-2 text-sm sm:grid-cols-3">
             <span className="rounded-md border border-borderSoft bg-panel px-3 py-2 text-emerald">
@@ -429,7 +457,7 @@ export function InvestmentsManager({
                     {quote.symbol} - {quote.provider ?? t("notAvailable")}
                   </span>
                   <span className="shrink-0">
-                    {quote.price ? formatInvestmentMoney(quote.price, quote.currency) : quote.message}
+                    {quote.price ? formatInvestmentMoney(quote.price, quote.currency) : quoteMessage(quote.asset_id, quote.status, quote.message)}
                   </span>
                 </div>
               ))}
@@ -460,7 +488,15 @@ export function InvestmentsManager({
         </div>
       ) : null}
 
-      <BinanceWalletPanel
+      {view === "portfolio" ? <CedearsOverview assets={assets} portfolio={portfolio} language={language} onAdd={() => {
+        setAssetType("cedear");
+        setCurrency("ARS");
+        setCurrentPrice("");
+        setView("activity");
+      }} t={t} /> : null}
+
+      {view === "portfolio" ? <BinanceWalletPanel
+        mode="summary"
         account={binanceAccount}
         integration={binanceIntegration}
         isDisabled={isDisabled}
@@ -470,34 +506,49 @@ export function InvestmentsManager({
         portfolioSummary={binancePortfolioSummary}
         snapshots={binanceSnapshots}
         t={t}
-      />
+      /> : null}
 
-      <WorkerControlPanel
+      {view === "connections" ? <BinanceWalletPanel
+        mode="management"
+        account={binanceAccount}
+        integration={binanceIntegration}
+        isDisabled={isDisabled}
+        onLoadAccount={onLoadBinanceAccount}
+        onSyncBalances={onSyncBinanceBalances}
+        onUpdateIntegration={onUpdateBinanceIntegration}
+        portfolioSummary={binancePortfolioSummary}
+        snapshots={binanceSnapshots}
+        t={t}
+      /> : null}
+
+      {view === "connections" ? <WorkerControlPanel
         isDisabled={isDisabled}
         isRunning={isRunningPortfolioWorker}
         jobRuns={jobRuns}
         jobStatus={jobStatus}
         onRun={onRunPortfolioWorker}
         t={t}
-      />
+      /> : null}
 
-      <MarketIntegrationsPanel
+      {view === "connections" ? <MarketIntegrationsPanel
         integrations={marketDataIntegrations}
         isDisabled={isDisabled}
         onUpdate={onUpdateMarketIntegration}
         t={t}
-      />
+      /> : null}
 
-      <InvestmentAlertsPanel alerts={investmentAlerts} isDisabled={isDisabled} t={t} />
+      {view === "analysis" ? <InvestmentAlertsPanel alerts={investmentAlerts} isDisabled={isDisabled} t={t} /> : null}
 
-      <InvestmentPerformancePanel
+      {view === "analysis" ? <InvestmentPerformancePanel
         assets={assets}
         isDisabled={isDisabled}
         onLoadPriceHistory={onLoadPriceHistory}
         t={t}
-      />
+      /> : null}
 
-      <div className="mt-5 grid gap-4 xl:grid-cols-2">
+      {view === "analysis" ? <InvestmentResearchPanel token={token} language={language} /> : null}
+
+      {view === "activity" ? <div className="mt-5 grid gap-4 xl:grid-cols-2">
         <form className="grid gap-3" onSubmit={handleCreateAsset}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm font-medium text-text">{t("investmentAssets")}</div>
@@ -510,7 +561,7 @@ export function InvestmentsManager({
               {t("useUsdArsPreset")}
             </button>
           </div>
-          <p className="text-xs leading-5 text-muted">{t("usdArsPresetHint")}</p>
+          {assetType === "cedear" ? <p className="text-xs leading-5 text-muted">{t("cedearEntryHint")}</p> : <p className="text-xs leading-5 text-muted">{t("usdArsPresetHint")}</p>}
           <input
             className="rounded-md border border-borderSoft bg-background px-3 py-2.5 text-sm text-text outline-none transition placeholder:text-muted focus:border-cyan"
             disabled={isDisabled || isSaving}
@@ -544,7 +595,14 @@ export function InvestmentsManager({
             <select
               className="rounded-md border border-borderSoft bg-background px-3 py-2.5 text-sm text-text outline-none transition focus:border-cyan"
               disabled={isDisabled || isSaving}
-              onChange={(event) => setAssetType(event.target.value as InvestmentAssetType)}
+              onChange={(event) => {
+                const selected = event.target.value as InvestmentAssetType;
+                setAssetType(selected);
+                if (selected === "cedear") {
+                  setCurrency("ARS");
+                  setCurrentPrice("");
+                }
+              }}
               value={assetType}
             >
               {assetTypes.map((type) => (
@@ -576,6 +634,7 @@ export function InvestmentsManager({
               value={currentPrice}
             />
           </div>
+          {assetType === "cedear" && currency.trim().toUpperCase() !== "ARS" ? <p className="text-xs text-amber">{t("cedearArsOnly")}</p> : null}
           <button
             className="inline-flex items-center justify-center gap-2 rounded-md bg-cyan px-4 py-2.5 text-sm font-semibold text-background transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-55"
             disabled={isDisabled || isSaving || !assetName.trim() || !symbol.trim()}
@@ -604,6 +663,9 @@ export function InvestmentsManager({
               ))
             )}
           </select>
+          {assetById.get(Number(operationAssetId || assets[0]?.id))?.asset_type === "cedear" ? (
+            <p className="text-xs text-muted">{t("cedearEntryHint")}</p>
+          ) : null}
           <div className="grid grid-cols-2 rounded-md border border-borderSoft bg-background p-1">
             {(["buy", "sell"] as const).map((option) => (
               <button
@@ -667,9 +729,9 @@ export function InvestmentsManager({
             {isSaving ? t("saving") : t("addOperation")}
           </button>
         </form>
-      </div>
+      </div> : null}
 
-      <div className="mt-5 grid gap-4 xl:grid-cols-2">
+      {view === "portfolio" ? <div className="mt-5 grid gap-4 xl:grid-cols-2">
         <div className="rounded-md border border-borderSoft bg-background p-3">
           <div className="text-sm font-medium text-text">{t("portfolioSummary")}</div>
           {portfolioCurrencySummary.length > 0 ? (
@@ -709,7 +771,7 @@ export function InvestmentsManager({
               {t("noPortfolioPositions")}
             </p>
           )}
-          <p className="mt-3 text-xs leading-5 text-muted">{portfolio?.risk_warning ?? t("investmentRiskWarning")}</p>
+          <p className="mt-3 text-xs leading-5 text-muted">{t("investmentDisclaimer")}</p>
         </div>
 
         <div className="rounded-md border border-borderSoft bg-background p-3">
@@ -750,9 +812,9 @@ export function InvestmentsManager({
             )}
           </div>
         </div>
-      </div>
+      </div> : null}
 
-      <div className="mt-5 grid gap-4 xl:grid-cols-2">
+      {view === "activity" ? <div className="mt-5 grid gap-4 xl:grid-cols-2">
         <div className="space-y-2">
           <div className="text-sm font-medium text-text">{t("investmentAssets")}</div>
           {assets.length === 0 ? (
@@ -850,8 +912,9 @@ export function InvestmentsManager({
                       </div>
                       <div className="mt-1 text-xs text-muted">
                         {t(`assetType${asset.asset_type}` as TranslationKey)} - {t(`risk${asset.risk_level}` as TranslationKey)} -{" "}
-                        {formatInvestmentMoney(asset.current_price, asset.currency)}
+                        {asset.asset_type === "cedear" && asset.price_source === "alphavantage" ? "-" : formatInvestmentMoney(asset.current_price, asset.currency)}
                       </div>
+                      {asset.asset_type === "cedear" && asset.price_source === "alphavantage" ? <p className="mt-1 text-xs text-amber">{t("cedearLegacyPrice")}</p> : null}
                       <div className="mt-1 text-xs text-muted">
                         {t("priceSource")}: {formatPriceSource(asset.price_source, t)} - {t("lastPriceUpdate")}:{" "}
                         {formatInvestmentDateTime(asset.price_updated_at) ?? t("neverUpdated")}
@@ -1016,7 +1079,7 @@ export function InvestmentsManager({
             })
           )}
         </div>
-      </div>
-    </Panel>
+      </div> : null}
+    </section>
   );
 }

@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
-import { BarChart3, Banknote, Bot, Gauge, LineChart, Target, WalletCards } from "lucide-react";
+import { BarChart3, Banknote, Bot, Gauge, LineChart, Target, UserRound, WalletCards } from "lucide-react";
 import type { TranslationKey } from "@/i18n";
 
-export type DashboardSection = "dashboard" | "movements" | "budgets" | "goals" | "dollars" | "investments" | "aiReports";
+export type DashboardSection = "dashboard" | "movements" | "budgets" | "goals" | "dollars" | "investments" | "aiReports" | "profile";
 
 type Props = {
   activeSection: DashboardSection;
@@ -21,7 +21,8 @@ const sections: Array<{
   { id: "goals", labelKey: "goals", icon: Target },
   { id: "dollars", labelKey: "dollarSavings", icon: Banknote },
   { id: "investments", labelKey: "investments", icon: LineChart },
-  { id: "aiReports", labelKey: "aiReports", icon: Bot }
+  { id: "aiReports", labelKey: "aiReports", icon: Bot },
+  { id: "profile", labelKey: "profile", icon: UserRound }
 ];
 
 export function DashboardSectionNav({ activeSection, onChange, t }: Props) {
@@ -41,7 +42,7 @@ export function DashboardSectionNav({ activeSection, onChange, t }: Props) {
 
   return (
     <nav className="mt-4 overflow-x-auto rounded-lg border border-borderSoft/90 bg-panel/70 p-1 shadow-panel ring-1 ring-white/[0.025]" ref={navigationRef}>
-      <div className="grid min-w-[1040px] grid-cols-7 gap-1 md:min-w-0">
+      <div className="grid min-w-[1080px] grid-cols-8 gap-1 md:min-w-0">
         {sections.map((section) => {
           const Icon = section.icon;
           const isActive = activeSection === section.id;

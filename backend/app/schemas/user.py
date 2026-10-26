@@ -17,3 +17,7 @@ class UserRead(BaseModel):
     full_name: str
     is_active: bool
     created_at: datetime
+
+
+class UserProfileUpdate(BaseModel):
+    full_name: str = Field(min_length=2, max_length=120)

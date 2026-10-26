@@ -5,19 +5,19 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#070b0f",
-        panel: "#10161d",
-        panelSoft: "#141b23",
-        borderSoft: "#26313d",
-        muted: "#94a3b8",
+        background: "#0b1015",
+        panel: "#141b20",
+        panelSoft: "#1b242b",
+        borderSoft: "#344047",
+        muted: "#a3b2b9",
         text: "#f8fafc",
-        emerald: "#16f2a4",
-        cyan: "#38bdf8",
+        emerald: "#48d9a2",
+        cyan: "#75cdea",
         amber: "#fbbf24",
         rose: "#fb7185"
       },
       boxShadow: {
-        panel: "0 18px 70px rgba(0, 0, 0, 0.28)"
+        panel: "0 3px 12px rgba(0, 0, 0, 0.12)"
       },
       fontFamily: {
         sans: ["Inter", "ui-sans-serif", "system-ui", "Segoe UI", "Arial"]

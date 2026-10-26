@@ -6,7 +6,7 @@ from app.database.session import get_db
 from app.models.user import User
 from app.repositories.users import UserRepository
 from app.schemas.auth import AuthResponse, LoginRequest
-from app.schemas.user import UserCreate, UserRead
+from app.schemas.user import UserCreate, UserProfileUpdate, UserRead
 from app.services.auth import AuthService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -35,6 +35,20 @@ def login(
 @router.get("/me", response_model=UserRead)
 def me(current_user: User = Depends(get_current_user)) -> User:
     return current_user
+
+
+@router.patch("/me", response_model=UserRead)
+def update_me(
+    data: UserProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> User:
+    full_name = data.full_name.strip()
+    if len(full_name) < 2:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=422, detail="Name must contain at least two characters")
+    return UserRepository(db).update_full_name(current_user, full_name)
 
 
 @router.post("/refresh", response_model=AuthResponse)

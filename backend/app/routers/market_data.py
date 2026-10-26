@@ -17,8 +17,14 @@ from app.schemas.market_data import (
 )
 from app.services.market_data import MarketDataService
 from app.services.market_data_scheduler import MarketDataAutoRefreshRunner
+from app.services.market_news import get_market_news
 
 router = APIRouter(prefix="/market-data", tags=["market-data"])
+
+
+@router.get("/news")
+def market_news(current_user: User = Depends(get_current_user)) -> dict[str, object]:
+    return get_market_news()
 
 
 def get_market_data_service(db: Session = Depends(get_db)) -> MarketDataService:

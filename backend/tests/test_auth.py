@@ -61,3 +61,18 @@ def test_refresh_requires_a_valid_unexpired_token(client: TestClient) -> None:
     expired = create_access_token(str(registered["user"]["id"]), expires_delta=timedelta(seconds=-1))
     assert client.post("/auth/refresh", headers={"Authorization": f"Bearer {expired}"}).status_code == 401
 
+
+def test_profile_update_is_private_and_persistent(client: TestClient) -> None:
+    first = client.post("/auth/register", json={"email": "first@example.com", "password": "strong-password", "full_name": "First User"}).json()
+    second = client.post("/auth/register", json={"email": "second@example.com", "password": "strong-password", "full_name": "Second User"}).json()
+    first_headers = {"Authorization": f"Bearer {first['token']['access_token']}"}
+    second_headers = {"Authorization": f"Bearer {second['token']['access_token']}"}
+
+    assert client.patch("/auth/me", json={"full_name": "Changed"}).status_code == 401
+    assert client.patch("/auth/me", json={"full_name": " "}, headers=first_headers).status_code == 422
+    response = client.patch("/auth/me", json={"full_name": "  Updated User  "}, headers=first_headers)
+    assert response.status_code == 200
+    assert response.json()["full_name"] == "Updated User"
+    assert client.get("/auth/me", headers=first_headers).json()["full_name"] == "Updated User"
+    assert client.get("/auth/me", headers=second_headers).json()["full_name"] == "Second User"
+

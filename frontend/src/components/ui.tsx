@@ -2,7 +2,7 @@ import { clsx } from "clsx";
 import { ArrowUpRight } from "lucide-react";
 import type { ReactNode } from "react";
 
-const panelClassName = "rounded-lg border border-borderSoft/90 bg-panel/88 shadow-panel ring-1 ring-white/[0.025]";
+const panelClassName = "rounded-md border border-borderSoft bg-panel shadow-panel";
 
 export function Panel({
   children,

@@ -1,5 +1,8 @@
 from fastapi.testclient import TestClient
 
+from app.models.investment import InvestmentAsset
+from sqlalchemy.orm import Session
+
 
 def test_investment_asset_operations_and_portfolio(
     client: TestClient,
@@ -96,6 +99,32 @@ def test_investment_asset_operations_and_portfolio(
     assert portfolio["positions"][0]["quantity"] == "0.10000000"
     assert portfolio["positions"][0]["average_cost"] == "40370.00"
     assert "does not constitute professional financial advice" in portfolio["risk_warning"]
+
+
+def test_legacy_alpha_quote_is_not_used_to_value_cedear(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    db_session: Session,
+) -> None:
+    asset = client.post(
+        "/investments/assets",
+        headers=auth_headers,
+        json={"name": "Apple CEDEAR", "symbol": "AAPL", "asset_type": "cedear", "currency": "ARS", "risk_level": "medium", "current_price": "200"},
+    ).json()
+    client.post(
+        "/investments/operations",
+        headers=auth_headers,
+        json={"asset_id": asset["id"], "operation_type": "buy", "quantity": "10", "unit_price": "12000", "fees": "0", "operation_date": "2026-10-26"},
+    )
+    stored = db_session.get(InvestmentAsset, asset["id"])
+    assert stored is not None
+    stored.price_source = "alphavantage"
+    db_session.commit()
+
+    portfolio = client.get("/investments/portfolio", headers=auth_headers).json()
+    assert portfolio["positions"][0]["estimated_value"] is None
+    assert portfolio["positions"][0]["invested_amount"] == "120000.00"
+    assert client.get("/investments/alerts", headers=auth_headers).json()["alerts"][0]["type"] == "invalid_cedear_price"
 
 
 def test_investment_alerts_report_missing_prices_and_high_risk_concentration(

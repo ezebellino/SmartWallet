@@ -122,7 +122,7 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardSectionNav, type DashboardSection } from "@/components/dashboard/DashboardSectionNav";
 import { DollarSavingsManager, buildDollarSavingsSnapshot } from "@/components/dashboard/DollarSavingsManager";
 import { ExpenseCategories } from "@/components/dashboard/ExpenseCategories";
-import { ExecutiveFocus, focusIcons } from "@/components/dashboard/ExecutiveFocus";
+import { focusIcons } from "@/components/dashboard/ExecutiveFocus";
 import { FinancialHealthPanel } from "@/components/dashboard/FinancialHealthPanel";
 import { GoalsManager } from "@/components/dashboard/GoalsManager";
 import { InvestmentsManager } from "@/components/dashboard/InvestmentsManager";
@@ -132,6 +132,7 @@ import { MonthlyComparisonPanel } from "@/components/dashboard/MonthlyComparison
 import { MonthlyProjectionPanel } from "@/components/dashboard/MonthlyProjectionPanel";
 import { NotificationsInbox } from "@/components/dashboard/NotificationsInbox";
 import { PlanningPanel } from "@/components/dashboard/PlanningPanel";
+import { ProfilePanel } from "@/components/dashboard/ProfilePanel";
 import { PrioritizedAlertsPanel } from "@/components/dashboard/PrioritizedAlertsPanel";
 import { QuickActionsBar } from "@/components/dashboard/QuickActionsBar";
 import { Sidebar } from "@/components/dashboard/Sidebar";
@@ -143,13 +144,14 @@ import { formatMoney } from "@/lib/format";
 type Props = {
   token: string | null;
   userName: string;
+  onNameChange: (name: string) => void;
   sessionRemainingMs: number;
   onLogout: () => void;
   language: Language;
   onLanguageChange: (language: Language) => void;
 };
 
-export function Dashboard({ token, userName, sessionRemainingMs, onLogout, language, onLanguageChange }: Props) {
+export function Dashboard({ token, userName, onNameChange, sessionRemainingMs, onLogout, language, onLanguageChange }: Props) {
   const [summary, setSummary] = useState<MonthlySummary | null>(null);
   const [monthlyComparison, setMonthlyComparison] = useState<MonthlyComparison | null>(null);
   const [monthlyProjection, setMonthlyProjection] = useState<MonthlyProjection | null>(null);
@@ -255,78 +257,6 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
       }),
     [categories, dollarSavings, transactions]
   );
-
-  const executiveFocusItems = useMemo(() => {
-    const activeBudgetAlerts = budgetUsage.filter((budget) => budget.is_over_budget || budget.is_near_limit).length;
-    const activeGoals = goals.filter((goal) => goal.status === "active").length;
-    const items = [];
-
-    if (transactions.length === 0) {
-      items.push({
-        actionKey: "focusAddMovementAction" as const,
-        bodyKey: "focusAddMovementBody" as const,
-        icon: focusIcons.movement,
-        section: "movements" as const,
-        titleKey: "focusAddMovementTitle" as const,
-        tone: "cyan" as const
-      });
-    }
-
-    if (activeBudgetAlerts > 0) {
-      items.push({
-        actionKey: "focusBudgetAlertAction" as const,
-        bodyKey: "focusBudgetAlertBody" as const,
-        icon: focusIcons.budget,
-        section: "budgets" as const,
-        titleKey: "focusBudgetAlertTitle" as const,
-        tone: "amber" as const
-      });
-    } else if (budgets.length === 0) {
-      items.push({
-        actionKey: "focusCreateBudgetAction" as const,
-        bodyKey: "focusCreateBudgetBody" as const,
-        icon: focusIcons.budget,
-        section: "budgets" as const,
-        titleKey: "focusCreateBudgetTitle" as const,
-        tone: "cyan" as const
-      });
-    }
-
-    if (activeGoals === 0) {
-      items.push({
-        actionKey: "focusGoalAction" as const,
-        bodyKey: "focusGoalBody" as const,
-        icon: focusIcons.goal,
-        section: "goals" as const,
-        titleKey: "focusGoalTitle" as const,
-        tone: "emerald" as const
-      });
-    }
-
-    if (!report) {
-      items.push({
-        actionKey: "focusAiReportAction" as const,
-        bodyKey: "focusAiReportBody" as const,
-        icon: focusIcons.ai,
-        section: "aiReports" as const,
-        titleKey: "focusAiReportTitle" as const,
-        tone: "cyan" as const
-      });
-    }
-
-    if (items.length === 0) {
-      items.push({
-        actionKey: "focusHealthyAction" as const,
-        bodyKey: "focusHealthyBody" as const,
-        icon: focusIcons.healthy,
-        section: "dashboard" as const,
-        titleKey: "focusHealthyTitle" as const,
-        tone: "emerald" as const
-      });
-    }
-
-    return items.slice(0, 3);
-  }, [budgetUsage, budgets.length, goals, report, transactions.length]);
 
   const assistantItems = useMemo(() => {
     const activeBudgetAlerts = budgetUsage.filter((budget) => budget.is_over_budget || budget.is_near_limit);
@@ -1453,7 +1383,6 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
     <div className="flex min-h-screen">
       <Sidebar
         activeSection={activeSection}
-        budgetUsage={budgetUsage}
         onSectionChange={setActiveSection}
         t={t}
       />
@@ -1473,6 +1402,7 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
             userName={userName}
             onSync={refreshFromApi}
             onLogout={onLogout}
+            onProfileClick={() => setActiveSection("profile")}
           />
           <div className="lg:hidden">
             <DashboardSectionNav activeSection={activeSection} onChange={setActiveSection} t={t} />
@@ -1487,7 +1417,6 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
                 t={t}
               />
               <MetricsGrid metrics={metrics} onSectionChange={setActiveSection} t={t} />
-              <ExecutiveFocus items={executiveFocusItems} onSectionChange={setActiveSection} t={t} />
             </>
           ) : null}
 
@@ -1654,9 +1583,11 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
           </div>
         ) : null}
 
-        {activeSection === "investments" ? (
+        {activeSection === "investments" && token ? (
           <div className="mt-4">
             <InvestmentsManager
+              token={token}
+              language={language}
               assets={investmentAssets}
               binanceAccount={binanceAccount}
               binanceIntegration={binanceIntegration}
@@ -1708,6 +1639,10 @@ export function Dashboard({ token, userName, sessionRemainingMs, onLogout, langu
               t={t}
             />
           </div>
+        ) : null}
+
+        {activeSection === "profile" && token ? (
+          <ProfilePanel token={token} language={language} onLanguageChange={onLanguageChange} onNameChange={onNameChange} />
         ) : null}
         <StatusToast message={status} mutedMessage={t("localPreviewData")} />
         <AiAssistantBubble

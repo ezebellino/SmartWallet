@@ -1,6 +1,5 @@
-import { Banknote, BarChart3, Bell, Bot, CreditCard, Gauge, LineChart, Target, WalletCards } from "lucide-react";
+import { Banknote, BarChart3, Bot, CreditCard, Gauge, LineChart, Target, UserRound, WalletCards } from "lucide-react";
 import type { TranslationKey } from "@/i18n";
-import type { BudgetUsage } from "@/types/api";
 import type { DashboardSection } from "@/components/dashboard/DashboardSectionNav";
 
 const navigation = [
@@ -10,22 +9,19 @@ const navigation = [
   ["goals", "goals", Target],
   ["dollarSavings", "dollars", Banknote],
   ["investments", "investments", LineChart],
-  ["aiReports", "aiReports", Bot]
+  ["aiReports", "aiReports", Bot],
+  ["profile", "profile", UserRound]
 ] as const;
 
 export function Sidebar({
   activeSection,
-  budgetUsage,
   onSectionChange,
   t
 }: {
   activeSection: DashboardSection;
-  budgetUsage: BudgetUsage[];
   onSectionChange: (section: DashboardSection) => void;
   t: (key: TranslationKey) => string;
 }) {
-  const activeAlerts = budgetUsage.filter((budget) => budget.is_over_budget || budget.is_near_limit).slice(0, 3);
-
   return (
     <aside className="hidden w-64 shrink-0 border-r border-borderSoft/80 bg-background/82 px-4 py-5 shadow-panel lg:block">
       <div className="flex items-center gap-3 px-2">
@@ -60,26 +56,6 @@ export function Sidebar({
         })}
       </nav>
 
-      <div className="mt-8 rounded-lg border border-borderSoft/90 bg-panel/82 p-4 ring-1 ring-white/[0.025]">
-        <div className="flex items-center gap-2 text-sm font-medium text-text">
-          <Bell size={16} className="text-amber" />
-            {t("budgetAlerts")}
-          </div>
-        {activeAlerts.length === 0 ? (
-          <p className="mt-2 text-sm leading-5 text-muted">{t("noBudgetAlerts")}</p>
-        ) : (
-          <div className="mt-3 space-y-2">
-            {activeAlerts.map((budget) => (
-              <div className="rounded-md border border-borderSoft bg-background px-3 py-2" key={budget.budget_id}>
-                <div className="truncate text-sm font-medium text-text">{budget.category_name}</div>
-                <div className={budget.is_over_budget ? "mt-1 text-xs text-rose" : "mt-1 text-xs text-amber"}>
-                  {budget.is_over_budget ? t("overBudget") : t("nearBudgetLimit")} - {Math.round(budget.usage_percentage)}%
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
     </aside>
   );
 }

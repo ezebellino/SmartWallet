@@ -26,3 +26,9 @@ class UserRepository:
         self.db.refresh(user)
         return user
 
+    def update_full_name(self, user: User, full_name: str) -> User:
+        user.full_name = full_name
+        self.db.commit()
+        self.db.refresh(user)
+        return user
+

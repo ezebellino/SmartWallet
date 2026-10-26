@@ -13,6 +13,7 @@ type Props = {
   onPeriodChange: (direction: "previous" | "next" | "current") => void;
   onSync: () => void;
   onLogout: () => void;
+  onProfileClick: () => void;
   language: Language;
   onLanguageChange: (language: Language) => void;
   t: (key: TranslationKey) => string;
@@ -28,6 +29,7 @@ export function DashboardHeader({
   onPeriodChange,
   onSync,
   onLogout,
+  onProfileClick,
   language,
   onLanguageChange,
   t
@@ -46,16 +48,17 @@ export function DashboardHeader({
     goals: "goals",
     dollars: "dollarSavings",
     investments: "investments",
-    aiReports: "aiReports"
+    aiReports: "aiReports",
+    profile: "profile"
   };
 
   return (
-    <header className="rounded-lg border border-borderSoft/80 bg-panel/54 p-3 shadow-panel ring-1 ring-white/[0.025] sm:p-4 md:flex md:flex-col md:items-stretch md:gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
+    <header className="border-b border-borderSoft pb-4 md:flex md:flex-col md:items-stretch md:gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
       <div>
         <h1 className="text-xl font-semibold leading-tight text-text sm:text-2xl">{t(sectionTitle[activeSection])}</h1>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2 md:mt-0">
-        <div className="inline-flex items-center overflow-hidden rounded-md border border-borderSoft bg-background/60 text-sm text-muted">
+        {activeSection !== "profile" && activeSection !== "investments" && activeSection !== "aiReports" ? <div className="inline-flex items-center overflow-hidden rounded-md border border-borderSoft bg-background/60 text-sm text-muted">
           <button
             className="grid h-9 w-9 place-items-center transition hover:bg-panelSoft hover:text-text sm:h-10 sm:w-10"
             onClick={() => onPeriodChange("previous")}
@@ -80,8 +83,8 @@ export function DashboardHeader({
           >
             <ChevronRight size={15} />
           </button>
-        </div>
-        <button
+        </div> : null}
+        {activeSection !== "profile" ? <button
           aria-label={isSyncing ? t("syncingBackend") : t("syncBackend")}
           className="inline-flex h-9 w-9 items-center justify-center gap-2 rounded-md border border-cyan/35 bg-cyan/10 text-sm font-semibold text-cyan transition hover:bg-cyan/15 disabled:cursor-wait disabled:opacity-60 sm:h-10 sm:w-auto sm:px-4"
           disabled={isSyncing}
@@ -91,8 +94,8 @@ export function DashboardHeader({
         >
           <RefreshCw className={isSyncing ? "animate-spin" : undefined} size={16} />
           <span className="hidden sm:inline">{isSyncing ? t("syncingBackend") : t("syncBackend")}</span>
-        </button>
-        <LanguageToggle language={language} onChange={onLanguageChange} label={t("language")} />
+        </button> : null}
+        {activeSection !== "profile" ? <LanguageToggle language={language} onChange={onLanguageChange} label={t("language")} /> : null}
         <div
           className={`${isSessionNearEnd ? "inline-flex border-amber/35 bg-amber/10 text-amber" : "hidden border-borderSoft bg-background/60 text-muted sm:inline-flex"} items-center gap-2 rounded-md border px-3 py-2 text-sm`}
           title={t("sessionTimeRemaining")}
@@ -100,10 +103,10 @@ export function DashboardHeader({
           <Clock3 size={15} />
           {sessionMinutes} min
         </div>
-        <div className="hidden items-center gap-2 rounded-md border border-borderSoft bg-background/60 px-3 py-2 text-sm text-muted sm:inline-flex">
+        {activeSection !== "profile" ? <button aria-label={t("profile")} className="inline-flex h-9 max-w-40 items-center gap-2 truncate rounded-md border border-borderSoft bg-background/60 px-3 py-2 text-sm text-muted transition hover:text-text sm:h-10" onClick={onProfileClick} title={t("profile")} type="button">
           <UserRound size={15} />
-          {userName}
-        </div>
+          <span className="hidden truncate sm:inline">{userName}</span>
+        </button> : null}
         <button aria-label={t("logout")} className="inline-flex h-9 w-9 items-center justify-center gap-2 rounded-md text-sm font-semibold text-muted transition hover:bg-panelSoft hover:text-text sm:h-10 sm:w-auto sm:px-2" onClick={onLogout} title={t("logout")} type="button">
           <LogOut size={15} />
           <span className="hidden sm:inline">{t("logout")}</span>

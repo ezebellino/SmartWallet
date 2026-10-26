@@ -46,7 +46,6 @@ PROVIDER_DEFAULTS = {
 }
 
 ALPHA_VANTAGE_ASSET_TYPES = {
-    InvestmentAssetType.cedear,
     InvestmentAssetType.etf,
     InvestmentAssetType.index,
     InvestmentAssetType.stock,
@@ -150,7 +149,7 @@ class ExternalMarketDataProvider:
             fetched_at=datetime.now(timezone.utc),
         )
 
-    def fetch_iol_price(self, symbol: str, currency: str, username: str, password: str, market: str = "BCBA") -> ProviderQuote:
+    def fetch_iol_price(self, symbol: str, currency: str, username: str, password: str, market: str = "BCBA", require_currency: bool = False) -> ProviderQuote:
         normalized_symbol = symbol.upper().strip()
         token_response = httpx.post(
             "https://api.invertironline.com/token",
@@ -175,6 +174,24 @@ class ExternalMarketDataProvider:
         )
         quote_response.raise_for_status()
         quote_data: dict[str, Any] = quote_response.json()
+        reported_currency = quote_data.get("moneda")
+        if require_currency and not isinstance(reported_currency, str):
+            raise ValueError("IOL quote did not confirm the CEDEAR currency")
+        if isinstance(reported_currency, str) and reported_currency.strip():
+            normalized_currency = {
+                "ARS": "ARS",
+                "PESO": "ARS",
+                "PESOS": "ARS",
+                "PESOS_ARGENTINOS": "ARS",
+                "USD": "USD",
+                "DOLAR": "USD",
+                "DOLARES": "USD",
+                "DOLARES_ESTADOUNIDENSES": "USD",
+            }.get(reported_currency.upper().strip())
+            if normalized_currency is None or normalized_currency != currency.upper():
+                raise ValueError("IOL quote currency does not match the asset currency")
+        elif require_currency:
+            raise ValueError("IOL quote did not confirm the CEDEAR currency")
         price = self._extract_iol_price(quote_data)
         if price is None:
             raise ValueError(f"IOL did not return a price for {market}/{normalized_symbol}")
@@ -263,7 +280,7 @@ class MarketDataService:
                 key="alphavantage",
                 name="Alpha Vantage",
                 coverage="Stocks, ETFs, and indexes",
-                supported_asset_types=["stock", "etf", "index", "cedear"],
+                supported_asset_types=["stock", "etf", "index"],
                 supported_symbols=[],
                 configured_assets_count=len(alpha_vantage_assets),
                 last_refresh_at=self._latest_refresh_at(asset for asset in assets if asset.price_source == "alphavantage"),
@@ -352,6 +369,9 @@ class MarketDataService:
                     message=self._skipped_message(asset, provider_requests),
                 )
 
+            if quote.currency.upper() != asset.currency.upper() or quote.price <= 0:
+                raise ValueError("Market quote currency mismatch or invalid price")
+
             self.investments.update_asset_market_price(
                 asset=asset,
                 price=quote.price,
@@ -384,6 +404,20 @@ class MarketDataService:
     def _fetch_quote(self, asset: InvestmentAsset, provider_requests: dict[str, int]) -> ProviderQuote | None:
         symbol = asset.symbol.upper().strip()
         currency = asset.currency.upper().strip()
+
+        if asset.asset_type == InvestmentAssetType.cedear:
+            if currency != "ARS" or not self._is_provider_enabled(asset.user_id, "iol"):
+                return None
+            credentials = self._get_iol_credentials(asset.user_id)
+            if not credentials:
+                raise ValueError("IOL username and password are required")
+            return self.provider.fetch_iol_price(
+                symbol=symbol,
+                currency=currency,
+                username=credentials["username"],
+                password=credentials["password"],
+                require_currency=True,
+            )
 
         if asset.asset_type == InvestmentAssetType.crypto:
             if not self._is_provider_enabled(asset.user_id, "coingecko"):
@@ -420,6 +454,10 @@ class MarketDataService:
         return None
 
     def _skipped_message(self, asset: InvestmentAsset, provider_requests: dict[str, int]) -> str:
+        if asset.asset_type == InvestmentAssetType.cedear:
+            if asset.currency.upper() != "ARS":
+                return "Automatic CEDEAR quotes currently support ARS only; enter a manual price"
+            return "Enable IOL to refresh local CEDEAR prices; Alpha Vantage is not a CEDEAR quote"
         if (
             asset.asset_type in ALPHA_VANTAGE_ASSET_TYPES
             and self._is_provider_enabled(asset.user_id, "alphavantage")

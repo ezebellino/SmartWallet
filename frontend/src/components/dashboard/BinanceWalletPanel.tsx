@@ -11,6 +11,7 @@ import type {
 } from "@/types/api";
 
 type Props = {
+  mode: "summary" | "management";
   account: BinanceAccount | null;
   integration: BinanceIntegration | null;
   isDisabled: boolean;
@@ -69,6 +70,7 @@ function alertClassName(alert: BinancePortfolioAlert) {
 }
 
 export function BinanceWalletPanel({
+  mode,
   account,
   integration,
   isDisabled,
@@ -145,7 +147,7 @@ export function BinanceWalletPanel({
   const alerts = portfolioSummary?.alerts ?? [];
 
   return (
-    <div className="mt-5 rounded-md border border-borderSoft bg-background p-3">
+    <div className="mt-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-sm font-medium text-text">
@@ -161,7 +163,7 @@ export function BinanceWalletPanel({
         </span>
       </div>
 
-      <div className="mt-3 rounded-md border border-borderSoft bg-panel p-3">
+      {mode === "summary" ? <div className="mt-3 rounded-md border border-borderSoft bg-panel p-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 text-sm font-semibold text-text">
@@ -248,9 +250,9 @@ export function BinanceWalletPanel({
             </div>
           )}
         </div>
-      </div>
+      </div> : null}
 
-      <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+      {mode === "management" ? <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <div className="rounded-md border border-borderSoft bg-panel p-3">
           <div className="flex items-center gap-2 text-sm font-semibold text-text">
             <KeyRound size={15} className="text-cyan" />
@@ -387,7 +389,7 @@ export function BinanceWalletPanel({
             )}
           </div>
         </div>
-      </div>
+      </div> : null}
     </div>
   );
 }

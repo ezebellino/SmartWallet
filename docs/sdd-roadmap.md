@@ -190,3 +190,29 @@ Objetivo: dejar el producto listo para operar sin fragilidad.
 - Mantener textos visibles en español e ingles.
 - Si una integracion externa falla, la app debe seguir usable.
 - Cada mejora completada debe tacharse en este documento.
+
+## Etapa UX/UI y perfil - 2026-10-26
+
+- [x] ~~Eliminar navegacion redundante en escritorio y acciones repetidas del inicio.~~
+- [x] ~~Perfil autenticado con nombre editable, correo de solo lectura e idioma.~~
+- [x] ~~Separar Inversiones en Cartera, Actividad, Analisis y Conexiones.~~
+- [x] ~~Separar composicion Binance de credenciales y sincronizacion.~~
+- [x] ~~Agregar noticias oficiales de politica monetaria con fuente, fecha, enlace y cache.~~
+- [x] ~~Validar frontend con typecheck/build y backend con suite completa (84 tests).~~
+- [x] ~~Probar perfil persistente, noticias y navegacion en escritorio y movil con cuenta ficticia.~~
+- [ ] Comparar fuentes adicionales para acciones/CEDEARs (cobertura, licencia, costo y limites).
+- [ ] Diseñar ideas de investigacion basadas en datos y riesgo; no generar ordenes ni recomendaciones de compra personalizadas sin una metodologia auditada.
+- [ ] Validar el cambio en Railway antes de publicar; no se desplego en esta etapa.
+
+## CEDEARs - 2026-10-26
+
+- [x] ~~Separar CEDEARs de Alpha Vantage: el precio de la acción subyacente no equivale al del certificado local.~~
+- [x] ~~Usar IOL para CEDEARs en ARS y conservar el precio anterior cuando la cotización no confirma moneda, no es ARS o es inválida.~~
+- [x] ~~Excluir cotizaciones históricas de Alpha Vantage de la valuación y alertar sin borrar datos.~~
+- [x] ~~Mostrar CEDEARs, fuente, fecha, moneda, precio y estado sin cotización en Cartera; carga en Actividad.~~
+- [x] ~~Agregar pruebas de ruta IOL, falta de credenciales, moneda errónea, variante USD y legado; parser de moneda probado de forma aislada.~~
+- [x] ~~Ejecutar pruebas backend en Python 3.12/Docker efímero, sin red y con fuentes de solo lectura: 22 focales y 90 en suite completa. `npm run typecheck` pasó.~~
+- [x] ~~Completar `npm run build`: pasó al usar `NEXT_DIST_DIR=.next-cedear-build`, separado de la vista previa activa en `.next`. `npm run typecheck` también pasó.~~
+- [ ] Validar la respuesta real de IOL con un CEDEAR en ARS autorizado y comprobar que incluya moneda; si no la incluye, no aceptar el precio automáticamente hasta tener otra verificación fiable.
+- [x] ~~Smoke autenticado con cuenta ficticia: crear CEDEAR AAPL en ARS, registrar compra de 2 certificados, ver valuación ARS 24.000 y alternar ES/EN. Vista de 390 px sin overflow ni errores de consola. Frontend local `127.0.0.1:3002`, backend SQLite temporal `127.0.0.1:8002`.~~
+- [ ] Despliegue controlado a Railway. Ningún cambio de esta etapa está publicado allí.

@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 
 from app.models.investment import (
     InvestmentAsset,
+    InvestmentAssetType,
     InvestmentOperation,
     InvestmentOperationType,
 )
@@ -197,6 +198,18 @@ class InvestmentService:
         stale_before = datetime.now(timezone.utc) - timedelta(days=STALE_PRICE_DAYS)
 
         for asset in assets:
+            if asset.asset_type == InvestmentAssetType.cedear and asset.price_source == "alphavantage":
+                alerts.append(
+                    InvestmentAlert(
+                        type="invalid_cedear_price",
+                        severity="high",
+                        title=f"{asset.symbol} has an unverified CEDEAR price",
+                        description="An older Alpha Vantage quote may be for the foreign share, not the local certificate. Add a manual ARS price or refresh through IOL.",
+                        asset_id=asset.id,
+                        symbol=asset.symbol,
+                    )
+                )
+                continue
             if asset.current_price is None or asset.price_updated_at is None:
                 alerts.append(
                     InvestmentAlert(
@@ -293,7 +306,10 @@ class InvestmentService:
         quantity = self._calculate_quantity(asset.operations)
         invested_amount = self._calculate_net_invested(asset.operations)
         average_cost = self._money(invested_amount / quantity) if quantity > 0 else Decimal("0.00")
-        estimated_value = self._money(quantity * asset.current_price) if asset.current_price is not None else None
+        trusted_price = asset.current_price if not (
+            asset.asset_type == InvestmentAssetType.cedear and asset.price_source == "alphavantage"
+        ) else None
+        estimated_value = self._money(quantity * trusted_price) if trusted_price is not None else None
         unrealized_gain_loss = (
             self._money(estimated_value - invested_amount) if estimated_value is not None else None
         )

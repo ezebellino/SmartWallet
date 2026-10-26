@@ -3,6 +3,7 @@ export type AuthResponse = {
     id: number;
     email: string;
     full_name: string;
+    created_at?: string;
   };
   token: {
     access_token: string;
