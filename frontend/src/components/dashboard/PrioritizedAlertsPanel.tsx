@@ -191,12 +191,9 @@ export function PrioritizedAlertsPanel({
       </div>
 
       {alerts.length === 0 ? (
-        <div className="mt-4 flex items-start gap-3 rounded-lg border border-emerald/25 bg-emerald/10 p-4 text-sm text-muted">
-          <CheckCircle2 size={17} className="mt-0.5 shrink-0 text-emerald" />
-          <div>
-            <p className="font-semibold text-text">{t("priorityAlertsEmptyTitle")}</p>
-            <p className="mt-1">{t("priorityAlertsEmptyBody")}</p>
-          </div>
+        <div className="mt-3 flex items-center gap-2 border-t border-borderSoft pt-3 text-sm text-muted">
+          <CheckCircle2 size={16} className="shrink-0 text-emerald" />
+          <p>{t("priorityAlertsEmptyTitle")}</p>
         </div>
       ) : (
         <div className="mt-3 grid gap-2">

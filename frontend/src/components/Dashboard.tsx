@@ -135,6 +135,7 @@ import { PlanningPanel } from "@/components/dashboard/PlanningPanel";
 import { ProfilePanel } from "@/components/dashboard/ProfilePanel";
 import { PrioritizedAlertsPanel } from "@/components/dashboard/PrioritizedAlertsPanel";
 import { QuickActionsBar } from "@/components/dashboard/QuickActionsBar";
+import { RecentActivityPanel } from "@/components/dashboard/RecentActivityPanel";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { StatusToast } from "@/components/dashboard/StatusToast";
 import { TopExpenseCategoriesPanel } from "@/components/dashboard/TopExpenseCategoriesPanel";
@@ -1420,49 +1421,53 @@ export function Dashboard({ token, userName, onNameChange, sessionRemainingMs, o
           ) : null}
 
         {activeSection === "dashboard" ? (
-          <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-            <div className="space-y-4">
-              <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.9fr)]">
-                <PrioritizedAlertsPanel
-                  budgetUsage={budgetUsage}
-                  categoryExpenseIncrease={categoryExpenseIncrease}
-                  investmentAlerts={investmentAlerts}
-                  monthlyProjection={monthlyProjection}
-                  onSectionChange={setActiveSection}
-                  reportReady={Boolean(report)}
-                  t={t}
-                />
-                <FinancialHealthPanel
-                  budgetCount={budgets.length}
-                  budgetUsage={budgetUsage}
-                  categoryExpenseIncrease={categoryExpenseIncrease}
-                  monthlyProjection={monthlyProjection}
-                  onReviewPlan={() => setActiveSection("budgets")}
-                  savingsRate={metrics.savingsRate}
-                  t={t}
-                />
-              </div>
-              <div className="grid gap-4 2xl:grid-cols-2">
-                <MonthlyComparisonPanel comparison={monthlyComparison} t={t} />
-                <MonthlyProjectionPanel
-                  onReviewMovements={() => setActiveSection("movements")}
-                  projection={monthlyProjection}
-                  t={t}
-                />
-              </div>
-              <CashflowChart data={cashflowData} t={t} />
-              <ExpenseCategories data={expenseCategoryData} t={t} />
+          <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+            <div className="min-w-0 space-y-4">
+              <RecentActivityPanel
+                categories={categories}
+                language={language}
+                month={selectedDashboardPeriod.month}
+                onReviewMovements={() => setActiveSection("movements")}
+                t={t}
+                transactions={transactions}
+                year={selectedDashboardPeriod.year}
+              />
+              <details className="group border-t border-borderSoft pt-3">
+                <summary className="cursor-pointer py-2 text-sm font-semibold text-cyan marker:text-muted hover:text-text">
+                  {t("dashboardAnalysis")}
+                </summary>
+                <div className="mt-3 space-y-4">
+                  <div className="grid gap-4 2xl:grid-cols-2">
+                    <FinancialHealthPanel
+                      budgetCount={budgets.length}
+                      budgetUsage={budgetUsage}
+                      categoryExpenseIncrease={categoryExpenseIncrease}
+                      monthlyProjection={monthlyProjection}
+                      onReviewPlan={() => setActiveSection("budgets")}
+                      savingsRate={metrics.savingsRate}
+                      t={t}
+                    />
+                    <MonthlyComparisonPanel comparison={monthlyComparison} t={t} />
+                  </div>
+                  <MonthlyProjectionPanel
+                    onReviewMovements={() => setActiveSection("movements")}
+                    projection={monthlyProjection}
+                    t={t}
+                  />
+                  <CashflowChart data={cashflowData} t={t} />
+                  <ExpenseCategories data={expenseCategoryData} t={t} />
+                </div>
+              </details>
             </div>
 
             <aside className="space-y-4">
-              <TopExpenseCategoriesPanel
-                categories={summary?.expense_by_category ?? []}
-                onReviewMovements={() => setActiveSection("movements")}
-                t={t}
-              />
-              <BiggestExpenseIncreasePanel
-                increase={categoryExpenseIncrease}
-                onReviewMovements={() => setActiveSection("movements")}
+              <PrioritizedAlertsPanel
+                budgetUsage={budgetUsage}
+                categoryExpenseIncrease={categoryExpenseIncrease}
+                investmentAlerts={investmentAlerts}
+                monthlyProjection={monthlyProjection}
+                onSectionChange={setActiveSection}
+                reportReady={Boolean(report)}
                 t={t}
               />
               <NotificationsInbox
@@ -1474,6 +1479,20 @@ export function Dashboard({ token, userName, onNameChange, sessionRemainingMs, o
                 onSectionChange={setActiveSection}
                 t={t}
               />
+              {(summary?.expense_by_category.length ?? 0) > 0 ? (
+                <TopExpenseCategoriesPanel
+                  categories={summary?.expense_by_category ?? []}
+                  onReviewMovements={() => setActiveSection("movements")}
+                  t={t}
+                />
+              ) : null}
+              {categoryExpenseIncrease?.category ? (
+                <BiggestExpenseIncreasePanel
+                  increase={categoryExpenseIncrease}
+                  onReviewMovements={() => setActiveSection("movements")}
+                  t={t}
+                />
+              ) : null}
             </aside>
           </div>
         ) : null}

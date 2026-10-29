@@ -226,4 +226,7 @@ Objetivo: dejar el producto listo para operar sin fragilidad.
 - [x] ~~Dejar la cabecera con mes, idioma, sesion y salida; sincronizacion pasa al menu visible para cada tamaño.~~
 - [x] ~~Validar con cuenta ficticia: escritorio 1440 px, movil 390/320 px y tablet 768 px, ES/EN, teclado, foco, sin overflow ni errores de consola. Typecheck y build web OK.~~
 - [x] ~~Publicar `335fb4f` en GitHub; Railway frontend `SUCCESS`, backend y worker sin cambios. Login publico sin errores de consola. Navegacion autenticada validada solo con cuenta ficticia local.~~
-- [ ] Segunda etapa: jerarquia del Dashboard, paneles vacios y tarjetas repetidas. No se modifico en este cambio.
+- [x] ~~Segunda etapa: Dashboard con actividad reciente del periodo como bloque principal, prioridades a un lado, analisis detallado desplegable y estados vacios compactos en alertas/notificaciones.~~
+- [x] ~~Mantener acceso a graficos, salud financiera, comparaciones y proyeccion; ocultar rankings sin datos y agregar textos ES/EN. Typecheck y build web aislado OK.~~
+- [x] ~~Dashboard autenticado validado con backend SQLite de QA en `127.0.0.1:8003` y frontend en `127.0.0.1:3003`: registro, categoria y gasto ficticios; actividad reciente, analisis desplegable y ES/EN. Chrome sin errores de consola; 1440, 390 y 320 px sin overflow tras ajustar la columna movil.~~
+- [ ] Compose principal no pudo tomar `8000` porque lo ocupa otra vista previa de SmartWallet; no se detuvieron contenedores ajenos ni se tocaron datos reales. PostgreSQL iniciado durante el intento se detuvo. Falta decidir puerto/servicio antes de usar Compose principal.
