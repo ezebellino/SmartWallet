@@ -61,7 +61,7 @@ export function Sidebar({
       <button
         aria-current={active ? "page" : undefined}
         aria-label={collapsed ? t(label) : undefined}
-        className={`flex h-10 w-full items-center rounded-md text-left text-sm font-medium transition-colors ${collapsed ? "justify-center px-0" : "gap-3 px-3"} ${active ? "bg-cyan/10 text-cyan" : "text-muted hover:bg-panelSoft hover:text-text"}`}
+        className={`flex h-10 w-full items-center rounded-md border-l-2 text-left text-sm font-medium transition-colors ${collapsed ? "justify-center px-0" : "gap-3 px-3"} ${active ? "border-cyan bg-cyan/10 text-text" : "border-transparent text-muted hover:bg-panelSoft hover:text-text"}`}
         key={section}
         onClick={() => onSectionChange(section)}
         title={collapsed ? t(label) : undefined}
@@ -74,12 +74,12 @@ export function Sidebar({
   }
 
   return (
-    <aside className={`sticky top-0 hidden h-screen shrink-0 flex-col border-r border-borderSoft bg-background transition-[width] duration-200 lg:flex ${collapsed ? "w-[72px] px-3" : "w-60 px-4"}`}>
+    <aside className={`sticky top-0 hidden h-screen shrink-0 flex-col border-r border-borderSoft bg-panel transition-[width] duration-200 lg:flex ${collapsed ? "w-[72px] px-3" : "w-60 px-4"}`}>
       <div className={`flex h-20 shrink-0 items-center ${collapsed ? "justify-center" : "justify-between gap-2"}`}>
         {!collapsed ? <div className="flex min-w-0 items-center gap-3">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-emerald/25 bg-emerald/10 text-emerald"><WalletCards size={19} /></div>
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-emerald text-background"><WalletCards size={19} /></div>
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-text">Smart Wallet AI</div>
+            <div className="truncate font-display text-base font-semibold text-text">Smart Wallet AI</div>
             <div className="truncate text-xs text-muted">{t("personalFinance")}</div>
           </div>
         </div> : null}
@@ -107,7 +107,7 @@ export function Sidebar({
         <button
           aria-current={activeSection === "profile" ? "page" : undefined}
           aria-label={collapsed ? t("profile") : undefined}
-          className={`flex h-12 w-full items-center rounded-md text-left text-sm transition-colors ${collapsed ? "justify-center" : "gap-3 px-3"} ${activeSection === "profile" ? "bg-cyan/10 text-cyan" : "text-muted hover:bg-panelSoft hover:text-text"}`}
+          className={`flex h-12 w-full items-center rounded-md border-l-2 text-left text-sm transition-colors ${collapsed ? "justify-center" : "gap-3 px-3"} ${activeSection === "profile" ? "border-cyan bg-cyan/10 text-text" : "border-transparent text-muted hover:bg-panelSoft hover:text-text"}`}
           onClick={() => onSectionChange("profile")}
           title={collapsed ? t("profile") : undefined}
           type="button"

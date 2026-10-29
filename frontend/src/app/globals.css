@@ -4,7 +4,7 @@
 
 :root {
   color-scheme: dark;
-  background: #070b0f;
+  background: #171918;
 }
 
 * {
@@ -18,9 +18,22 @@ body {
 }
 
 body {
-  background: #0b1015;
-  color: #f8fafc;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #171918;
+  color: #f5f6f2;
+  font-family: "Segoe UI Variable Text", "Segoe UI", Arial, sans-serif;
+}
+
+h1,
+h2,
+h3 {
+  font-family: Bahnschrift, "Arial Narrow", "Segoe UI", sans-serif;
+  font-stretch: semi-condensed;
+  letter-spacing: 0;
+}
+
+::selection {
+  background: #7ed7cb;
+  color: #171918;
 }
 
 button,
@@ -38,7 +51,7 @@ button:disabled {
 }
 
 .chart-grid line {
-  stroke: rgba(148, 163, 184, 0.18);
+  stroke: rgba(177, 185, 180, 0.2);
 }
 
 .recharts-wrapper,
@@ -51,5 +64,5 @@ button:disabled {
 }
 
 .recharts-text {
-  fill: #9fb5c8;
+  fill: #b1b9b4;
 }

@@ -212,30 +212,30 @@ export function PlanningPanel({ insights, isDisabled, onSimulate, t }: Props) {
               <div className="h-44 rounded-md border border-borderSoft bg-panel p-2">
                 <ResponsiveContainer width="100%" height="100%">
                   <RechartsLineChart data={chartData}>
-                    <XAxis dataKey="month" tick={{ fill: "#7d8597", fontSize: 11 }} />
+                    <XAxis dataKey="month" tick={{ fill: "#b1b9b4", fontSize: 11 }} />
                     <YAxis hide />
                     <Tooltip
                       formatter={(value) => formatMoney(Number(value ?? 0))}
                       labelFormatter={(label) => `${t("month")} ${label}`}
                       contentStyle={{
-                        background: "#111827",
-                        border: "1px solid rgba(255,255,255,0.12)",
+                        background: "#242826",
+                        border: "1px solid #46504b",
                         borderRadius: 8,
-                        color: "#f8fafc"
+                        color: "#f5f6f2"
                       }}
                     />
                     <Line
                       dataKey="contributions"
                       dot={false}
                       name={t("totalContributions")}
-                      stroke="#38bdf8"
+                      stroke="#7ed7cb"
                       strokeWidth={2}
                     />
                     <Line
                       dataKey="balance"
                       dot={false}
                       name={t("finalBalance")}
-                      stroke="#16f2a4"
+                      stroke="#a9dc75"
                       strokeWidth={2}
                     />
                   </RechartsLineChart>

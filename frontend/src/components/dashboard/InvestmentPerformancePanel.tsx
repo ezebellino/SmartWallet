@@ -203,37 +203,37 @@ export function InvestmentPerformancePanel({ assets, isDisabled, onLoadPriceHist
               <div className="mt-4 h-64 min-w-0 rounded-md border border-borderSoft bg-panel p-2">
                 <ResponsiveContainer height="100%" width="100%">
                   <RechartsLineChart data={chartData} margin={{ bottom: 8, left: 0, right: 10, top: 10 }}>
-                    <CartesianGrid stroke="rgba(148, 163, 184, 0.16)" vertical={false} />
+                    <CartesianGrid stroke="rgba(177, 185, 180, 0.2)" vertical={false} />
                     <XAxis
                       dataKey="label"
                       minTickGap={28}
-                      stroke="#8b949e"
-                      tick={{ fill: "#8b949e", fontSize: 11 }}
+                      stroke="#b1b9b4"
+                      tick={{ fill: "#b1b9b4", fontSize: 11 }}
                       tickLine={false}
                     />
                     <YAxis
                       domain={["dataMin", "dataMax"]}
-                      stroke="#8b949e"
-                      tick={{ fill: "#8b949e", fontSize: 11 }}
+                      stroke="#b1b9b4"
+                      tick={{ fill: "#b1b9b4", fontSize: 11 }}
                       tickFormatter={(value) => Number(value).toLocaleString("es-AR", { maximumFractionDigits: 0 })}
                       tickLine={false}
                       width={54}
                     />
                     <Tooltip
                       contentStyle={{
-                        background: "#101820",
-                        border: "1px solid rgba(148, 163, 184, 0.24)",
+                        background: "#242826",
+                        border: "1px solid #46504b",
                         borderRadius: 6,
-                        color: "#f8fafc"
+                        color: "#f5f6f2"
                       }}
                       formatter={(value) => [formatMoney(Number(value), currency), t("currentPrice")]}
                       labelFormatter={(_, payload) => payload?.[0]?.payload?.fullDate ?? ""}
                     />
                     <Line
                       dataKey="price"
-                      dot={{ fill: "#22d3ee", r: 3, strokeWidth: 0 }}
+                      dot={{ fill: "#7ed7cb", r: 3, strokeWidth: 0 }}
                       isAnimationActive={false}
-                      stroke="#22d3ee"
+                      stroke="#7ed7cb"
                       strokeWidth={2}
                       type="monotone"
                     />

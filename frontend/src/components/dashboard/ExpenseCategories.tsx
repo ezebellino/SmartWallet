@@ -10,7 +10,7 @@ type Props = {
   t: (key: TranslationKey) => string;
 };
 
-const chartColors = ["#38bdf8", "#16f2a4", "#fbbf24", "#fb7185", "#a78bfa", "#22d3ee"];
+const chartColors = ["#7ed7cb", "#a9dc75", "#f1c36a", "#f28d8b", "#b8a7e8", "#8db5ef"];
 
 export function ExpenseCategories({ data, t }: Props) {
   const chartData = useMemo(() => {
@@ -57,7 +57,7 @@ export function ExpenseCategories({ data, t }: Props) {
                     nameKey="name"
                     outerRadius={98}
                     paddingAngle={2}
-                    stroke="#10161d"
+                    stroke="#242826"
                     strokeWidth={3}
                   >
                     {chartData.map((entry) => (
@@ -66,14 +66,14 @@ export function ExpenseCategories({ data, t }: Props) {
                   </Pie>
                   <Tooltip
                     contentStyle={{
-                      background: "#081018",
-                      border: "1px solid rgba(56, 189, 248, 0.28)",
-                      borderRadius: 8,
-                      boxShadow: "0 18px 40px rgba(0, 0, 0, 0.35)",
-                      color: "#f8fafc"
+                      background: "#242826",
+                      border: "1px solid #46504b",
+                      borderRadius: 6,
+                      boxShadow: "0 8px 20px rgba(0, 0, 0, 0.24)",
+                      color: "#f5f6f2"
                     }}
                     formatter={(value) => formatMoney(Number(value))}
-                    labelStyle={{ color: "#bfdbfe", fontWeight: 700 }}
+                    labelStyle={{ color: "#7ed7cb", fontWeight: 700 }}
                   />
                 </RechartsPieChart>
               </ResponsiveContainer>

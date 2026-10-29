@@ -47,13 +47,13 @@ export function AuthPanel({ onAuthenticated, language, onLanguageChange }: Props
 
   return (
     <div className="grid min-h-screen place-items-center px-5 py-10">
-      <div className="w-full max-w-md rounded-lg border border-borderSoft bg-panel/95 p-6 shadow-panel">
+      <div className="w-full max-w-md rounded-md border border-borderSoft border-t-4 border-t-emerald bg-panel p-6 shadow-panel sm:p-8">
         <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-md bg-emerald/12 text-emerald">
+          <div className="grid h-10 w-10 place-items-center rounded-md bg-emerald text-background">
             <LockKeyhole size={20} />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-text">Smart Wallet AI</h1>
+            <h1 className="font-display text-2xl font-semibold text-text">Smart Wallet AI</h1>
             <p className="text-sm text-muted">{t("authSubtitle")}</p>
           </div>
         </div>
@@ -125,7 +125,7 @@ export function AuthPanel({ onAuthenticated, language, onLanguageChange }: Props
           {error && <p className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-sm text-rose" role="alert">{error}</p>}
 
           <button
-            className="w-full rounded-md bg-emerald px-4 py-3 text-sm font-semibold text-black transition hover:bg-emerald/90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-md bg-emerald px-4 py-3 text-sm font-semibold text-background transition hover:bg-emerald/90 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={loading}
             type="submit"
           >

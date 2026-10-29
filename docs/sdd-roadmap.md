@@ -232,3 +232,11 @@ Objetivo: dejar el producto listo para operar sin fragilidad.
 - [x] ~~Publicado `ef92dc6` en `origin/main`; Railway `smartwallet-frontend` en `SUCCESS` y dominio publico con login cargando sin errores de consola. Backend online, sin cambios de codigo en esta entrega.~~
 - [ ] Comprobar el Dashboard autenticado en produccion con una cuenta propia; no se usaron credenciales ni datos reales durante el smoke publico.
 - [ ] Compose principal no pudo tomar `8000` porque lo ocupa otra vista previa de SmartWallet; no se detuvieron contenedores ajenos ni se tocaron datos reales. PostgreSQL iniciado durante el intento se detuvo. Falta decidir puerto/servicio antes de usar Compose principal.
+
+## Rediseño visual y claves - 2026-10-29
+
+- [x] ~~Renovar paleta, tipografía, superficies, navegación, login, métricas y gráficos sin modificar flujos financieros.~~
+- [x] ~~Validar typecheck y build web aislado; smoke local con cuenta ficticia en escritorio y móvil, incluyendo Inversiones y Conexiones a 320 px sin overflow ni errores de consola.~~
+- [x] ~~Auditar configuración sin exponer secretos: `OPENAI_API_KEY` está en `backend/.env` local, pero no entre las variables del backend Railway. Las claves de Binance, Mercado Pago, Alpha Vantage e IOL son por usuario y los campos de UI quedan vacíos por seguridad.~~
+- [ ] Configurar `OPENAI_API_KEY` en Railway mediante variable secreta y confirmar `AI_PROVIDER=openai` si se desea el reporte IA real en producción; nunca subir `backend/.env` al repositorio.
+- [ ] Comprobar con la cuenta productiva del usuario el estado de cada integración; no inferir pérdida de claves por campos vacíos.

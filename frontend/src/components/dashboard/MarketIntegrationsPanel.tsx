@@ -1,4 +1,4 @@
-import { Cable, CheckCircle2, KeyRound } from "lucide-react";
+import { Cable, CheckCircle2, CircleAlert, CircleOff, KeyRound } from "lucide-react";
 import { useState } from "react";
 import type { TranslationKey } from "@/i18n";
 import type { MarketDataIntegrationUpdate } from "@/types/api";
@@ -106,7 +106,13 @@ export function MarketIntegrationsPanel({ integrations, isDisabled, onUpdate, t 
                     {integrationCoverageLabel(integration.key, integration.coverage, t)}
                   </p>
                 </div>
-                <CheckCircle2 size={16} className={statusClass(integration.status)} />
+                {integration.status === "active" ? (
+                  <CheckCircle2 size={16} className="shrink-0 text-emerald" />
+                ) : integration.status === "needs_key" ? (
+                  <CircleAlert size={16} className="shrink-0 text-amber" />
+                ) : (
+                  <CircleOff size={16} className="shrink-0 text-muted" />
+                )}
               </div>
 
               <div className="mt-3 space-y-2 text-xs text-muted">
@@ -132,7 +138,7 @@ export function MarketIntegrationsPanel({ integrations, isDisabled, onUpdate, t 
                 {formatSupportedSymbols(integration.supported_symbols)}
               </div>
 
-              <div className="mt-3 flex items-center gap-2 text-xs text-muted">
+              <div className={`mt-3 flex items-center gap-2 text-xs ${integration.auth_required && !integration.has_api_key ? "text-amber" : integration.has_api_key ? "text-emerald" : "text-muted"}`}>
                 <KeyRound size={13} />
                 {integration.auth_required
                   ? integration.has_api_key

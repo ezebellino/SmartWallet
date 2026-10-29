@@ -47,7 +47,7 @@ export function DashboardHeader({
   return (
     <header className="border-b border-borderSoft pb-4 md:flex md:flex-col md:items-stretch md:gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
       <div>
-        <h1 className="text-xl font-semibold leading-tight text-text sm:text-2xl">{t(sectionTitle[activeSection])}</h1>
+        <h1 className="font-display text-2xl font-semibold leading-tight text-text sm:text-[28px]">{t(sectionTitle[activeSection])}</h1>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2 md:mt-0">
         {activeSection !== "profile" && activeSection !== "investments" && activeSection !== "aiReports" ? <div className="inline-flex items-center overflow-hidden rounded-md border border-borderSoft bg-background/60 text-sm text-muted">

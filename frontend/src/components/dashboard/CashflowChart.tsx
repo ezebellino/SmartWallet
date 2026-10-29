@@ -35,26 +35,26 @@ export function CashflowChart({ data, t }: Props) {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ bottom: 0, left: 0, right: 8, top: 8 }}>
               <CartesianGrid className="chart-grid" vertical={false} />
-              <XAxis dataKey="name" stroke="#9fb5c8" tickLine={false} axisLine={false} />
+              <XAxis dataKey="name" stroke="#b1b9b4" tickLine={false} axisLine={false} />
               <YAxis
-                stroke="#9fb5c8"
+                stroke="#b1b9b4"
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(value) => `$${Number(value) / 1000}k`}
               />
               <Tooltip
                 contentStyle={{
-                  background: "#081018",
-                  border: "1px solid rgba(56, 189, 248, 0.28)",
-                  borderRadius: 8,
-                  boxShadow: "0 18px 40px rgba(0, 0, 0, 0.35)",
-                  color: "#f8fafc"
+                  background: "#242826",
+                  border: "1px solid #46504b",
+                  borderRadius: 6,
+                  boxShadow: "0 8px 20px rgba(0, 0, 0, 0.24)",
+                  color: "#f5f6f2"
                 }}
-                cursor={{ fill: "rgba(56, 189, 248, 0.08)" }}
-                labelStyle={{ color: "#bfdbfe", fontWeight: 700 }}
+                cursor={{ fill: "rgba(126, 215, 203, 0.1)" }}
+                labelStyle={{ color: "#7ed7cb", fontWeight: 700 }}
               />
-              <Bar dataKey="income" fill="#16f2a4" radius={[6, 6, 0, 0]} isAnimationActive={false} />
-              <Bar dataKey="expenses" fill="#fb7185" radius={[6, 6, 0, 0]} isAnimationActive={false} />
+              <Bar dataKey="income" fill="#a9dc75" radius={[6, 6, 0, 0]} isAnimationActive={false} />
+              <Bar dataKey="expenses" fill="#f28d8b" radius={[6, 6, 0, 0]} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
         )}

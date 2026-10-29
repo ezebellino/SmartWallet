@@ -5,22 +5,23 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#0b1015",
-        panel: "#141b20",
-        panelSoft: "#1b242b",
-        borderSoft: "#344047",
-        muted: "#a3b2b9",
-        text: "#f8fafc",
-        emerald: "#48d9a2",
-        cyan: "#75cdea",
-        amber: "#fbbf24",
-        rose: "#fb7185"
+        background: "#171918",
+        panel: "#242826",
+        panelSoft: "#303634",
+        borderSoft: "#46504b",
+        muted: "#b1b9b4",
+        text: "#f5f6f2",
+        emerald: "#a9dc75",
+        cyan: "#7ed7cb",
+        amber: "#f1c36a",
+        rose: "#f28d8b"
       },
       boxShadow: {
-        panel: "0 3px 12px rgba(0, 0, 0, 0.12)"
+        panel: "0 1px 3px rgba(0, 0, 0, 0.1)"
       },
       fontFamily: {
-        sans: ["Inter", "ui-sans-serif", "system-ui", "Segoe UI", "Arial"]
+        sans: ["Segoe UI Variable Text", "Segoe UI", "Arial", "sans-serif"],
+        display: ["Bahnschrift", "Arial Narrow", "Segoe UI", "sans-serif"]
       }
     }
   },
