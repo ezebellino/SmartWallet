@@ -225,4 +225,5 @@ Objetivo: dejar el producto listo para operar sin fragilidad.
 - [x] ~~Reemplazar la tira horizontal movil por barra inferior con Dashboard, Movimientos, Inversiones y Mas; incluir los demas destinos y sincronizacion en Mas.~~
 - [x] ~~Dejar la cabecera con mes, idioma, sesion y salida; sincronizacion pasa al menu visible para cada tamaño.~~
 - [x] ~~Validar con cuenta ficticia: escritorio 1440 px, movil 390/320 px y tablet 768 px, ES/EN, teclado, foco, sin overflow ni errores de consola. Typecheck y build web OK.~~
+- [x] ~~Publicar `335fb4f` en GitHub; Railway frontend `SUCCESS`, backend y worker sin cambios. Login publico sin errores de consola. Navegacion autenticada validada solo con cuenta ficticia local.~~
 - [ ] Segunda etapa: jerarquia del Dashboard, paneles vacios y tarjetas repetidas. No se modifico en este cambio.
