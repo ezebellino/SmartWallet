@@ -229,4 +229,6 @@ Objetivo: dejar el producto listo para operar sin fragilidad.
 - [x] ~~Segunda etapa: Dashboard con actividad reciente del periodo como bloque principal, prioridades a un lado, analisis detallado desplegable y estados vacios compactos en alertas/notificaciones.~~
 - [x] ~~Mantener acceso a graficos, salud financiera, comparaciones y proyeccion; ocultar rankings sin datos y agregar textos ES/EN. Typecheck y build web aislado OK.~~
 - [x] ~~Dashboard autenticado validado con backend SQLite de QA en `127.0.0.1:8003` y frontend en `127.0.0.1:3003`: registro, categoria y gasto ficticios; actividad reciente, analisis desplegable y ES/EN. Chrome sin errores de consola; 1440, 390 y 320 px sin overflow tras ajustar la columna movil.~~
+- [x] ~~Publicado `ef92dc6` en `origin/main`; Railway `smartwallet-frontend` en `SUCCESS` y dominio publico con login cargando sin errores de consola. Backend online, sin cambios de codigo en esta entrega.~~
+- [ ] Comprobar el Dashboard autenticado en produccion con una cuenta propia; no se usaron credenciales ni datos reales durante el smoke publico.
 - [ ] Compose principal no pudo tomar `8000` porque lo ocupa otra vista previa de SmartWallet; no se detuvieron contenedores ajenos ni se tocaron datos reales. PostgreSQL iniciado durante el intento se detuvo. Falta decidir puerto/servicio antes de usar Compose principal.
