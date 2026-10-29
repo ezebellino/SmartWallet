@@ -217,3 +217,12 @@ Objetivo: dejar el producto listo para operar sin fragilidad.
 - [x] ~~Smoke autenticado con cuenta ficticia: crear CEDEAR AAPL en ARS, registrar compra de 2 certificados, ver valuación ARS 24.000 y alternar ES/EN. Vista de 390 px sin overflow ni errores de consola. Frontend local `127.0.0.1:3002`, backend SQLite temporal `127.0.0.1:8002`.~~
 - [x] ~~GitHub `origin/main` actualizado en `224beba`; Railway autodesplegó frontend, backend y worker Mercado Pago en `SUCCESS`. Login público cargó sin errores de consola.~~
 - [ ] Validar una cotización CEDEAR real en producción con cuenta IOL autorizada; el despliegue no demuestra cobertura ni moneda de la API externa.
+
+## Navegacion UX/UI - 2026-10-29
+
+- [x] ~~Agrupar la barra lateral en Inicio, Dinero, Patrimonio y Analisis; mover Perfil al pie y quitar su acceso duplicado de la cabecera.~~
+- [x] ~~Permitir plegar el menu de escritorio con preferencia local persistente, iconos con tooltip y vista activa accesible.~~
+- [x] ~~Reemplazar la tira horizontal movil por barra inferior con Dashboard, Movimientos, Inversiones y Mas; incluir los demas destinos y sincronizacion en Mas.~~
+- [x] ~~Dejar la cabecera con mes, idioma, sesion y salida; sincronizacion pasa al menu visible para cada tamaño.~~
+- [x] ~~Validar con cuenta ficticia: escritorio 1440 px, movil 390/320 px y tablet 768 px, ES/EN, teclado, foco, sin overflow ni errores de consola. Typecheck y build web OK.~~
+- [ ] Segunda etapa: jerarquia del Dashboard, paneles vacios y tarjetas repetidas. No se modifico en este cambio.

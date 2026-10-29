@@ -1383,15 +1383,17 @@ export function Dashboard({ token, userName, onNameChange, sessionRemainingMs, o
     <div className="flex min-h-screen">
       <Sidebar
         activeSection={activeSection}
+        isSyncing={isSyncing}
         onSectionChange={setActiveSection}
+        onSync={refreshFromApi}
         t={t}
+        userName={userName}
       />
 
-      <main className="min-w-0 flex-1 px-4 py-5 md:px-6 xl:px-8">
+      <main className="min-w-0 flex-1 px-4 pb-24 pt-5 md:px-6 lg:pb-5 xl:px-8">
         <div className="mx-auto max-w-[1480px]">
           <DashboardHeader
             activeSection={activeSection}
-            isSyncing={isSyncing}
             language={language}
             onLanguageChange={onLanguageChange}
             onPeriodChange={handleDashboardPeriodChange}
@@ -1399,13 +1401,10 @@ export function Dashboard({ token, userName, onNameChange, sessionRemainingMs, o
             selectedMonth={selectedDashboardPeriod.month}
             selectedYear={selectedDashboardPeriod.year}
             t={t}
-            userName={userName}
-            onSync={refreshFromApi}
             onLogout={onLogout}
-            onProfileClick={() => setActiveSection("profile")}
           />
           <div className="lg:hidden">
-            <DashboardSectionNav activeSection={activeSection} onChange={setActiveSection} t={t} />
+            <DashboardSectionNav activeSection={activeSection} isSyncing={isSyncing} onChange={setActiveSection} onSync={refreshFromApi} t={t} />
           </div>
           {activeSection === "dashboard" ? (
             <>
